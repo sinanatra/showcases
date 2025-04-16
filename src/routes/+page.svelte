@@ -93,7 +93,15 @@
             {#each uniqueTags as tag}
               <td>
                 {#if pivot[tag] && pivot[tag][rowIndex]}
-                  {pivot[tag][rowIndex]["Text"]}
+                  <h1>
+                    {pivot[tag][rowIndex]["Title"]}
+                  </h1>
+                  <strong>
+                    {pivot[tag][rowIndex]["Location"]}
+                  </strong>
+                  <p>
+                    {pivot[tag][rowIndex]["Text"]}
+                  </p>
                 {/if}
               </td>
             {/each}
