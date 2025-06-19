@@ -1,0 +1,11 @@
+html {
+  --color-1: blue;
+}
+
+body {
+  margin: 10px;
+  font-family: sans-serif;
+  font-size: 18px;
+  overscroll-behavior: none;
+  font-family: Helvetica, Arial, sans-serif;
+}
