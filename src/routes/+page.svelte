@@ -1,135 +1,146 @@
 <script>
   import { onMount } from "svelte";
-  import { csv } from "d3-fetch";
-  import { timeParse } from "d3-time-format";
+  import { writable, derived } from "svelte/store";
+  import * as d3 from "d3";
 
-  let data = [];
-  let groupedData = {};
-  let uniqueWeeks = [];
-  let uniqueTags = [];
-  let selectedWeekIndex = 0;
-  let selectedWeek = "";
+  const articles = writable([]);
+  const filters = writable({ district: "", keyword: "" });
 
-  const parseDate = timeParse("%d.%m.%Y");
+  function parseList(str) {
+    if (!str) return [];
 
-  function getWeekStart(date) {
-    const d = new Date(date);
-    const day = d.getDay();
+    try {
+      const json = str.replace(/'/g, '"');
+      const arr = JSON.parse(json);
+      if (Array.isArray(arr)) return arr;
+    } catch (e) {}
 
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return str.split(/[,;]\s*/).filter(Boolean);
   }
 
-  onMount(async () => {
-    data = await csv("data/tagged_documents_filtered.csv");
+  const filtered = derived([articles, filters], ([$articles, $filters]) =>
+    $articles.filter((a) => {
+      if ($filters.district && a.ExtractedDistrict !== $filters.district)
+        return false;
+      if ($filters.keyword && !a.KeywordMatch.includes($filters.keyword))
+        return false;
+      return true;
+    })
+  );
 
-    data.forEach((d) => {
-      d["Date"] = parseDate(d["Date"]);
-    });
+  let districts = [];
+  let keywords = [];
 
-    groupedData = data.reduce((acc, d) => {
-      if (!d["Date"]) return acc;
-      const weekStart = getWeekStart(d["Date"]);
-      const weekKey = weekStart.toISOString().slice(0, 10);
-      if (!acc[weekKey]) acc[weekKey] = [];
-      acc[weekKey].push(d);
-      return acc;
-    }, {});
-
-    uniqueWeeks = Object.keys(groupedData).sort();
-
-    const tagSet = new Set();
-    data.forEach((d) => {
-      if (d["Tag"]) tagSet.add(d["Tag"]);
-    });
-    uniqueTags = Array.from(tagSet);
-
-    selectedWeek = uniqueWeeks[selectedWeekIndex];
+  articles.subscribe((data) => {
+    districts = Array.from(new Set(data.map((d) => d.ExtractedDistrict)))
+      .filter(Boolean)
+      .sort();
+    keywords = Array.from(new Set(data.flatMap((d) => d.KeywordMatch)))
+      .filter(Boolean)
+      .sort();
   });
 
-  $: if (uniqueWeeks.length) {
-    selectedWeek = uniqueWeeks[selectedWeekIndex];
+  onMount(async () => {
+    const raw = await d3.csv("/parsed.csv");
+    const data = raw.map((d) => {
+      const km = parseList(d.KeywordMatch);
+      const ke = parseList(d.KeywordExtracted);
+      const dtTimes = parseList(d.ExtractedTime);
+      const ages = parseList(d.ExtractedAge);
+      const genders = parseList(d.ExtractedGender);
+      const actions = parseList(d.ExtractedAction);
+
+      const distArr = parseList(d.ExtractedDistrict);
+      const district = distArr.length > 0 ? distArr[0] : d.Location || "";
+      return {
+        ...d,
+        KeywordMatch: km,
+        KeywordExtracted: ke,
+
+        ExtractedTime: dtTimes,
+        ExtractedAge: ages,
+        ExtractedGender: genders,
+        ExtractedAction: actions,
+        ExtractedDistrict: district,
+        ExtractedDate: d.ExtractedDate || d.Date,
+      };
+    });
+    articles.set(data);
+  });
+
+  function highlight(text, terms) {
+    let html = text;
+    terms.forEach((term) => {
+      const re = new RegExp(`(${term})`, "gi");
+      html = html.replace(re, '<span class="highlight">$1</span>');
+    });
+    return html;
   }
-
-  $: pivot = selectedWeek
-    ? uniqueTags.reduce((acc, tag) => {
-        acc[tag] = groupedData[selectedWeek].filter((d) => d["Tag"] === tag);
-        return acc;
-      }, {})
-    : {};
-
-  $: maxRows = uniqueTags.reduce((max, tag) => {
-    const len = pivot[tag] ? pivot[tag].length : 0;
-    return len > max ? len : max;
-  }, 0);
 </script>
 
-{#if uniqueWeeks.length}
-  <div>
-    <input
-      type="range"
-      min="0"
-      max={uniqueWeeks.length - 1}
-      bind:value={selectedWeekIndex}
-      step="1"
-    />
-    <p>Selected week: {uniqueWeeks[selectedWeekIndex]}</p>
+<article>
+  <div class="filters">
+    <label>
+      District:
+      <select
+        bind:value={$filters.district}
+        on:change={(e) =>
+          filters.set({ ...$filters, district: e.target.value })}
+      >
+        <option value="">All</option>
+        {#each districts as d}
+          <option value={d}>{d}</option>
+        {/each}
+      </select>
+    </label>
+
+    <label>
+      Keyword:
+      <select
+        bind:value={$filters.keyword}
+        on:change={(e) => filters.set({ ...$filters, keyword: e.target.value })}
+      >
+        <option value="">All</option>
+        {#each keywords as kw}
+          <option value={kw}>{kw}</option>
+        {/each}
+      </select>
+    </label>
   </div>
 
-  {#if selectedWeek}
-    <table border="1" cellpadding="5" cellspacing="0">
-      <thead>
-        <tr>
-          {#each uniqueTags as tag}
-            <th>{tag}</th>
-          {/each}
-        </tr>
-      </thead>
-      <tbody>
-        {#each Array(maxRows) as _, rowIndex}
-          <tr>
-            {#each uniqueTags as tag}
-              <td>
-                {#if pivot[tag] && pivot[tag][rowIndex]}
-                  <h1>
-                    {pivot[tag][rowIndex]["Title"]}
-                  </h1>
-                  <strong>
-                    {pivot[tag][rowIndex]["Location"]}
-                  </strong>
-                  <p>
-                    {pivot[tag][rowIndex]["Text"]}
-                  </p>
-                {/if}
-              </td>
-            {/each}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+  {#if $filtered.length === 0}
+    <p>No articles match the selected filters.</p>
+  {:else}
+    {#each $filtered as article}
+      <article>
+        <h2>{article.Title}</h2>
+        <p>
+          <strong>Date:</strong>
+          {article.ExtractedDate}
+          <strong>Time:</strong>
+          {article.ExtractedTime.join(", ")}
+        </p>
+        <p><strong>District:</strong> {article.ExtractedDistrict}</p>
+        <p><strong>Keywords:</strong> {article.KeywordMatch.join(", ")}</p>
+        <div>{@html highlight(article.Text, article.KeywordExtracted)}</div>
+      </article>
+    {/each}
   {/if}
-{/if}
+</article>
 
 <style>
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
+  article {
+    font-family: Arial, Helvetica, sans-serif;
   }
 
-  th,
-  td {
-    padding: 10px;
-    border: 1px solid #ccc;
-    text-align: left;
-    /* overflow: hidden; */
-    /* white-space: nowrap;
-    text-overflow: ellipsis; */
+  :global(.highlight) {
+    background-color: yellow;
   }
-
-  th {
-    background-color: #f9f9f9;
+  .filters {
+    margin-bottom: 1rem;
+  }
+  article {
+    padding: 1rem;
+    border-bottom: 1px solid #ddd;
   }
 </style>
