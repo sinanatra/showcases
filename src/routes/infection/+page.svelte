@@ -202,11 +202,6 @@
         br.pathLength += segmentLength;
         br.distArr.push(br.pathLength);
 
-        worldBuffer.push();
-        const grey = p.map(br.hue, 0, 360, 0, 360);
-        worldBuffer.stroke(grey, 100, 100);
-        worldBuffer.pop();
-
         let ci = br.lastPlacedCharIndex + 1;
         while (
           ci < br.sentence.length &&
@@ -215,20 +210,42 @@
           const target = (ci + 0.5) * ltrSpacing;
           const si = br.distArr.findIndex((d) => d >= target);
           if (si > 0) {
-            const d0 = br.distArr[si - 1],
-              v0 = br.nodes[si - 1],
-              v1 = br.nodes[si];
-            const t = (target - d0) / v1.dist(v0);
-            const px = p.lerp(v0.x, v1.x, t),
-              py = p.lerp(v0.y, v1.y, t);
+            const d0 = br.distArr[si - 1];
+            const v0 = br.nodes[si - 1];
+            const v1 = br.nodes[si];
+            const tnorm = (target - d0) / v1.dist(v0);
+            const px = p.lerp(v0.x, v1.x, tnorm);
+            const py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
+
             worldBuffer.push();
-            worldBuffer.noStroke();
-            worldBuffer.fill(grey, 0, grey);
             worldBuffer.translate(px, py);
             worldBuffer.rotate(ang);
-            worldBuffer.text(br.sentence[ci], 0, -segmentLength);
+
+            const letter = br.sentence[ci];
+            const bgPadX = 2 * SCALE;
+            const bgPadY = 2 * SCALE;
+            const textSize = repulsionRadius / 2;
+            worldBuffer.textSize(textSize);
+            const w = worldBuffer.textWidth(letter);
+
+            worldBuffer.noStroke();
+            worldBuffer.fill(0, 0, 80, 1);
+            worldBuffer.rectMode(p.CENTER);
+            worldBuffer.rect(0, -segmentLength, w + bgPadX, textSize + bgPadY);
+
             worldBuffer.pop();
+
+            worldBuffer.push();
+            worldBuffer.translate(px, py);
+            worldBuffer.rotate(ang);
+            worldBuffer.textAlign(p.CENTER, p.CENTER);
+            worldBuffer.textFont("monospace");
+            worldBuffer.textSize(textSize);
+            worldBuffer.fill(0, 0, 0);
+            worldBuffer.text(letter, 0, -segmentLength);
+            worldBuffer.pop();
+
             br.lastPlacedCharIndex = ci;
             ci++;
           } else break;
