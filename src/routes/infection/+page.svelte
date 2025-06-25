@@ -291,8 +291,7 @@
 
       const allFinished =
         branches.length && branches.every((br) => br.finished);
-      if (allFinished) {
-        //||  simFrame % 600 === 0) {
+      if (allFinished || simFrame % 600 === 0) {
         resetSketch();
         return;
       }
@@ -370,9 +369,6 @@
 </div>
 
 <style>
-  :global(body) {
-    margin: 0;
-  }
   .viz-container {
     width: 100vw;
     height: 100vh;
