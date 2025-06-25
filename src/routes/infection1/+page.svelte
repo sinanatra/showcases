@@ -2,20 +2,20 @@
   import P5 from "p5-svelte";
 
   let sketch = (p) => {
-    const SCALE = 0.8;
-    const segmentLength = 8 * SCALE;
-    const repulsionRadius = 20 * SCALE;
-    const repulsionStrength = 0.2 * SCALE;
-    const widthBucket = 100 * SCALE;
-    const noiseScale = 0.01 * SCALE;
-    const noiseSpeed = 0.005;
+    const scale = 0.9;
+    const segmentLength = 8 * scale;
+    const repulsionRadius = 20 * scale;
+    const repulsionStrength = 0.2 * scale;
+    const widthBucket = 100 * scale;
+    const noiseScale = 0.01 * scale;
+    const noiseSpeed = 0.05;
     const growthInterval = 1;
-    const ltrSpacing = 8 * SCALE;
-    const timelineFrames = 800;
+    const ltrSpacing = 8 * scale;
+    const timelineFrames = 1000;
     const keywordColors = {};
+    const charCache = new Map();
 
-    let multi = 4;
-
+    let multi = 2;
     let branches = [];
     let pan = { x: 0, y: 0 };
     let zoom = 1;
@@ -23,18 +23,41 @@
     let lastX = 0,
       lastY = 0;
     let simFrame = 0;
-    let randomUnit = p.random([0.1, 0.2, 0.5, 1, 2, 3, 4, 5]);
-    console.log(randomUnit);
-
+    let randomUnit = 1;
     let worldBuffer, timelineLayer;
     const globalBuckets = new Map();
     let bufferCenter = { x: 0, y: 0 };
     let bufferBounds = { left: 0, right: 0, top: 0, bottom: 0 };
-
     let minDate,
       maxDate,
       span,
       yearLabels = [];
+
+    function getCachedLetter(kw, letter, textSize) {
+      const key = `${kw}_${letter}_${textSize}`;
+      if (charCache.has(key)) return charCache.get(key);
+
+      const pg = p.createGraphics(40 * scale, 40 * scale);
+      pg.colorMode(p.HSB);
+      pg.textFont("courier");
+      pg.textAlign(p.CENTER, p.CENTER);
+      pg.textSize(textSize);
+
+      const w = Math.max(pg.textWidth(letter), 4);
+      const bgPadX = 2 * scale;
+      const bgPadY = 2 * scale;
+
+      pg.noStroke();
+      pg.fill(keywordColors[kw] || p.color(60, 8, 57));
+      pg.rectMode(p.CENTER);
+      pg.rect(pg.width / 2, pg.height / 2, w + bgPadX, textSize + bgPadY);
+
+      pg.fill(0, 0, 0);
+      pg.text(letter, pg.width / 2, pg.height / 2);
+
+      charCache.set(key, pg);
+      return pg;
+    }
 
     p.preload = () => {
       p.dataTable = p.loadTable("parsed.csv", "csv", "header");
@@ -44,7 +67,8 @@
       p.createCanvas(p.windowWidth, p.windowHeight);
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
-      p.textSize(12 * SCALE);
+      p.textSize(9 * scale);
+      p.frameRate(30);
 
       const rows = p.dataTable
         .getRows()
@@ -70,37 +94,35 @@
 
       if (!rows.length) return;
 
-      minDate = rows[1].date; // test [1] to avoid 2018 ?
+      minDate = rows[1]?.date || rows[0].date;
       maxDate = rows.at(-1).date;
-
       span = maxDate - minDate;
 
-      const w = Math.max(p.width * multi, 2200);
-      const h = Math.max(p.height * multi, 2000);
+      const w = Math.max(p.width * multi, 1400);
+      const h = Math.max(p.height * multi, 1000);
 
-      const marginY = (h / 3) * SCALE;
-      const rightDataMargin = 800 * SCALE;
+      console.log(w, h);
 
+      const marginY = (h / 3) * scale;
+      const rightDataMargin = 800 * scale;
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
 
       worldBuffer = p.createGraphics(w, h);
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
-      worldBuffer.textFont("monospace");
-      worldBuffer.textSize(13 * SCALE);
+      worldBuffer.textFont("courier");
+      worldBuffer.textSize(13 * scale);
       worldBuffer.background(0);
 
       timelineLayer = p.createGraphics(w, h);
       timelineLayer.colorMode(p.HSB);
       timelineLayer.textAlign(p.CENTER, p.CENTER);
-      timelineLayer.textFont("monospace");
+      timelineLayer.textFont("courier");
 
       const allYears = [
         ...new Set(rows.map((a) => new Date(a.date).getFullYear())),
       ].sort((a, b) => a - b);
-
-      // console.log(allYears)
 
       yearLabels = allYears.map((year) => {
         const yearRows = rows.filter(
@@ -120,32 +142,28 @@
       ];
 
       keywords.forEach((kw, i) => {
-        let hue = (i * (360 / keywords.length)) % 360;
-        let sat = 18;
-        let bri = 57;
+        let hue =
+          Math.round((i * 290) / Math.max(keywords.length - 1, 1) + 60) % 360;
+        let sat = 0;
+        let bri =
+          Math.round((i * 290) / Math.max(keywords.length - 1, 1) + 60) % 360;
+
         keywordColors[kw] = p.color(hue, sat, bri);
       });
 
       branches = [];
-      const yTimeline = marginY + 30 * SCALE;
+      const yTimeline = marginY + 30 * scale;
 
-      rows.forEach((row, i) => {
+      randomUnit = p.random([0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1]);
+
+      rows.forEach((row) => {
         const t = (row.date - minDate) / span;
-
         const x0 = timelineX0 + t * (timelineX1 - timelineX0);
         const y0 = yTimeline;
         const startFrame = Math.floor(t * timelineFrames);
 
         row.sents.forEach(({ kw, s }) => {
           const maxSteps = Math.ceil(s.length * (ltrSpacing / segmentLength));
-          const hue = p.map(
-            keywords.indexOf(kw),
-            0,
-            keywords.length - 1,
-            0,
-            360
-          );
-
           const dir0 = p
             .createVector(p.random(-randomUnit, randomUnit), 1)
             .normalize();
@@ -153,7 +171,6 @@
           branches.push({
             kw,
             nodes: [p.createVector(x0, y0)],
-            hue,
             sentence: s,
             maxSteps,
             grown: 0,
@@ -168,10 +185,8 @@
         });
       });
 
-      zoom = Math.min(
-        p.width / bufferBounds.right,
-        p.height / bufferBounds.bottom
-      );
+      zoom = (p.height / bufferBounds.bottom) * 1;
+      zoom = 1;
       pan = { x: 0, y: 0 };
 
       sketch.timelineX0 = timelineX0;
@@ -180,10 +195,18 @@
       sketch.rightDataMargin = rightDataMargin;
       sketch.w = w;
       sketch.h = h;
+      sketch.marginY = marginY;
     };
 
     p.draw = () => {
       globalBuckets.clear();
+
+      if (p.frameCount % 60 === 0) {
+        worldBuffer.noStroke();
+        worldBuffer.fill(0, 0, 0, 0.05);
+        worldBuffer.rect(0, 0, worldBuffer.width, worldBuffer.height);
+      }
+
       branches.forEach((br) =>
         br.nodes.forEach((n) => {
           const key = `${Math.floor(n.x / widthBucket)},${Math.floor(n.y / widthBucket)}`;
@@ -191,10 +214,6 @@
           globalBuckets.get(key).push(n);
         })
       );
-
-      // worldBuffer.noStroke();
-      // worldBuffer.fill(0, 0, 0, 0.01);
-      // worldBuffer.rect(0, 0, worldBuffer.width, worldBuffer.height);
 
       branches.forEach((br) => {
         if (br.finished || simFrame < br.startFrame) return;
@@ -232,13 +251,13 @@
         const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
         next.x = p.constrain(
           next.x,
-          bufferBounds.left + 10 * SCALE,
-          bufferBounds.right - 10 * SCALE
+          bufferBounds.left + 10 * scale,
+          bufferBounds.right - 10 * scale
         );
         next.y = p.constrain(
           next.y,
-          bufferBounds.top + 10 * SCALE,
-          bufferBounds.bottom - 10 * SCALE
+          bufferBounds.top + 10 * scale,
+          bufferBounds.bottom - 10 * scale
         );
 
         br.nodes.push(next);
@@ -263,34 +282,15 @@
             const py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
 
-            worldBuffer.push();
-            worldBuffer.translate(px, py);
-            worldBuffer.rotate(ang);
-
             const letter = br.sentence[ci];
-            const bgPadX = 2 * SCALE;
-            const bgPadY = 2 * SCALE;
             const textSize = repulsionRadius / 2;
-            worldBuffer.textSize(textSize);
-            const w = worldBuffer.textWidth(letter);
-
-            worldBuffer.noStroke();
-            // worldBuffer.fill(0, 0, 80, 1);
-            // console.log(br.kw);
-            worldBuffer.fill(keywordColors[br.kw]);
-            worldBuffer.rectMode(p.CENTER);
-            worldBuffer.rect(0, -segmentLength, w + bgPadX, textSize + bgPadY);
-
-            worldBuffer.pop();
+            const cached = getCachedLetter(br.kw, letter, textSize);
 
             worldBuffer.push();
             worldBuffer.translate(px, py);
             worldBuffer.rotate(ang);
-            worldBuffer.textAlign(p.CENTER, p.CENTER);
-            worldBuffer.textFont("monospace");
-            worldBuffer.textSize(textSize);
-            worldBuffer.fill(0, 0, 0);
-            worldBuffer.text(letter, 0, -segmentLength);
+            worldBuffer.imageMode(p.CENTER);
+            worldBuffer.image(cached, 0, -segmentLength);
             worldBuffer.pop();
 
             br.lastPlacedCharIndex = ci;
@@ -303,44 +303,55 @@
 
       simFrame++;
 
-      timelineLayer.clear();
-
+      const tCurrent = Math.min(simFrame / timelineFrames, 1);
       const timelineX0 = sketch.timelineX0;
       const timelineX1 = sketch.timelineX1;
-      const yTimeline = sketch.yTimeline;
+      const bufferCenterX = bufferCenter.x;
+      const currentX = timelineX0 + tCurrent * (timelineX1 - timelineX0);
 
+      if (!dragging && zoom >= 0.3) {
+        pan.x = -(currentX - bufferCenterX) * zoom;
+        pan.y = 200 * zoom;
+      }
+      timelineLayer.clear();
       timelineLayer.stroke(0, 0, 255);
-      timelineLayer.strokeWeight(2 * SCALE);
-      timelineLayer.line(timelineX0, yTimeline, timelineX1, yTimeline);
+      timelineLayer.strokeWeight(2 * scale);
+      timelineLayer.line(
+        timelineX0,
+        sketch.yTimeline,
+        timelineX1,
+        sketch.yTimeline
+      );
+
+      timelineLayer.line(timelineX0, sketch.h, timelineX1, sketch.h);
 
       yearLabels.forEach(({ year, avgT }) => {
         const x = timelineX0 + avgT * (timelineX1 - timelineX0);
-        const labelY = yTimeline - 32 * SCALE;
+        const labelY = sketch.yTimeline - 32 * scale;
 
         timelineLayer.noStroke();
         timelineLayer.fill(0, 0, 255);
-        timelineLayer.textSize(18 * SCALE);
+        timelineLayer.textSize(18 * scale);
         timelineLayer.text(year, x, labelY);
 
-        const tickStartY = labelY + 22 * SCALE;
+        const tickStartY = labelY + 22 * scale;
         timelineLayer.push();
         timelineLayer.stroke(0, 0, 255);
-        timelineLayer.strokeWeight(2 * SCALE);
-        timelineLayer.drawingContext.setLineDash([18 * SCALE, 10 * SCALE]);
+        timelineLayer.strokeWeight(2 * scale);
+        timelineLayer.drawingContext.setLineDash([18 * scale, 10 * scale]);
         timelineLayer.line(x, tickStartY, x, sketch.h);
         timelineLayer.drawingContext.setLineDash([]);
         timelineLayer.pop();
       });
 
-      const tCurrent = Math.min(simFrame / timelineFrames, 1);
       const xNow = timelineX0 + tCurrent * (timelineX1 - timelineX0);
       timelineLayer.stroke(0, 0, 255);
-      timelineLayer.strokeWeight(4.5 * SCALE);
+      timelineLayer.strokeWeight(3 * scale);
       timelineLayer.line(
         timelineX0,
-        yTimeline - 2 * SCALE,
+        sketch.yTimeline - 2 * scale,
         xNow,
-        yTimeline - 2 * SCALE
+        sketch.yTimeline - 2 * scale
       );
 
       const allFinished =
@@ -365,11 +376,12 @@
     }
 
     function resetSketch() {
-      randomUnit = p.random([0.1, 0.2, 0.5, 1, 2, 3, 4, 5]);
+      randomUnit = p.random([0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 3, 4, 5]);
 
       simFrame = 0;
       worldBuffer.clear();
       worldBuffer.background(0);
+      charCache.clear();
       p.setup();
     }
 
@@ -391,13 +403,25 @@
         lastY = p.mouseY;
       }
     };
+
     p.mouseWheel = (e) => {
       const zoomFactor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-      const mx = p.mouseX - p.width / 2;
-      const my = p.mouseY - p.height / 2;
-      pan.x -= (mx / zoom) * (zoomFactor - 1);
-      pan.y -= (my / zoom) * (zoomFactor - 1);
-      zoom = p.constrain(zoom * zoomFactor, 0.2, 8);
+
+      const tCurrent = Math.min(simFrame / timelineFrames, 1);
+      const xNow =
+        sketch.timelineX0 + tCurrent * (sketch.timelineX1 - sketch.timelineX0);
+      const yNow = sketch.yTimeline;
+
+      const screenCenterX = p.width / 2;
+      const screenCenterY = p.height / 2;
+      const tipScreenX = screenCenterX + (xNow - bufferCenter.x + pan.x) * zoom;
+      const tipScreenY = screenCenterY + (yNow - bufferCenter.y + pan.y) * zoom;
+
+      zoom = p.constrain(zoom * zoomFactor, 0.5, 1);
+
+      pan.x = (screenCenterX - tipScreenX) / zoom + pan.x;
+      pan.y = (screenCenterY - tipScreenY) / zoom + pan.y;
+
       return false;
     };
 
@@ -412,9 +436,6 @@
 </div>
 
 <style>
-  :global(body) {
-    margin: 0;
-  }
   .viz-container {
     width: 100vw;
     height: 100vh;

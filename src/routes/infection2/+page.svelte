@@ -2,14 +2,15 @@
   import P5 from "p5-svelte";
 
   let sketch = (p) => {
-    const SCALE = 0.4;
+    const SCALE = 0.8;
     const segmentLength = 8 * SCALE;
-    const repulsionRadius = 24 * SCALE;
+    const repulsionRadius = 20 * SCALE;
     const repulsionStrength = 0.1;
     const widthBucket = 90 * SCALE;
     const ltrSpacing = 7 * SCALE;
     const noiseScale = 0.015;
-    const timelineFrames = 300;
+    const timelineFrames = 600;
+    const keywordColors = {};
 
     let branches = [];
     let pan = { x: 0, y: 0 };
@@ -25,6 +26,7 @@
       attractors = [];
     let minDate, maxDate, timelineRadius, span, w, h;
     let yearLabels = [];
+    let randomUnit = 1;
 
     p.preload = () => {
       p.dataTable = p.loadTable("parsed.csv", "csv", "header");
@@ -36,6 +38,7 @@
       p.textFont("monospace");
       p.textSize(13 * SCALE);
       p.textAlign(p.CENTER, p.CENTER);
+      randomUnit = p.random([0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1]);
 
       const rows = p.dataTable
         .getRows()
@@ -60,9 +63,6 @@
         .sort((a, b) => a.date - b.date);
       if (!rows.length) return;
 
-      const keywords = [
-        ...new Set(rows.flatMap((r) => r.sents.map((s) => s.kw))),
-      ];
       minDate = rows[0].date;
       maxDate = rows.at(-1).date;
       span = maxDate - minDate;
@@ -70,7 +70,8 @@
       timelineRadius = Math.max(p.width, p.height) * 0.8 * SCALE;
       w = Math.max(p.width * 2, timelineRadius * 2 + 40 * SCALE);
       h = Math.max(p.height * 2, timelineRadius * 2 + 40 * SCALE);
-      bufferCenter = { x: w / 2, y: 0 };
+      //   bufferCenter = { x: w / 2, y: 0 };
+      bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
 
       worldBuffer = p.createGraphics(w, h);
@@ -81,8 +82,11 @@
 
       attractors = rows.map((row, i) => {
         const t = (row.date - minDate) / span;
-        const radius = t * timelineRadius + 120;
-        const angle = p.random(p.PI);
+        // const radius = t * timelineRadius + 120;
+        const INNER_OFFSET = 1 * SCALE;
+        const radius = t * timelineRadius + INNER_OFFSET;
+
+        const angle = p.random(p.TWO_PI); // full 360
         return {
           x: bufferCenter.x + Math.cos(angle) * radius,
           y: bufferCenter.y + Math.sin(angle) * radius,
@@ -95,9 +99,7 @@
 
       const allYears = [
         ...new Set(attractors.map((a) => new Date(a.row.date).getFullYear())),
-      ];
-      allYears.sort((a, b) => a - b);
-
+      ].sort((a, b) => a - b);
       yearLabels = allYears.map((year) => {
         const yearAttractors = attractors.filter(
           (a) => new Date(a.row.date).getFullYear() === year
@@ -130,16 +132,33 @@
         frameCount: 0,
         direction: p
           .createVector(Math.cos(a.angle), Math.sin(a.angle))
-          .rotate(p.random(-0.6, 0.6)),
+          .rotate(p.random(-randomUnit, randomUnit)),
+        keyword: a.row.sents.length ? a.row.sents[0].kw : null,
       }));
+
+      const keywords = [
+        ...new Set(rows.flatMap((r) => r.sents.map((s) => s.kw))),
+      ];
+
+      keywords.forEach((kw, i) => {
+        let hue =
+          Math.round((i * 290) / Math.max(keywords.length - 1, 1) + 60) % 360;
+        let sat = 0;
+        let bri =
+          Math.round((i * 290) / Math.max(keywords.length - 1, 1) + 60) % 360;
+
+        keywordColors[kw] = p.color(hue, sat, bri);
+      });
     };
 
     p.draw = () => {
       globalBuckets.clear();
 
-      worldBuffer.noStroke();
-      worldBuffer.fill(0, 0, 0, 0.01);
-      worldBuffer.rect(0, 0, worldBuffer.width, worldBuffer.height);
+        if (p.frameCount % 60 === 0) {
+          worldBuffer.noStroke();
+          worldBuffer.fill(0, 0, 0, 0.05);
+          worldBuffer.rect(0, 0, worldBuffer.width, worldBuffer.height);
+        }
 
       branches.forEach((br) =>
         br.nodes.forEach((n) => {
@@ -160,10 +179,9 @@
             const otherTip = other.nodes[other.nodes.length - 1];
             const d = tip.dist(otherTip);
             if (d > 0 && d < repulsionRadius) {
-              const repulse = p.Vector.sub(tip, otherTip)
-                .normalize()
-                .mult(repulsionStrength);
-              dir.add(repulse);
+              dir.add(
+                p.Vector.sub(tip, otherTip).normalize().mult(repulsionStrength)
+              );
             }
           }
         });
@@ -222,17 +240,23 @@
             worldBuffer.translate(px, py);
             worldBuffer.rotate(ang);
 
-            const letter = br.sentence[ci];
-            const bgPadX = 2 * SCALE;
-            const bgPadY = 2 * SCALE;
-            const textSize = repulsionRadius / 2;
-            worldBuffer.textSize(textSize);
-            const w = worldBuffer.textWidth(letter);
+            worldBuffer.textSize(repulsionRadius / 2);
+            // measure the text
+            const glyphW = Math.max(worldBuffer.textWidth(br.sentence[ci]), 4);
+            const glyphH = worldBuffer.textAscent() + worldBuffer.textDescent();
+            const PAD = 0.4 * SCALE;
 
             worldBuffer.noStroke();
-            worldBuffer.fill(0, 0, 80, 1);
+
+            worldBuffer.fill(keywordColors[br.keyword] || p.color(60, 8, 57));
+
             worldBuffer.rectMode(p.CENTER);
-            worldBuffer.rect(0, -segmentLength, w + bgPadX, textSize + bgPadY);
+            worldBuffer.rect(
+              0,
+              -segmentLength,
+              glyphW + PAD * 2,
+              glyphH + PAD * 2
+            );
 
             worldBuffer.pop();
 
@@ -241,9 +265,9 @@
             worldBuffer.rotate(ang);
             worldBuffer.textAlign(p.CENTER, p.CENTER);
             worldBuffer.textFont("monospace");
-            worldBuffer.textSize(textSize);
-            worldBuffer.fill(0, 0, 0);
-            worldBuffer.text(letter, 0, -segmentLength);
+            worldBuffer.textSize(repulsionRadius / 2);
+            worldBuffer.fill(0);
+            worldBuffer.text(br.sentence[ci], 0, -segmentLength);
             worldBuffer.pop();
 
             br.lastPlacedCharIndex = ci;
@@ -258,35 +282,31 @@
       const currentYear = new Date(currentTime).getFullYear();
 
       arcLayer.clear();
-      arcLayer.textAlign(p.CENTER, p.CENTER);
       arcLayer.textFont("monospace");
 
-      yearLabels.forEach(({ year, avgAngle, avgRadius }) => {
-        const isCurrent = year === currentYear;
-        const arcColor = isCurrent ? 255 : 100;
-        const textSize = isCurrent ? 12 * SCALE : 7 * SCALE;
-        const radiusOffset = isCurrent ? 80 * SCALE : 60 * SCALE;
+      const LABEL_Y = bufferCenter.y;
+      const PADDING = 10 * SCALE;
+      arcLayer.textAlign(arcLayer.RIGHT, arcLayer.RIGHT);
 
-        arcLayer.stroke(arcColor);
-        arcLayer.strokeWeight(0.5);
+      yearLabels.forEach(({ year, avgRadius }) => {
+        const isCurrent = year === currentYear;
+
+        arcLayer.stroke(255, isCurrent ? 255 : 100);
+        arcLayer.strokeWeight(isCurrent ? 1 : 0.5);
         arcLayer.noFill();
-        arcLayer.arc(
+        arcLayer.ellipse(
           bufferCenter.x,
           bufferCenter.y,
           avgRadius * 2,
-          avgRadius * 2,
-          avgAngle - 3,
-          avgAngle + 3
+          avgRadius * 2
         );
 
+        const labelX = bufferCenter.x - avgRadius - PADDING;
+
         arcLayer.noStroke();
-        arcLayer.fill(255);
-        arcLayer.textSize(textSize);
-        const tx =
-          bufferCenter.x + Math.cos(avgAngle) * (avgRadius + radiusOffset);
-        const ty =
-          bufferCenter.y + Math.sin(avgAngle) * (avgRadius + radiusOffset);
-        arcLayer.text(year, tx, ty);
+        arcLayer.fill(isCurrent ? 255 : 200);
+        arcLayer.textSize(isCurrent ? 12 * SCALE : 7 * SCALE);
+        arcLayer.text(year, labelX, LABEL_Y);
       });
 
       const allFinished =
@@ -298,7 +318,8 @@
 
       p.background(0);
       p.push();
-      p.translate(p.width / 2, 0);
+      //   p.translate(p.width / 2, 0);
+      p.translate(p.width / 2, p.height / 2);
       p.scale(zoom);
       p.translate(pan.x, pan.y);
       p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
@@ -327,7 +348,8 @@
         frameCount: 0,
         direction: p
           .createVector(Math.cos(a.angle), Math.sin(a.angle))
-          .rotate(p.random(-0.6, 0.6)),
+          .rotate(p.random(-randomUnit, randomUnit)),
+        keyword: a.row.sents.length ? a.row.sents[0].kw : null,
       }));
     }
 
@@ -351,16 +373,12 @@
     };
     p.mouseWheel = (e) => {
       const zf = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-      const mx = p.mouseX - p.width / 2,
-        my = p.mouseY - 0;
+      const mx = p.mouseX - p.width / 2;
       pan.x -= (mx / zoom) * (zf - 1);
-      pan.y -= (my / zoom) * (zf - 1);
       zoom = p.constrain(zoom * zf, 0.2, 8);
       return false;
     };
-    p.windowResized = () => {
-      p.resizeCanvas(p.windowWidth, p.windowHeight);
-    };
+    p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
   };
 </script>
 

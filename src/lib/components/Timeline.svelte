@@ -12,7 +12,7 @@
   let timelineHeight = 0;
 
   const lineHeight = 24;
-  const tickInterval = 10;
+  const tickInterval = 80;
   const yOffset = 40;
 
   function parseDate(dStr, tStr = "00:00") {

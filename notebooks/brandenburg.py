@@ -10,7 +10,7 @@ import datetime
 base_url = "https://polizei.brandenburg.de"
 url_template = f"{base_url}/suche/typ/null/kategorie/Kriminalit%C3%A4t/{{page}}/1?reset=1"
 file_path = 'data/brandenburg_police_results.csv'
-max_date = datetime.date(2025, 2, 1) 
+max_date = datetime.date(2019, 1, 1) 
 
 existing_urls = set()
 existing_data = []
