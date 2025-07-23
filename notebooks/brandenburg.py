@@ -123,11 +123,11 @@ while not stop_scraping:
                 location += ", " + landkreis_tag.get_text(strip=True) if location else landkreis_tag.get_text(strip=True)
 
         new_rows.append({
-            "title": title,
-            "date": date_str,
-            "location": location,
-            "text": text,
-            "url": article_url
+            "Title": title,
+            "Date": date_str,
+            "Location": location,
+            "Text": text,
+            "URL": article_url
         })
 
     page += 1
@@ -140,6 +140,6 @@ if len(new_rows) > 0:
         writer = csv.writer(f)
         writer.writerow(["Title", "Date", "Location", "Text", "URL"])
         for r in combined:
-            writer.writerow([r["title"], r["date"], r["location"], r["text"], r["url"]])
+            writer.writerow([r["Title"], r["Date"], r["Location"], r["Text"], r["URL"]])
 
 print(f"\nScraping complete. {len(new_rows)} new articles saved.")

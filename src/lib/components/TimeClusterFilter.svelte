@@ -1,12 +1,12 @@
 <script>
-  import { filters, availableTimeClusters } from '$lib/stores';
+  import { filters, availableTimeClusters } from "$lib/stores";
 </script>
 
 <label>
   Time of Day:
   <select
     bind:value={$filters.timeCluster}
-    on:change={e => filters.set({ ...$filters, timeCluster: e.target.value })}
+    on:change={(e) => filters.set({ ...$filters, timeCluster: e.target.value })}
   >
     <option value="">All</option>
     {#each $availableTimeClusters ?? [] as tc}
@@ -14,3 +14,10 @@
     {/each}
   </select>
 </label>
+
+<style>
+  select {
+    background-color: white;
+    padding: 1px;
+  }
+</style>

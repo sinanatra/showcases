@@ -23,12 +23,31 @@ df = pd.concat(dfs, ignore_index=True)
 df_text = (df['Title'].fillna('') + ' ' + df['Text'].fillna('')).str.lower()
 
 keywords = [
-    "volksverhetzung", "hitlergruß", "hakenkreuz",
-    "nazi", "rechtsextremistisch", "fremdenfeindlich",
-    "nationalsozialismus", "nationalsozialistisch",
-    "rassismus", "antisemitismus", "homophobie",
-    "transphobie", "sieg heil"
+    "volksverhetzung",
+    "hitlergruß",
+    "hakenkreuz",
+    "nazi",
+    "rechtsextremistisch",
+    "rechtsextremisch",
+    "fremdenfeindlich",
+    "islamophobie",
+    "islamfeindlichkeit",
+    "nationalsozialismus",
+    "nationalsozialistisch",
+    "nationalsozialistische",
+    "rassismus",
+    "rassistisch",
+    "antisemitismus",
+    "antisemitisch",
+    "homophobie",
+    "transphobie",
+    "queerfeindlichkeit",
+    "queerphobie",
+    "sieg heil",
+    "verfassungswidrig",
+    "mit politischem hintergrund"
 ]
+
 action_terms = [
     "graffiti", "angriff", "schlagen", "treten", "schubsen",
     "brandanschlag", "beleidigung", "versammlung", "online posts",
@@ -86,18 +105,17 @@ for idx, text in df_text.items():
     df.at[idx, 'KeywordMatch'] = kws
     df.at[idx, 'KeywordExtracted'] = find_keywords_with_matches(text, keywords, diff_threshold)
 
-
     if related:
         date_match = date_regex.search(str(df.at[idx, 'Date']).lower())
         df.at[idx, 'ExtractedDate'] = date_match.group(1) if date_match else df.at[idx, 'Date']
 
         time_match = time_regex.findall(text)
         df.at[idx, 'ExtractedTime'] = time_match
-        
+    
         df.at[idx, 'ExtractedAge'] = age_regex.findall(text)
         df.at[idx, 'ExtractedGender'] = gender_regex.findall(text)
         df.at[idx, 'ExtractedAction'] = find_keywords(text, action_terms, diff_threshold)
-
+        
 out_path = os.path.join(output_dir, "merged_parsed_documents.csv")
 parsed = df[df['RightWingRelated'] == True]
 parsed.to_csv(out_path, index=False)
