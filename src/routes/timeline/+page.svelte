@@ -57,3 +57,9 @@
     <Timeline />
   </section>
 </main>
+
+<style>
+  .filters {
+    padding: 10px;
+  }
+</style>

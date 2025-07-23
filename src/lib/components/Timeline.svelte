@@ -1,19 +1,17 @@
 <script>
-  import { onMount } from "svelte";
-  import { timeFormat } from "d3-time-format";
   import { articles, filtered } from "$lib/stores";
+
+  const lineHeight = 16;
+  const fontSize = Math.round(lineHeight * 0.9);
+  const timelineWidth = 2000;
+  const tickInterval = 120;
+  const yOffset = 40;
 
   let data = [];
   let uniqueDates = [];
   let initialStart = null;
   let initialEnd = null;
-
-  const timelineWidth = 2000;
   let timelineHeight = 0;
-
-  const lineHeight = 24;
-  const tickInterval = 80;
-  const yOffset = 40;
 
   function parseDate(dStr, tStr = "00:00") {
     const [d, m, y] = dStr.split(".");
@@ -29,9 +27,7 @@
 
   function isAbbrevBoundary(text, idx) {
     for (const ab of ABBREVS) {
-      if (text.slice(idx - ab.length, idx) === ab) {
-        return true;
-      }
+      if (text.slice(idx - ab.length, idx) === ab) return true;
     }
     return false;
   }
@@ -83,7 +79,6 @@
       const snippet = text.slice(0, 200);
       return { before: snippet, match: "", after: "" };
     }
-
     let matchObj = null;
     let term = "";
     for (const t of terms) {
@@ -100,22 +95,32 @@
       const snippet = text.slice(0, 200);
       return { before: snippet, match: "", after: "" };
     }
-
     const idx = matchObj.index;
     const len = term.length;
-
     const startBoundary = findPrevBoundary(text, idx);
     const endBoundaryRaw = findNextBoundary(text, idx + len);
     const endBoundary = endBoundaryRaw > -1 ? endBoundaryRaw : text.length - 1;
-
     const snippet = text.slice(startBoundary + 1, endBoundary + 1);
     const relIdx = idx - (startBoundary + 1);
-
     return {
       before: snippet.slice(0, relIdx),
       match: snippet.slice(relIdx, relIdx + len),
       after: snippet.slice(relIdx + len),
     };
+  }
+
+  function fmtDate(d) {
+    return d.toLocaleDateString("de-DE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  function normPos(date) {
+    if (!initialStart || !initialEnd || initialEnd - initialStart === 0)
+      return 0;
+    return ((initialEnd - date) / (initialEnd - initialStart)) * timelineWidth;
   }
 
   $: {
@@ -128,7 +133,6 @@
         .map((a) => {
           const terms = a.KeywordExtracted || [];
           const { before, match, after } = extractSnippet(a.Text, terms);
-
           const date = parseDate(a.ExtractedDate, a.ExtractedTime[0]);
           const key = `${a.ExtractedDate}|${a.ExtractedTime[0]}|${a.URL}`;
           return {
@@ -155,20 +159,6 @@
       timelineHeight = yOffset + data.length * lineHeight + 40;
     }
   }
-
-  function fmtDate(d) {
-    return d.toLocaleDateString("de-DE", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function normPos(date) {
-    if (!initialStart || !initialEnd || initialEnd - initialStart === 0)
-      return 0;
-    return ((initialEnd - date) / (initialEnd - initialStart)) * timelineWidth;
-  }
 </script>
 
 <section>
@@ -176,16 +166,24 @@
     <p>Loading snippets…</p>
   {:else}
     <div class="timeline-container">
-      <svg width={timelineWidth + 2500} height={timelineHeight}>
+      <svg
+        width={timelineWidth + 2500}
+        height={timelineHeight}
+      >
         <g class="dates">
           {#each uniqueDates as d, i}
             {#if i % tickInterval === 0}
-              <text class="date" x={normPos(d)} y="20" text-anchor="left"
-                >{fmtDate(d)}</text
+              <text
+                class="date"
+                x={normPos(d)}
+                y={yOffset - lineHeight / 2}
+                font-size={fontSize}
+                dominant-baseline="middle"
+                text-anchor="left">{fmtDate(d)}</text
               >
               <line
                 x1={normPos(d)}
-                y1="24"
+                y1={yOffset - 0.5 * lineHeight}
                 x2={normPos(d)}
                 y2={timelineHeight}
               />
@@ -196,11 +194,16 @@
           {#each data as item, i}
             <text
               x={normPos(item.date)}
-              y={yOffset + i * lineHeight}
+              y={yOffset + i * lineHeight + lineHeight / 2}
+              font-size={fontSize}
+              dominant-baseline="middle"
               opacity={item.visible ? 1 : 0.2}
             >
               <tspan class="text">{item.before}</tspan>
-              <tspan class="highlight" fill={item.visible ? "var(--color-1)" : "#999"}>
+              <tspan
+                class="highlight"
+                fill={item.visible ? "var(--color-1)" : "#999"}
+              >
                 {item.match}
               </tspan>
               <tspan class="text">{item.after}</tspan>
@@ -219,11 +222,17 @@
   section {
     display: flex;
     flex-direction: column;
+    padding: 10px;
   }
 
   .timeline-container {
     overflow: auto;
     flex-grow: 1;
+  }
+
+  .timeline-container text,
+  .timeline-container tspan {
+    font-size: 13px; /* Match to JS fontSize variable for clarity */
   }
 
   a tspan:hover {
@@ -235,6 +244,9 @@
     font-style: italic;
   }
 
+  .highlight {
+    font-weight: bold;
+  }
 
   .date,
   a {

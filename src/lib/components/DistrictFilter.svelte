@@ -14,3 +14,10 @@
     {/each}
   </select>
 </label>
+
+<style>
+  select {
+    background-color: white;
+    padding: 1px;
+  }
+</style>

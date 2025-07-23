@@ -1,8 +1,17 @@
 <script>
   import P5 from "p5-svelte";
+  import Record from "$lib/components/Record.svelte";
+
+  import { record } from "$lib/stores.js";
+
+  let isRecording = false;
+  $: unsub = record.subscribe((v) => (isRecording = v));
+
+  let savedFrames = 0;
+  let framesToSave = 2000;
 
   let sketch = (p) => {
-    const scale = 0.9;
+    const scale = 0.7;
     const segmentLength = 8 * scale;
     const repulsionRadius = 20 * scale;
     const repulsionStrength = 0.2 * scale;
@@ -99,11 +108,11 @@
       span = maxDate - minDate;
 
       const w = Math.max(p.width * multi, 1400);
-      const h = Math.max(p.height * multi, 1000);
+      const h = Math.max(p.height * multi, 1800);
 
       console.log(w, h);
 
-      const marginY = (h / 3) * scale;
+      const marginY = (h / 2.4) * scale;
       const rightDataMargin = 800 * scale;
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
@@ -118,7 +127,7 @@
       timelineLayer = p.createGraphics(w, h);
       timelineLayer.colorMode(p.HSB);
       timelineLayer.textAlign(p.CENTER, p.CENTER);
-      timelineLayer.textFont("courier");
+      timelineLayer.textFont("arial");
 
       const allYears = [
         ...new Set(rows.map((a) => new Date(a.date).getFullYear())),
@@ -241,11 +250,15 @@
           }
         dir.normalize();
 
+        if (dir.y < 0.2) dir.y = 1;
+        dir.normalize();
+
         const nv = p.noise(
           tip.x * noiseScale,
           tip.y * noiseScale,
           simFrame * noiseSpeed
         );
+
         dir.rotate(p.map(nv, 0, 1, -p.QUARTER_PI * 0.6, p.QUARTER_PI * 0.6));
 
         const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
@@ -311,7 +324,7 @@
 
       if (!dragging && zoom >= 0.3) {
         pan.x = -(currentX - bufferCenterX) * zoom;
-        pan.y = 200 * zoom;
+        pan.y = zoom;
       }
       timelineLayer.clear();
       timelineLayer.stroke(0, 0, 255);
@@ -369,6 +382,16 @@
       p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
       p.image(timelineLayer, -bufferCenter.x, -bufferCenter.y);
       p.pop();
+
+      if (isRecording) {
+        p.frameRate(6);
+      } else {
+        p.frameRate(30);
+      }
+      if (isRecording && savedFrames < framesToSave) {
+        p.saveCanvas("frame-" + p.nf(savedFrames, 4), "png");
+        savedFrames++;
+      }
     };
 
     function getBucketKey(v) {
@@ -431,6 +454,7 @@
   };
 </script>
 
+<Record />
 <div class="viz-container">
   <P5 {sketch} style="position:absolute; top:0; left:0;" />
 </div>
