@@ -2,7 +2,7 @@ name: Update and parse RSS feeds
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs daily at midnight UTC
+    - cron: "0 */2 * * *"
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
