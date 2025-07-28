@@ -35,7 +35,7 @@ feed_urls = [
     "https://polizei.brandenburg.de/pressemeldungen/rss/region/56958",
 ]
 
-file_path = 'data/police_rss_fullscrape.csv'
+file_path = 'data/police_rss.csv'
 min_date = datetime.date(2016, 1, 1)  
 
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
