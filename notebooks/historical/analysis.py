@@ -65,7 +65,7 @@ diff_threshold = 0.85
 
 for col in [
     'RightWingRelated', 'KeywordMatch', 'ExtractedDate', 'ExtractedTime',
-    'ExtractedAge', 'ExtractedGender', 'ExtractedAction', 'KeywordExtracted'
+    'ExtractedAge', 'ExtractedGender', 'ExtractedAction', 'KeywordExtracted', 'Topic'
 ]:
     df[col] = None
 
@@ -96,14 +96,13 @@ def find_keywords_with_matches(text, terms, threshold):
                     hits.append(m.group(0))
     return list(set(hits)) 
 
-# df['KeywordExtracted'] = None
-
 for idx, text in df_text.items():
     kws = find_keywords(text, keywords, diff_threshold)
     related = bool(kws)
     df.at[idx, 'RightWingRelated'] = related
     df.at[idx, 'KeywordMatch'] = kws
     df.at[idx, 'KeywordExtracted'] = find_keywords_with_matches(text, keywords, diff_threshold)
+    df.at[idx, 'Topic'] = "RightWing" if related else "Other"
 
     if related:
         date_match = date_regex.search(str(df.at[idx, 'Date']).lower())
@@ -111,13 +110,12 @@ for idx, text in df_text.items():
 
         time_match = time_regex.findall(text)
         df.at[idx, 'ExtractedTime'] = time_match
-    
+
         df.at[idx, 'ExtractedAge'] = age_regex.findall(text)
         df.at[idx, 'ExtractedGender'] = gender_regex.findall(text)
         df.at[idx, 'ExtractedAction'] = find_keywords(text, action_terms, diff_threshold)
-        
-out_path = os.path.join(output_dir, "merged_parsed_documents.csv")
-parsed = df[df['RightWingRelated'] == True]
-parsed.to_csv(out_path, index=False)
 
-print(f"Saved parsed data to: {out_path}")
+out_path = os.path.join(output_dir, "merged_parsed_documents_with_topic.csv")
+df.to_csv(out_path, index=False)
+
+print(f"Saved parsed data with topics to: {out_path}")
