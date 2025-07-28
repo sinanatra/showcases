@@ -1,38 +1,25 @@
 # Polizei Data Scraper
 
-Scripts to scrape and analyze police reports from Berlin and Brandenburg police websites, as well as RSS feeds. The data is saved in CSV format for further processing.
+Scripts to scrape and analyze police reports from Berlin, Brandenburg, and RSS feeds.
 
 ## Usage
 
-1. Mind Captchas, load the website manually before running the script.  
-   The project is organized into two main folders:  
-   - `notebooks/historical/` for historical data scraping.  
-   - `notebooks/rss/` for RSS feed scraping.
-
-2. **Scrape Berlin Reports**  
-   Run:  
+1. Navigate to the `notebooks` folder:  
    ```bash
-   python notebooks/historical/berlin.py
+   cd notebooks
    ```
-   Output: `notebooks/historical/data/berlin_police_results.csv`
 
-3. **Scrape Brandenburg Reports**  
-   Run:  
+2. Scrape data:  
    ```bash
-   python notebooks/historical/brandenburg.py
+   python historical/brandenburg.py && python historical/berlin.py
    ```
-   Output: `notebooks/historical/data/brandenburg_police_results.csv`
 
-4. **Scrape RSS Feeds**  
-   Run:  
+3. Scrape RSS feeds:  
    ```bash
-   python notebooks/rss/rss.py
+   python rss/rss.py
    ```
-   Output: `notebooks/rss/data/police_rss.csv`
 
-5. **Analyze Data**  
-   Combine and analyze data with:  
-   
-   ```analysis.py```
-
-   Output: Combined data in `output/`.
+4. Analyze data:  
+   ```bash
+   python analysis.py
+   ```
