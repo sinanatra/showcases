@@ -38,6 +38,8 @@ feed_urls = [
 file_path = 'data/police_rss_fullscrape.csv'
 min_date = datetime.date(2016, 1, 1)  
 
+os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
 existing_urls = set()
 existing_data = []
 if os.path.exists(file_path):
