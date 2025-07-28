@@ -1,5 +1,3 @@
-# Polizei Data Scraper
-
 Scripts to scrape and analyze police reports from Berlin, Brandenburg, and RSS feeds.
 
 ## Usage
