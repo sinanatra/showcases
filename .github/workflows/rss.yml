@@ -41,6 +41,6 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add notebooks/rss/data/police_rss.csv notebooks/rss/output/merged_parsed_documents.csv notebooks/rss/output/all_merged.csv
+          git add notebooks/rss/data/ notebooks/rss/output/
           git commit -m "Update and parse RSS feeds [skip ci]" || echo "No changes to commit"
           git push
