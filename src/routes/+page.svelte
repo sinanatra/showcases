@@ -7,8 +7,7 @@
   <a href="infection">infection</a>
   <a href="infection1">infection </a>
   <div>---</div>
-  <!-- <p>Record</p>
-  <a href="record">record </a> -->
+  <a href="spread">spread </a>
 </article>
 
 <style>
