@@ -72,6 +72,42 @@
       p.dataTable = p.loadTable("parsed.csv", "csv", "header");
     };
 
+    function shorten(text, maxLen = 300) {
+      if (!text) return "";
+      if (text.length <= maxLen) return text;
+      let cut = text.lastIndexOf(" ", maxLen);
+      if (cut === -1) cut = maxLen;
+      return text.slice(0, cut) + "…";
+    }
+
+    function shortenAroundKeyword(text, keyword, maxLen = 300) {
+      if (!text || !keyword) return shorten(text, maxLen);
+      const i = text.toLowerCase().indexOf(keyword.toLowerCase());
+      if (i === -1) return shorten(text, maxLen);
+
+      let start = Math.max(0, i - Math.floor((maxLen - keyword.length) / 2));
+      let end = start + maxLen;
+
+      if (end > text.length) {
+        end = text.length;
+        start = Math.max(0, end - maxLen);
+      }
+
+      if (start > 0) {
+        const spaceBefore = text.lastIndexOf(" ", start);
+        if (spaceBefore !== -1) start = spaceBefore + 1;
+      }
+      if (end < text.length) {
+        const spaceAfter = text.indexOf(" ", end);
+        if (spaceAfter !== -1) end = spaceAfter;
+      }
+
+      let result = text.slice(start, end);
+      if (start > 0) result = "…" + result;
+      if (end < text.length) result = result + "…";
+      return result;
+    }
+
     p.setup = () => {
       p.createCanvas(p.windowWidth, p.windowHeight);
       p.colorMode(p.HSB);
@@ -172,7 +208,10 @@
         const startFrame = Math.floor(t * timelineFrames);
 
         row.sents.forEach(({ kw, s }) => {
-          const maxSteps = Math.ceil(s.length * (ltrSpacing / segmentLength));
+          const snippet = shortenAroundKeyword(s, kw, 200);
+          const maxSteps = Math.ceil(
+            snippet.length * (ltrSpacing / segmentLength)
+          );
           const dir0 = p
             .createVector(p.random(-randomUnit, randomUnit), 1)
             .normalize();
@@ -180,7 +219,7 @@
           branches.push({
             kw,
             nodes: [p.createVector(x0, y0)],
-            sentence: s,
+            sentence: snippet, 
             maxSteps,
             grown: 0,
             frameCount: 0,
