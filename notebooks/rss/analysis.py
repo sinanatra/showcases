@@ -27,9 +27,10 @@ for file in csv_files:
 df = pd.concat(dfs, ignore_index=True)
 
 if not df_all.empty and "URL" in df_all.columns and "URL" in df.columns:
-    df_new = df[~df["URL"].isin(df_all["URL"])]
+    df_new = df[~df["URL"].isin(df_all["URL"])].copy()  # <--- THIS LINE!
 else:
-    df_new = df
+    df_new = df.copy() 
+
 
 if df_new.empty:
     print("No new rows to parse.")
