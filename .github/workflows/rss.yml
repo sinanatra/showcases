@@ -2,7 +2,7 @@ name: Update and parse RSS feeds
 
 on:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 */8 * * *"
   workflow_dispatch:
 
 jobs:
