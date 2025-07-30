@@ -1,4 +1,3 @@
-#  Showcases
 
 <img width="3296" height="1593" alt="image" src="https://github.com/user-attachments/assets/b14b53f2-b0cb-45b5-a0f9-be40f66f243f" />
 
