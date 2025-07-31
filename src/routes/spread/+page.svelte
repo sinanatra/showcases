@@ -10,14 +10,12 @@
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
-
     leaf: {
       branchingChance: 0.2,
       directionRandomness: 0.2,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
-
     chaos: {
       branchingChance: 2,
       directionRandomness: 7,
@@ -51,13 +49,13 @@
               .filter(Boolean)
           : [],
       Text: d.Text || "",
+      URL: d.URL || "",
     }));
   });
 
   let keywordFilter = "";
   let textFilter = "";
   let growthMode = "chaos";
-  $: sketchKey = `${keywordFilter}|${textFilter}|${growthMode}|${filteredData.length}`;
 
   $: allKeywords = Array.from(
     new Set(
@@ -66,45 +64,80 @@
       )
     )
   ).sort();
-
   $: filteredData = allData
-    .filter((d) => {
-      if (keywordFilter && !(d.KeywordMatch || []).includes(keywordFilter))
-        return false;
-      if (
-        textFilter &&
-        !(d.Text || "").toLowerCase().includes(textFilter.toLowerCase())
-      )
-        return false;
-      return true;
-    })
+    .filter(
+      (d) =>
+        (!keywordFilter || (d.KeywordMatch || []).includes(keywordFilter)) &&
+        (!textFilter ||
+          (d.Text || "").toLowerCase().includes(textFilter.toLowerCase()))
+    )
     .reverse()
-    .slice(0, 200);
+    .slice(0, 100);
+
+  $: sketchKey = `${keywordFilter}|${textFilter}|${growthMode}|${filteredData.length}`;
+  $: resetSketch();
 
   function resetSketch() {
     sketchKey += 1;
   }
-  $: resetSketch();
+
+  let hoveredText = "";
+  let hoveredUrl = "";
+  let tooltipX = 0,
+    tooltipY = 0;
+  function setTooltip(text, url, x, y) {
+    hoveredText = text;
+    hoveredUrl = url;
+    tooltipX = x;
+    tooltipY = y;
+  }
+
+  let hoveredHitbox = null;
 
   function getGrowthParams() {
     return growthParams[growthMode] || growthParams.fungal;
+  }
+
+  function shorten(text, maxLen = 300) {
+    if (!text) return "";
+    if (text.length <= maxLen) return text;
+    let cut = text.lastIndexOf(" ", maxLen);
+    if (cut === -1) cut = maxLen;
+    return text.slice(0, cut) + "…";
+  }
+
+  function shortenAroundKeyword(text, keyword, maxLen = 200) {
+    if (!text || !keyword) return shorten(text, maxLen);
+    const i = text.toLowerCase().indexOf(keyword.toLowerCase());
+    if (i === -1) return shorten(text, maxLen);
+    let start = Math.max(0, i - Math.floor((maxLen - keyword.length) / 2));
+    let end = start + maxLen;
+    if (end > text.length) {
+      end = text.length;
+      start = Math.max(0, end - maxLen);
+    }
+    if (start > 0) {
+      const spaceBefore = text.lastIndexOf(" ", start);
+      if (spaceBefore !== -1) start = spaceBefore + 1;
+    }
+    if (end < text.length) {
+      const spaceAfter = text.indexOf(" ", end);
+      if (spaceAfter !== -1) end = spaceAfter;
+    }
+    let result = text.slice(start, end);
+    if (start > 0) result = "…" + result;
+    if (end < text.length) result = result + "…";
+    return result;
   }
 
   let sketch = (p) => {
     const scale = 0.75,
       segmentLength = 8 * scale,
       repulsionRadius = 12 * scale,
-      repulsionStrength = 0.6 * scale,
-      widthBucket = 100 * scale;
-
-    const noiseScale = 0.01 * scale,
-      noiseSpeed = 0.05,
-      growthInterval = 1,
+      widthBucket = 100 * scale,
       ltrSpacing = 8 * scale;
-
     const charCache = new Map(),
       keywordColors = {};
-
     let branches = [],
       pan = { x: 0, y: 0 },
       zoom = 1,
@@ -117,22 +150,7 @@
     let worldBuffer,
       globalBuckets = new Map(),
       randomUnit = 1;
-
-    function growBranch(br, tip, simFrame, p) {
-      const params = getGrowthParams();
-      let dir = br.dir0.copy();
-      dir.y += params.downwardBias;
-      dir.normalize();
-      let nv = p.noise(
-        tip.x * noiseScale,
-        tip.y * noiseScale,
-        simFrame * noiseSpeed
-      );
-      dir.rotate(
-        p.map(nv, 0, 1, -params.directionRandomness, params.directionRandomness)
-      );
-      return dir;
-    }
+    let letterHitboxes = [];
 
     function getCachedLetter(kw, letter, textSize) {
       const key = `${kw}_${letter}_${textSize}`;
@@ -142,86 +160,73 @@
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
       pg.textSize(textSize);
-
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
       pg.fill(keywordColors[kw] || p.color(0, 0, 60));
       pg.rectMode(p.CENTER);
       pg.rect(pg.width / 2, pg.height / 2, w + 4, textSize + 4);
-
       pg.fill(0, 0, 0);
       pg.text(letter, pg.width / 2, pg.height / 2);
-
       charCache.set(key, pg);
       return pg;
     }
 
-    function setupBranches(filteredData, w, h) {
+    function growBranch(br, tip, simFrame) {
+      const params = getGrowthParams();
+      let dir = br.dir0.copy();
+      dir.y += params.downwardBias;
+      dir.normalize();
+      let nv = p.noise(
+        tip.x * 0.01 * scale,
+        tip.y * 0.01 * scale,
+        simFrame * 0.05
+      );
+      let ramp = Math.min(1, (br.grown || 0) / 50);
+      dir.rotate(
+        p.map(
+          nv,
+          0,
+          1,
+          -params.directionRandomness * ramp,
+          params.directionRandomness * ramp
+        )
+      );
+      return dir;
+    }
+
+    function setupBranches(data, w, h) {
       const cx = w / 2,
         cy = h / 2;
       const allKws = Array.from(
         new Set(
-          filteredData
+          data
             .flatMap((a) =>
               Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []
             )
             .filter(Boolean)
         )
       );
-      allKws.forEach((kw, i) => {
-        let bri = 60 + (i * 180) / Math.max(allKws.length - 1, 1);
-        keywordColors[kw] = p.color(0, 0, bri);
-      });
-
-      let result = [];
-      if (!filteredData.length) return result;
-
-      function shorten(text, maxLen = 300) {
-        if (!text) return "";
-        if (text.length <= maxLen) return text;
-        let cut = text.lastIndexOf(" ", maxLen);
-        if (cut === -1) cut = maxLen;
-        return text.slice(0, cut) + "…";
-      }
-
-      function shortenAroundKeyword(text, keyword, maxLen = 200) {
-        if (!text || !keyword) return shorten(text, maxLen);
-        const i = text.toLowerCase().indexOf(keyword.toLowerCase());
-        if (i === -1) return shorten(text, maxLen);
-
-        let start = Math.max(0, i - Math.floor((maxLen - keyword.length) / 2));
-        let end = start + maxLen;
-
-        if (end > text.length) {
-          end = text.length;
-          start = Math.max(0, end - maxLen);
-        }
-
-        if (start > 0) {
-          const spaceBefore = text.lastIndexOf(" ", start);
-          if (spaceBefore !== -1) start = spaceBefore + 1;
-        }
-        if (end < text.length) {
-          const spaceAfter = text.indexOf(" ", end);
-          if (spaceAfter !== -1) end = spaceAfter;
-        }
-
-        let result = text.slice(start, end);
-        if (start > 0) result = "…" + result;
-        if (end < text.length) result = result + "…";
-        return result;
-      }
-
-      let kw = filteredData[0]?.KeywordMatch?.[0] || "";
-      let trunkText = shortenAroundKeyword(
-        filteredData[0]?.Text ?? filteredData[0]?.sentence ?? "",
-        kw
+      allKws.forEach(
+        (kw, i) =>
+          (keywordColors[kw] = p.color(
+            0,
+            0,
+            60 + (i * 180) / Math.max(allKws.length - 1, 1)
+          ))
       );
 
+      let result = [];
+      if (!data.length) return result;
+      let kw = data[0]?.KeywordMatch?.[0] || "";
+      let trunkText = shortenAroundKeyword(
+        data[0]?.Text ?? data[0]?.sentence ?? "",
+        kw
+      );
       result.push({
-        kw: filteredData[0]?.KeywordMatch?.[0] || "",
+        kw,
         nodes: [p.createVector(cx, cy)],
         sentence: trunkText,
+        url: data[0]?.URL || "",
         maxSteps: Math.ceil(trunkText.length * (ltrSpacing / segmentLength)),
         grown: 0,
         frameCount: 0,
@@ -234,22 +239,21 @@
         attachAt: 0,
       });
 
-      for (let i = 1; i < filteredData.length; i++) {
+      for (let i = 1; i < data.length; i++) {
         let parentIndex = Math.floor(Math.random() * Math.max(1, i));
         let parentBranch = result[parentIndex];
-
-        let parentAttachIdx = Math.floor(
-          2 + Math.random() * Math.max(1, parentBranch.nodes.length - 8)
-        );
-        parentAttachIdx = Math.max(
+        let parentAttachIdx = Math.max(
           1,
-          Math.min(parentAttachIdx, parentBranch.nodes.length - 3)
+          Math.min(
+            Math.floor(
+              2 + Math.random() * Math.max(1, parentBranch.nodes.length - 8)
+            ),
+            parentBranch.nodes.length - 3
+          )
         );
-
         let attachPoint =
           parentBranch.nodes[parentAttachIdx] ||
           parentBranch.nodes[parentBranch.nodes.length - 1];
-
         let direction = parentBranch.nodes[parentAttachIdx + 1]
           ? p
               .createVector(
@@ -260,20 +264,19 @@
               )
               .normalize()
           : p.createVector(0, -1);
-
         let branchAngle = ((Math.random() - 0.5) * Math.PI) / 1.2;
         direction.rotate(branchAngle);
 
-        let kw = filteredData[i]?.KeywordMatch?.[0] || "";
+        let kw = data[i]?.KeywordMatch?.[0] || "";
         let text = shortenAroundKeyword(
-          filteredData[i]?.Text ?? filteredData[i]?.sentence ?? "",
+          data[i]?.Text ?? data[i]?.sentence ?? "",
           kw
         );
-
         result.push({
-          kw: filteredData[i].KeywordMatch?.[0] || "",
+          kw,
           nodes: [attachPoint.copy()],
           sentence: text,
+          url: data[i]?.URL || "",
           maxSteps: Math.ceil(text.length * (ltrSpacing / segmentLength)),
           grown: 0,
           frameCount: 0,
@@ -289,20 +292,34 @@
       return result;
     }
 
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - p.width / 2) / zoom - pan.x + bufferCenter.x,
+        y: (sy - p.height / 2) / zoom - pan.y + bufferCenter.y,
+      };
+    }
+    function worldToScreen(wx, wy) {
+      return {
+        x: (wx - bufferCenter.x + pan.x) * zoom + p.width / 2,
+        y: (wy - bufferCenter.y + pan.y) * zoom + p.height / 2,
+      };
+    }
+
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight);
-
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
       p.frameRate(30);
-      if (!filteredData || !filteredData.length) {
+
+      if (!filteredData.length) {
         worldBuffer = null;
+        letterHitboxes = [];
         return;
       }
+
       const w = 4200 * scale,
         h = 4200 * scale;
-
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
       worldBuffer = p.createGraphics(w, h);
@@ -310,13 +327,12 @@
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
       worldBuffer.textSize(13 * scale);
-
       branches = setupBranches(filteredData, w, h);
-
       zoom = 1;
       pan = { x: 0, y: 0 };
       simFrame = 0;
       randomUnit = p.random([0.1, 0.2, 0.3, 0.4, 0.5, 1]);
+      letterHitboxes = [];
     };
 
     p.draw = () => {
@@ -334,15 +350,14 @@
           globalBuckets.get(key).push(n);
         })
       );
-      const params = getGrowthParams();
+
       branches.forEach((br) => {
         if (br.finished) return;
         br.frameCount++;
-        if (br.frameCount % growthInterval !== 0 || br.grown >= br.maxSteps)
-          return;
+        if (br.frameCount % 1 !== 0 || br.grown >= br.maxSteps) return;
         const tip = br.nodes && br.nodes[br.nodes.length - 1];
         if (!tip) return;
-        let dir = growBranch(br, tip, simFrame, p);
+        let dir = growBranch(br, tip, simFrame);
 
         const [bx, by] = [
           Math.floor(tip.x / widthBucket),
@@ -358,7 +373,7 @@
                   p
                     .createVector(tip.x - n2.x, tip.y - n2.y)
                     .normalize()
-                    .mult(repulsionStrength)
+                    .mult(0.6 * scale)
                 );
               }
             });
@@ -409,12 +424,23 @@
               worldBuffer.image(cached, 0, -segmentLength);
               worldBuffer.pop();
             }
+
+            if (br.lastPlacedCharIndex < ci) {
+              letterHitboxes.push({
+                worldX: px,
+                worldY: py,
+                radius: textSize * 0.7,
+                url: br.url || "",
+                text: br.sentence,
+              });
+            }
             br.lastPlacedCharIndex = ci;
             ci++;
           } else break;
         }
         if (br.grown >= br.maxSteps) br.finished = true;
       });
+
       simFrame++;
       p.background(0);
       p.push();
@@ -451,9 +477,42 @@
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
     };
+    p.mouseOut = () => setTooltip("", "", 0, 0);
+
+    p.mouseMoved = () => {
+      const { x: worldMouseX, y: worldMouseY } = screenToWorld(
+        p.mouseX,
+        p.mouseY
+      );
+      hoveredHitbox = null;
+      let found = false;
+      for (let hit of letterHitboxes) {
+        const d = p.dist(worldMouseX, worldMouseY, hit.worldX, hit.worldY);
+        if (d < hit.radius) {
+          const { x, y } = worldToScreen(hit.worldX, hit.worldY);
+          setTooltip(hit.text, hit.url, x, y - 22);
+          hoveredHitbox = hit;
+          found = true;
+          break;
+        }
+      }
+      if (!found) setTooltip("", "", 0, 0);
+    };
+
+    p.keyPressed = () => {
+      if (
+        (p.key === " " || p.keyCode === 32) &&
+        hoveredHitbox &&
+        hoveredHitbox.url
+      ) {
+        window.open(hoveredHitbox.url, "_blank");
+        return false;
+      }
+    };
   };
 </script>
 
+<!-- UI -->
 <div class="pattern-ui">
   <label>
     Pattern:
@@ -487,6 +546,17 @@
   {/key}
 </div>
 
+{#if hoveredText}
+  <div class="tooltip" style="left: {tooltipX + 15}px; top: {tooltipY}px;">
+    {hoveredText}
+    {#if hoveredUrl}
+      <div style="font-size:0.92em; opacity:0.7; margin-top:0.5em;">
+        [Press <kbd>space</kbd> to open link]
+      </div>
+    {/if}
+  </div>
+{/if}
+
 <style>
   .viz-container {
     width: 100vw;
@@ -494,7 +564,7 @@
     overflow: hidden;
     background: #000;
   }
-  .viz-container canvas {
+  :global(.viz-container canvas) {
     position: fixed !important;
     top: 0;
     left: 0;
@@ -503,6 +573,7 @@
     display: block;
     pointer-events: auto;
     z-index: 1;
+    cursor: cell;
   }
   .pattern-ui {
     position: absolute;
@@ -533,5 +604,18 @@
   }
   label {
     font-weight: 500;
+  }
+  .tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    border-radius: 9px;
+    padding: 5px 10px;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 2px 24px #0008;
+    max-width: 450px;
+    min-width: 140px;
+    transform: translateY(-100%);
   }
 </style>
