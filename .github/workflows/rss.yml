@@ -32,8 +32,8 @@ jobs:
         working-directory: notebooks/rss
         run: python analysis.py
 
-      - name: Copy parsed.csv to static/
-        run: cp notebooks/rss/output/parsed.csv static/parsed.csv
+      - name: Copy merged_parsed_documents.csv to static/
+        run: cp notebooks/rss/output/merged_parsed_documents.csv static/merged_parsed_documents.csv
 
       - name: Commit and push all updates
         run: |
