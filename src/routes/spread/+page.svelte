@@ -54,16 +54,16 @@
   const growthModes = Object.keys(growthParams);
 
   let growthMode = "chaos";
-  let sketchKey = "";
 
-  $: inputsKey = `${$filters.keyword}|${$filters.text}|${$filters.showOnlyLatest ? "1" : "0"}|${$filteredData.length}`;
+  $: dataSig = $filteredData
+    .map((d) => `${d.URL || ""}|${d.ExtractedDate || d.Date || ""}`)
+    .join("§");
 
-  $: if (inputsKey) {
+  $: if (dataSig) {
     growthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
-
-    const token = Math.random().toString(36).slice(2, 8);
-    sketchKey = `${inputsKey}|${growthMode}|${token}`;
   }
+  $: sketchKey = `${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}`;
+  $: inputsKey = `${$filters.keyword}|${$filters.text}|${$filters.showOnlyLatest ? "1" : "0"}|${$filteredData.length}`;
 
   let hoveredText = "";
   let hoveredUrl = "";
