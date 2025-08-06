@@ -46,13 +46,6 @@ export const filters = writable({
   showOnlyLatest: false,
 });
 
-function getKeywordVariants(canon) {
-  return Object.entries(KEYWORD_GROUPS)
-    .filter(([variant, mapped]) => mapped === canon)
-    .map(([variant]) => variant)
-    .concat(canon);
-}
-
 export function filterArticles(list, { district, keyword }, exclude) {
   const variants = keyword ? getKeywordVariants(keyword) : [];
   return (Array.isArray(list) ? list : []).filter((a) => {
@@ -146,10 +139,40 @@ function parseDateLoose(v) {
   return isNaN(dflt) ? null : dflt;
 }
 
+function toDateLike(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+function getKeywordVariants(canon) {
+  return Object.entries(KEYWORD_GROUPS)
+    .filter(([, mapped]) => mapped === canon)
+    .map(([variant]) => variant)
+    .concat(canon);
+}
+
+const N = 200;
+export const recent = derived(articles, ($articles) => {
+  const list = Array.isArray($articles) ? $articles : [];
+  const sorted = [...list].sort((a, b) => {
+    const da = toDateLike(a.ExtractedDate || a.Date);
+    const db = toDateLike(b.ExtractedDate || b.Date);
+    if (da && db) return db - da;
+    if (db) return 1;
+    if (da) return -1;
+    return 0;
+  });
+  return sorted.slice(0, N);
+});
+
 export const filteredData = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    let out = $articles;
+  [recent, filters],
+  ([$recent, $filters]) => {
+    let out = $recent;
+
+    if ($filters.district) {
+      out = out.filter((a) => a.ExtractedDistrict === $filters.district);
+    }
 
     if ($filters.keyword) {
       const variants = getKeywordVariants($filters.keyword);
@@ -165,31 +188,35 @@ export const filteredData = derived(
       out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
     }
 
-    out = [...out].sort((a, b) => {
-      const da = parseDateLoose(a.ExtractedDate || a.Date);
-      const db = parseDateLoose(b.ExtractedDate || b.Date);
-      if (da && db) return db - da;
-      if (db) return 1;
-      if (da) return -1;
-      return 0;
-    });
-
     if ($filters.showOnlyLatest) {
       return out.length ? [out[0]] : [];
     }
 
-    return out.slice(0, 200);
+    return out;
   }
 );
 
-export const availableKeywords = derived([filteredData], ([$filteredData]) =>
-  Array.from(
-    new Set(
-      $filteredData
-        .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-        .map((k) => KEYWORD_GROUPS[k] || k)
+export const availableKeywords = derived(
+  [recent, filters],
+  ([$recent, $filters]) => {
+    let base = $recent;
+
+    if ($filters.district) {
+      base = base.filter((a) => a.ExtractedDistrict === $filters.district);
+    }
+    if ($filters.text) {
+      const q = $filters.text.toLowerCase();
+      base = base.filter((a) => (a.Text || "").toLowerCase().includes(q));
+    }
+
+    return Array.from(
+      new Set(
+        base
+          .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
+          .map((k) => KEYWORD_GROUPS[k] || k)
+      )
     )
-  )
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, "de"))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "de"));
+  }
 );
