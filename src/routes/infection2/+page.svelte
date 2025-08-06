@@ -29,7 +29,7 @@
     let randomUnit = 1;
 
     p.preload = () => {
-      p.dataTable = p.loadTable("parsed.csv", "csv", "header");
+      p.dataTable = p.loadTable("all_merged.csv", "csv", "header");
     };
 
     p.setup = () => {

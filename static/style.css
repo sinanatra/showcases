@@ -11,6 +11,10 @@ body {
   font-family: "Courier New", Courier, monospace;
 }
 
+button {
+  font-family: "Courier New", Courier, monospace;
+}
+
 ::selection {
   background-color: var(--color-1);
   color: white;
