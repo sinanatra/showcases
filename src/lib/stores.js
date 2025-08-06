@@ -23,6 +23,10 @@ export const KEYWORD_GROUPS = {
   volksverhetzung: "volksverhetzung",
 };
 
+export const CANONICAL_KEYWORDS = Array.from(
+  new Set(Object.values(KEYWORD_GROUPS))
+).sort((a, b) => a.localeCompare(b, "de"));
+
 const GENDER_MAP = {
   frau: "Adult Female",
   mann: "Adult Male",
@@ -37,6 +41,9 @@ export const filters = writable({
   keyword: "",
   gender: "",
   timeCluster: "",
+
+  text: "",
+  showOnlyLatest: false,
 });
 
 function getKeywordVariants(canon) {
@@ -46,11 +53,7 @@ function getKeywordVariants(canon) {
     .concat(canon);
 }
 
-export function filterArticles(
-  list,
-  { district, keyword, gender, timeCluster },
-  exclude
-) {
+export function filterArticles(list, { district, keyword }, exclude) {
   const variants = keyword ? getKeywordVariants(keyword) : [];
   return (Array.isArray(list) ? list : []).filter((a) => {
     if (exclude !== "district" && district && a.ExtractedDistrict !== district)
@@ -67,22 +70,6 @@ export function filterArticles(
     return true;
   });
 }
-
-export const availableKeywords = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    const filtered = filterArticles($articles, $filters, "keyword");
-    return Array.from(
-      new Set(
-        filtered
-          .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-          .map((k) => KEYWORD_GROUPS[k] || k)
-      )
-    )
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, "de"));
-  }
-);
 
 export const availableDistricts = derived(
   [articles, filters],
@@ -114,7 +101,7 @@ export const availableTimeClusters = derived(
     const clusters = new Set();
     filtered.forEach((a) =>
       (Array.isArray(a.ExtractedTime) ? a.ExtractedTime : []).forEach((t) => {
-        const h = Number(t.split(":")[0]);
+        const h = Number(String(t).split(":")[0]);
         const label =
           h >= 6 && h < 12
             ? "Morning"
@@ -135,3 +122,74 @@ export const filtered = derived([articles, filters], ([$articles, $filters]) =>
 );
 
 export const record = writable(false);
+
+function parseDateLoose(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+  }
+
+  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+  if (m) {
+    let [_, d, mo, y] = m;
+    let year = Number(
+      y.length === 2 ? (Number(y) >= 70 ? "19" + y : "20" + y) : y
+    );
+    const date = new Date(year, Number(mo) - 1, Number(d));
+    return isNaN(date) ? null : date;
+  }
+
+  const dflt = new Date(s);
+  return isNaN(dflt) ? null : dflt;
+}
+
+export const filteredData = derived(
+  [articles, filters],
+  ([$articles, $filters]) => {
+    let out = $articles;
+
+    if ($filters.keyword) {
+      const variants = getKeywordVariants($filters.keyword);
+      out = out.filter(
+        (a) =>
+          Array.isArray(a.KeywordMatch) &&
+          a.KeywordMatch.some((k) => variants.includes(k))
+      );
+    }
+
+    if ($filters.text) {
+      const q = $filters.text.toLowerCase();
+      out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
+    }
+
+    out = [...out].sort((a, b) => {
+      const da = parseDateLoose(a.ExtractedDate || a.Date);
+      const db = parseDateLoose(b.ExtractedDate || b.Date);
+      if (da && db) return db - da;
+      if (db) return 1;
+      if (da) return -1;
+      return 0;
+    });
+
+    if ($filters.showOnlyLatest) {
+      return out.length ? [out[0]] : [];
+    }
+
+    return out.slice(0, 200);
+  }
+);
+
+export const availableKeywords = derived([filteredData], ([$filteredData]) =>
+  Array.from(
+    new Set(
+      $filteredData
+        .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
+        .map((k) => KEYWORD_GROUPS[k] || k)
+    )
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "de"))
+);
