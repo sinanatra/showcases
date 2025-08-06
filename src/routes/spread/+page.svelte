@@ -3,16 +3,38 @@
   import { onMount } from "svelte";
   import * as d3 from "d3";
 
+  import PatternMenu from "$lib/components/PatternMenu.svelte";
+  import KeywordTooltip from "$lib/components/KeywordTooltip.svelte";
+  import {
+    filters,
+    availableKeywords,
+    filteredData,
+    articles,
+    CANONICAL_KEYWORDS,
+  } from "$lib/stores.js";
+
+  onMount(async () => {
+    const raw = await d3.csv("/all_merged.csv");
+    articles.set(
+      raw.map((d) => ({
+        ...d,
+        KeywordMatch:
+          typeof d.KeywordMatch === "string"
+            ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
+                .split(/[,;]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
+        Text: d.Text || "",
+        URL: d.URL || "",
+      }))
+    );
+  });
+
   const growthParams = {
     fungal: {
       branchingChance: 0.29,
       directionRandomness: 2,
-      branchAngle: Math.PI / 1.4,
-      downwardBias: 0.01,
-    },
-    leaf: {
-      branchingChance: 0.2,
-      directionRandomness: 0.2,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
@@ -23,79 +45,52 @@
       downwardBias: 0.01,
     },
     covid: {
-      branchingChance: 9,
+      branchingChance: 10,
       directionRandomness: 200,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
-    root: {
-      branchingChance: 6,
-      directionRandomness: 1,
-      branchAngle: Math.PI / 1.5,
-      downwardBias: 10,
-    },
   };
+  const growthModes = Object.keys(growthParams);
 
-  let allData = [];
-  onMount(async () => {
-    const raw = await d3.csv("parsed.csv");
-    allData = raw.map((d) => ({
-      ...d,
-      KeywordMatch:
-        typeof d.KeywordMatch === "string"
-          ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [],
-      Text: d.Text || "",
-      URL: d.URL || "",
-    }));
-  });
-
-  let keywordFilter = "";
-  let textFilter = "";
   let growthMode = "chaos";
+  let sketchKey = "";
 
-  $: allKeywords = Array.from(
-    new Set(
-      allData.flatMap((d) =>
-        Array.isArray(d.KeywordMatch) ? d.KeywordMatch : []
-      )
-    )
-  ).sort();
-  $: filteredData = allData
-    .filter(
-      (d) =>
-        (!keywordFilter || (d.KeywordMatch || []).includes(keywordFilter)) &&
-        (!textFilter ||
-          (d.Text || "").toLowerCase().includes(textFilter.toLowerCase()))
-    )
-    .reverse()
-    .slice(0, 100);
+  $: inputsKey = `${$filters.keyword}|${$filters.text}|${$filters.showOnlyLatest ? "1" : "0"}|${$filteredData.length}`;
 
-  $: sketchKey = `${keywordFilter}|${textFilter}|${growthMode}|${filteredData.length}`;
-  $: resetSketch();
+  $: if (inputsKey) {
+    growthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
 
-  function resetSketch() {
-    sketchKey += 1;
+    const token = Math.random().toString(36).slice(2, 8);
+    sketchKey = `${inputsKey}|${growthMode}|${token}`;
   }
 
   let hoveredText = "";
   let hoveredUrl = "";
   let tooltipX = 0,
     tooltipY = 0;
-  function setTooltip(text, url, x, y) {
+  let hoveredHitbox = null;
+
+  function setTooltip(text, url, x, y, keywords = [], date = "") {
     hoveredText = text;
     hoveredUrl = url;
     tooltipX = x;
     tooltipY = y;
+    hoveredHitbox = { keywords, date };
   }
 
-  let hoveredHitbox = null;
-
-  function getGrowthParams() {
-    return growthParams[growthMode] || growthParams.fungal;
+  function setGrowthMode(val) {
+    growthMode =
+      val; /* no remount unless you want to: update sketchKey if needed */
+  }
+  function setKeywordFilter(val) {
+    filters.set({ ...$filters, keyword: val });
+  }
+  function setTextFilter(val) {
+    filters.set({ ...$filters, text: val });
+  }
+  function setShowOnlyLatest(val) {
+    filters.set({ ...$filters, showOnlyLatest: val });
   }
 
   function shorten(text, maxLen = 300) {
@@ -108,7 +103,7 @@
 
   function shortenAroundKeyword(text, keyword, maxLen = 200) {
     if (!text || !keyword) return shorten(text, maxLen);
-    const i = text.toLowerCase().indexOf(keyword.toLowerCase());
+    const i = text.toLowerCase().indexOf(String(keyword).toLowerCase());
     if (i === -1) return shorten(text, maxLen);
     let start = Math.max(0, i - Math.floor((maxLen - keyword.length) / 2));
     let end = start + maxLen;
@@ -117,12 +112,12 @@
       start = Math.max(0, end - maxLen);
     }
     if (start > 0) {
-      const spaceBefore = text.lastIndexOf(" ", start);
-      if (spaceBefore !== -1) start = spaceBefore + 1;
+      const s = text.lastIndexOf(" ", start);
+      if (s !== -1) start = s + 1;
     }
     if (end < text.length) {
-      const spaceAfter = text.indexOf(" ", end);
-      if (spaceAfter !== -1) end = spaceAfter;
+      const s = text.indexOf(" ", end);
+      if (s !== -1) end = s;
     }
     let result = text.slice(start, end);
     if (start > 0) result = "…" + result;
@@ -131,26 +126,34 @@
   }
 
   let sketch = (p) => {
+    const data = $filteredData;
+    const params = () => growthParams[growthMode] || growthParams.fungal;
+
     const scale = 0.75,
       segmentLength = 8 * scale,
       repulsionRadius = 12 * scale,
       widthBucket = 100 * scale,
       ltrSpacing = 8 * scale;
-    const charCache = new Map(),
-      keywordColors = {};
+
+    const charCache = new Map();
+    const keywordColors = {};
+
     let branches = [],
       pan = { x: 0, y: 0 },
-      zoom = 1,
+      zoom = 0.8,
       dragging = false,
       lastX = 0,
       lastY = 0,
       simFrame = 0;
+
     let bufferCenter = { x: 0, y: 0 },
       bufferBounds = { left: 0, right: 0, top: 0, bottom: 0 };
+
     let worldBuffer,
-      globalBuckets = new Map(),
-      randomUnit = 1;
+      globalBuckets = new Map();
+
     let letterHitboxes = [];
+    let firstDraw = true;
 
     function getCachedLetter(kw, letter, textSize) {
       const key = `${kw}_${letter}_${textSize}`;
@@ -162,7 +165,7 @@
       pg.textSize(textSize);
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
-      pg.fill(keywordColors[kw] || p.color(0, 0, 60));
+      pg.fill(keywordColors[kw] || p.color(0, 0, 75));
       pg.rectMode(p.CENTER);
       pg.rect(pg.width / 2, pg.height / 2, w + 4, textSize + 4);
       pg.fill(0, 0, 0);
@@ -171,24 +174,24 @@
       return pg;
     }
 
-    function growBranch(br, tip, simFrame) {
-      const params = getGrowthParams();
+    function growBranch(br, tip) {
+      const gp = params();
       let dir = br.dir0.copy();
-      dir.y += params.downwardBias;
+      dir.y += gp.downwardBias;
       dir.normalize();
       let nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
         simFrame * 0.05
       );
-      let ramp = Math.min(1, (br.grown || 0) / 50);
+      const ramp = 1;
       dir.rotate(
         p.map(
           nv,
           0,
           1,
-          -params.directionRandomness * ramp,
-          params.directionRandomness * ramp
+          -gp.directionRandomness * ramp,
+          gp.directionRandomness * ramp
         )
       );
       return dir;
@@ -197,36 +200,39 @@
     function setupBranches(data, w, h) {
       const cx = w / 2,
         cy = h / 2;
+
       const allKws = Array.from(
         new Set(
-          data
-            .flatMap((a) =>
-              Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []
-            )
-            .filter(Boolean)
+          data.flatMap((a) =>
+            Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []
+          )
         )
       );
+
       allKws.forEach(
         (kw, i) =>
           (keywordColors[kw] = p.color(
             0,
             0,
-            60 + (i * 180) / Math.max(allKws.length - 1, 1)
+            55 + (i * 120) / Math.max(allKws.length - 1, 1)
           ))
       );
 
-      let result = [];
+      const result = [];
       if (!data.length) return result;
-      let kw = data[0]?.KeywordMatch?.[0] || "";
+
+      let kw0 = data[0]?.KeywordMatch?.[0] || "";
       let trunkText = shortenAroundKeyword(
         data[0]?.Text ?? data[0]?.sentence ?? "",
-        kw
+        kw0
       );
+
       result.push({
-        kw,
+        kw: kw0,
         nodes: [p.createVector(cx, cy)],
         sentence: trunkText,
         url: data[0]?.URL || "",
+        date: data[0]?.ExtractedDate || data[0]?.Date || "",
         maxSteps: Math.ceil(trunkText.length * (ltrSpacing / segmentLength)),
         grown: 0,
         frameCount: 0,
@@ -242,18 +248,20 @@
       for (let i = 1; i < data.length; i++) {
         let parentIndex = Math.floor(Math.random() * Math.max(1, i));
         let parentBranch = result[parentIndex];
+
+        const attachMax = Math.max(3, parentBranch.nodes.length - 3);
         let parentAttachIdx = Math.max(
           1,
           Math.min(
-            Math.floor(
-              2 + Math.random() * Math.max(1, parentBranch.nodes.length - 8)
-            ),
-            parentBranch.nodes.length - 3
+            Math.floor(2 + Math.random() * (attachMax - 2)),
+            attachMax - 1
           )
         );
+
         let attachPoint =
           parentBranch.nodes[parentAttachIdx] ||
           parentBranch.nodes[parentBranch.nodes.length - 1];
+
         let direction = parentBranch.nodes[parentAttachIdx + 1]
           ? p
               .createVector(
@@ -264,6 +272,7 @@
               )
               .normalize()
           : p.createVector(0, -1);
+
         let branchAngle = ((Math.random() - 0.5) * Math.PI) / 1.2;
         direction.rotate(branchAngle);
 
@@ -272,11 +281,13 @@
           data[i]?.Text ?? data[i]?.sentence ?? "",
           kw
         );
+
         result.push({
           kw,
           nodes: [attachPoint.copy()],
           sentence: text,
           url: data[i]?.URL || "",
+          date: data[i]?.ExtractedDate || data[i]?.Date || "",
           maxSteps: Math.ceil(text.length * (ltrSpacing / segmentLength)),
           grown: 0,
           frameCount: 0,
@@ -289,6 +300,7 @@
           attachAt: parentAttachIdx,
         });
       }
+
       return result;
     }
 
@@ -312,7 +324,7 @@
       p.textSize(9 * scale);
       p.frameRate(30);
 
-      if (!filteredData.length) {
+      if (!data || !data.length) {
         worldBuffer = null;
         letterHitboxes = [];
         return;
@@ -322,17 +334,18 @@
         h = 4200 * scale;
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
+
       worldBuffer = p.createGraphics(w, h);
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
       worldBuffer.textSize(13 * scale);
-      branches = setupBranches(filteredData, w, h);
-      zoom = 1;
+
+      branches = setupBranches(data, w, h);
       pan = { x: 0, y: 0 };
       simFrame = 0;
-      randomUnit = p.random([0.1, 0.2, 0.3, 0.4, 0.5, 1]);
       letterHitboxes = [];
+      firstDraw = true;
     };
 
     p.draw = () => {
@@ -340,8 +353,8 @@
         p.background(0);
         return;
       }
-      globalBuckets = new Map();
 
+      globalBuckets = new Map();
       branches.forEach((br) =>
         br.nodes.forEach((n) => {
           if (!n) return;
@@ -355,9 +368,11 @@
         if (br.finished) return;
         br.frameCount++;
         if (br.frameCount % 1 !== 0 || br.grown >= br.maxSteps) return;
+
         const tip = br.nodes && br.nodes[br.nodes.length - 1];
         if (!tip) return;
-        let dir = growBranch(br, tip, simFrame);
+
+        let dir = growBranch(br, tip);
 
         const [bx, by] = [
           Math.floor(tip.x / widthBucket),
@@ -377,8 +392,8 @@
                 );
               }
             });
-        dir.normalize();
 
+        dir.normalize();
         const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
         next.x = p.constrain(
           next.x,
@@ -390,6 +405,7 @@
           bufferBounds.top + 10 * scale,
           bufferBounds.bottom - 10 * scale
         );
+
         br.nodes.push(next);
         br.grown++;
         const segLen = tip.dist(next);
@@ -412,7 +428,6 @@
             const px = p.lerp(v0.x, v1.x, tnorm),
               py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
-
             const letter = br.sentence[ci];
             const textSize = repulsionRadius / 1.2;
             const cached = getCachedLetter(br.kw, letter, textSize);
@@ -424,14 +439,15 @@
               worldBuffer.image(cached, 0, -segmentLength);
               worldBuffer.pop();
             }
-
             if (br.lastPlacedCharIndex < ci) {
               letterHitboxes.push({
                 worldX: px,
                 worldY: py,
-                radius: textSize * 0.7,
+                radius: textSize * 2,
                 url: br.url || "",
                 text: br.sentence,
+                keywords: [br.kw],
+                date: br.date,
               });
             }
             br.lastPlacedCharIndex = ci;
@@ -447,8 +463,15 @@
       p.translate(p.width / 2, p.height / 2);
       p.scale(zoom);
       p.translate(pan.x, pan.y);
-      if (worldBuffer) p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
+      p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
       p.pop();
+
+      if (firstDraw && letterHitboxes.length > 0) {
+        firstDraw = false;
+        setTimeout(() => {
+          if (typeof p.mouseMoved === "function") p.mouseMoved();
+        }, 0);
+      }
     };
 
     p.mousePressed = () => {
@@ -460,51 +483,38 @@
       dragging = false;
     };
     p.mouseDragged = () => {
-      if (dragging) {
-        const dx = (p.mouseX - lastX) / zoom,
-          dy = (p.mouseY - lastY) / zoom;
-        pan.x += dx;
-        pan.y += dy;
-        lastX = p.mouseX;
-        lastY = p.mouseY;
-      }
+      if (!dragging) return;
+      const dx = (p.mouseX - lastX) / zoom,
+        dy = (p.mouseY - lastY) / zoom;
+      pan.x += dx;
+      pan.y += dy;
+      lastX = p.mouseX;
+      lastY = p.mouseY;
     };
     p.mouseWheel = (e) => {
-      const zoomFactor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-      zoom = p.constrain(zoom * zoomFactor, 0.5, 2);
+      const f = e.deltaY < 0 ? 1.05 : 1 / 1.05;
+      zoom = p.constrain(zoom * f, 0.5, 2);
       return false;
     };
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
     };
-    p.mouseOut = () => setTooltip("", "", 0, 0);
-
+    p.mouseOut = () => setTooltip("", "", 0, 0, []);
     p.mouseMoved = () => {
-      const { x: worldMouseX, y: worldMouseY } = screenToWorld(
-        p.mouseX,
-        p.mouseY
-      );
+      const { x: wx, y: wy } = screenToWorld(p.mouseX, p.mouseY);
       hoveredHitbox = null;
-      let found = false;
       for (let hit of letterHitboxes) {
-        const d = p.dist(worldMouseX, worldMouseY, hit.worldX, hit.worldY);
-        if (d < hit.radius) {
+        if (p.dist(wx, wy, hit.worldX, hit.worldY) < hit.radius) {
           const { x, y } = worldToScreen(hit.worldX, hit.worldY);
-          setTooltip(hit.text, hit.url, x, y - 22);
+          setTooltip(hit.text, hit.url, x, y - 22, hit.keywords, hit.date);
           hoveredHitbox = hit;
-          found = true;
           break;
         }
       }
-      if (!found) setTooltip("", "", 0, 0);
+      if (!hoveredHitbox) setTooltip("", "", 0, 0, []);
     };
-
     p.keyPressed = () => {
-      if (
-        (p.key === " " || p.keyCode === 32) &&
-        hoveredHitbox &&
-        hoveredHitbox.url
-      ) {
+      if ((p.key === " " || p.keyCode === 32) && hoveredHitbox?.url) {
         window.open(hoveredHitbox.url, "_blank");
         return false;
       }
@@ -512,60 +522,126 @@
   };
 </script>
 
-<!-- UI -->
-<div class="pattern-ui">
-  <label>
-    Pattern:
-    <select bind:value={growthMode}>
-      <option value="fungal">Fungal</option>
-      <option value="leaf">Leaf</option>
-      <option value="root">Root</option>
-      <option value="chaos">Chaos</option>
-      <option value="covid">COVID</option>
-    </select>
-  </label>
+<div class="controls">
   <label>
     Keyword:
-    <select bind:value={keywordFilter}>
-      <option value="">(Alle)</option>
-      {#each allKeywords as kw}
-        <option value={kw}>{kw}</option>
+    <select
+      bind:value={$filters.keyword}
+      on:change={(e) => setKeywordFilter(e.target.value)}
+    >
+      <option value="">All</option>
+      {#each $availableKeywords as canon}
+        <option value={canon}>{canon}</option>
       {/each}
     </select>
   </label>
+
   <label>
     Text:
-    <input type="text" bind:value={textFilter} placeholder="Suche im Text..." />
+    <input
+      type="text"
+      bind:value={$filters.text}
+      on:input={(e) => setTextFilter(e.target.value)}
+      placeholder="search text…"
+    />
   </label>
-  <span>({filteredData.length} angezeigt)</span>
+
+  <label class="checkbox">
+    <input
+      type="checkbox"
+      bind:checked={$filters.showOnlyLatest}
+      on:change={(e) => setShowOnlyLatest(e.target.checked)}
+    />
+    Show only the latest
+  </label>
+
+  <span class="count"
+    >{$filteredData.length} result{$filteredData.length === 1 ? "" : "s"}</span
+  >
 </div>
+
+<PatternMenu
+  {growthMode}
+  keywordFilter={$filters.keyword}
+  textFilter={$filters.text}
+  {setGrowthMode}
+  {setKeywordFilter}
+  {setTextFilter}
+  showOnlyLatest={$filters.showOnlyLatest}
+  {setShowOnlyLatest}
+  canonicalKeywords={CANONICAL_KEYWORDS}
+  count={$filteredData.length}
+/>
 
 <div class="viz-container">
-  {#key sketchKey}
-    <P5 {sketch} style="position:absolute; top:0; left:0;" />
-  {/key}
+  {#if $filteredData.length}
+    {#key sketchKey}
+      <P5 {sketch} style="position:absolute; top:0; left:0;" />
+    {/key}
+  {:else}
+    <div class="empty-state">...</div>
+  {/if}
 </div>
 
-{#if hoveredText}
-  <div class="tooltip" style="left: {tooltipX + 15}px; top: {tooltipY}px;">
-    {hoveredText}
-    {#if hoveredUrl}
-      <div style="font-size:0.92em; opacity:0.7; margin-top:0.5em;">
-        [Press <kbd>space</kbd> to open link]
-      </div>
-    {/if}
-  </div>
-{/if}
+<KeywordTooltip
+  {hoveredText}
+  {hoveredUrl}
+  {tooltipX}
+  {tooltipY}
+  keywords={hoveredHitbox?.keywords || []}
+  date={hoveredHitbox?.date || ""}
+/>
 
 <style>
+  .controls {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 10;
+    color: #eee;
+    background: #000;
+    padding: 0.7rem 1rem;
+    border-radius: 10px;
+    display: flex;
+    gap: 0.6rem 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    box-shadow: 0 2px 24px #0005;
+    font-size: 0.95rem;
+  }
+  .controls select,
+  .controls input[type="text"] {
+    background: #fff;
+    color: #111;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    font-size: inherit;
+  }
+  .controls .checkbox {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .controls .count {
+    opacity: 0.8;
+  }
+
   .viz-container {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
     background: #000;
+    cursor: cell;
+  }
+  .empty-state {
+    color: #888;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
   :global(.viz-container canvas) {
-    position: fixed !important;
     top: 0;
     left: 0;
     width: 100vw !important;
@@ -575,47 +651,7 @@
     z-index: 1;
     cursor: cell;
   }
-  .pattern-ui {
-    position: absolute;
-    top: 1em;
-    left: 1em;
-    z-index: 10;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 0.7em 1.2em;
-    border-radius: 13px;
-    font-size: 1.1em;
-    font-family: inherit;
-    display: flex;
-    gap: 1.2em;
-    align-items: center;
-  }
-  select,
-  option,
-  input[type="text"] {
-    color: #111;
-    font-size: 1em;
-    margin-left: 0.6em;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-  }
-  input[type="text"] {
-    padding: 0.2em 0.6em;
-  }
-  label {
-    font-weight: 500;
-  }
-  .tooltip {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.9);
-    color: #fff;
-    border-radius: 9px;
-    padding: 5px 10px;
-    z-index: 10000;
-    pointer-events: none;
-    box-shadow: 0 2px 24px #0008;
-    max-width: 450px;
-    min-width: 140px;
-    transform: translateY(-100%);
+  :global(canvas:not(#defaultCanvas0)) {
+    display: none !important;
   }
 </style>
