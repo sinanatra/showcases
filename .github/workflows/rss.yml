@@ -32,14 +32,15 @@ jobs:
         working-directory: notebooks/rss
         run: python analysis.py
 
-      - name: Copy merged_parsed_documents.csv to static/
+      - name: Copy merged CSV for frontend
         run: cp notebooks/rss/output/merged_parsed_documents.csv static/merged_parsed_documents.csv
 
-      - name: Commit and push all updates
+      - name: Commit and push changes
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add notebooks/rss/data notebooks/rss/output static/parsed.csv
-          git commit -m "Update RSS outputs and parsed.csv for viz" || echo "No changes to commit"
+          git add data output static/merged_parsed_documents.csv
+          git commit -m "Update and parse RSS feeds" || echo "No changes to commit"
           git push
+
 
