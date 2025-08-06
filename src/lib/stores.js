@@ -36,15 +36,57 @@ const GENDER_MAP = {
 };
 
 export const articles = writable([]);
+
 export const filters = writable({
   district: "",
   keyword: "",
   gender: "",
   timeCluster: "",
-
   text: "",
   showOnlyLatest: false,
 });
+
+export function getKeywordVariants(canon) {
+  if (!canon) return [];
+  const variants = Object.entries(KEYWORD_GROUPS)
+    .filter(([, mapped]) => mapped === canon)
+    .map(([variant]) => variant);
+  return Array.from(new Set([...variants, canon]));
+}
+
+// german dates?
+const dateCache = new Map();
+
+export function parseDateLoose(v) {
+  if (!v) return null;
+  const raw = String(v).trim().replace(/,/g, "");
+  if (!raw) return null;
+  if (dateCache.has(raw)) return dateCache.get(raw);
+
+  let d = null;
+
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const [, y, m, day] = iso;
+    d = new Date(Number(y), Number(m) - 1, Number(day));
+  } else {
+    const de = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+    if (de) {
+      let [, day, month, year] = de;
+      let y = Number(year);
+      if (year.length === 2) y += y >= 70 ? 1900 : 2000;
+      d = new Date(y, Number(month) - 1, Number(day));
+    }
+  }
+
+  if (!d || isNaN(+d)) {
+    const tmp = new Date(raw);
+    d = isNaN(+tmp) ? null : tmp;
+  }
+
+  dateCache.set(raw, d);
+  return d;
+}
 
 export function filterArticles(list, { district, keyword }, exclude) {
   const variants = keyword ? getKeywordVariants(keyword) : [];
@@ -56,7 +98,12 @@ export function filterArticles(list, { district, keyword }, exclude) {
       keyword &&
       !(
         Array.isArray(a.KeywordMatch) &&
-        a.KeywordMatch.some((k) => variants.includes(k))
+        a.KeywordMatch.some((k) =>
+          variants
+            .map(String)
+            .map((s) => s.toLowerCase())
+            .includes(String(k).toLowerCase())
+        )
       )
     )
       return false;
@@ -82,7 +129,7 @@ export const availableGenders = derived(
       .flatMap((a) =>
         Array.isArray(a.ExtractedGender) ? a.ExtractedGender : []
       )
-      .map((g) => GENDER_MAP[g] || "Other");
+      .map((g) => GENDER_MAP[String(g).toLowerCase()] || "Other");
     return Array.from(new Set(clusters)).filter(Boolean).sort();
   }
 );
@@ -114,49 +161,13 @@ export const filtered = derived([articles, filters], ([$articles, $filters]) =>
   filterArticles(Array.isArray($articles) ? $articles : [], $filters, null)
 );
 
-export const record = writable(false);
-
-function parseDateLoose(v) {
-  if (!v) return null;
-  const s = String(v).trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const d = new Date(s);
-    return isNaN(d) ? null : d;
-  }
-
-  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
-  if (m) {
-    let [_, d, mo, y] = m;
-    let year = Number(
-      y.length === 2 ? (Number(y) >= 70 ? "19" + y : "20" + y) : y
-    );
-    const date = new Date(year, Number(mo) - 1, Number(d));
-    return isNaN(date) ? null : date;
-  }
-
-  const dflt = new Date(s);
-  return isNaN(dflt) ? null : dflt;
-}
-
-function toDateLike(v) {
-  if (!v) return null;
-  const d = new Date(v);
-  return isNaN(d) ? null : d;
-}
-function getKeywordVariants(canon) {
-  return Object.entries(KEYWORD_GROUPS)
-    .filter(([, mapped]) => mapped === canon)
-    .map(([variant]) => variant)
-    .concat(canon);
-}
-
 const N = 200;
+
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
   const sorted = [...list].sort((a, b) => {
-    const da = toDateLike(a.ExtractedDate || a.Date);
-    const db = toDateLike(b.ExtractedDate || b.Date);
+    const da = parseDateLoose(a.ExtractedDate || a.Date);
+    const db = parseDateLoose(b.ExtractedDate || b.Date);
     if (da && db) return db - da;
     if (db) return 1;
     if (da) return -1;
@@ -175,11 +186,13 @@ export const filteredData = derived(
     }
 
     if ($filters.keyword) {
-      const variants = getKeywordVariants($filters.keyword);
+      const variants = getKeywordVariants($filters.keyword)
+        .map(String)
+        .map((s) => s.toLowerCase());
       out = out.filter(
         (a) =>
           Array.isArray(a.KeywordMatch) &&
-          a.KeywordMatch.some((k) => variants.includes(k))
+          a.KeywordMatch.some((k) => variants.includes(String(k).toLowerCase()))
       );
     }
 
@@ -191,7 +204,6 @@ export const filteredData = derived(
     if ($filters.showOnlyLatest) {
       return out.length ? [out[0]] : [];
     }
-
     return out;
   }
 );
@@ -213,10 +225,12 @@ export const availableKeywords = derived(
       new Set(
         base
           .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-          .map((k) => KEYWORD_GROUPS[k] || k)
+          .map((k) => KEYWORD_GROUPS[String(k).toLowerCase()] || String(k))
       )
     )
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, "de"));
   }
 );
+
+export const record = writable(false);
