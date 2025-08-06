@@ -80,8 +80,7 @@
   }
 
   function setGrowthMode(val) {
-    growthMode =
-      val; /* no remount unless you want to: update sketchKey if needed */
+    growthMode = val;
   }
   function setKeywordFilter(val) {
     filters.set({ ...$filters, keyword: val });
