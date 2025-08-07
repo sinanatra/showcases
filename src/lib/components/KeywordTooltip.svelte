@@ -1,6 +1,8 @@
 <script>
   import { highlightTerms } from "$lib/utils/highlightTerms.js";
   export let hoveredText = "";
+  export let hoveredTitle = "";
+
   export let hoveredUrl = "";
   export let tooltipX = 0;
   export let tooltipY = 0;
@@ -10,6 +12,13 @@
 
 {#if hoveredText}
   <div class="tooltip" style="left: {tooltipX + 15}px; top: {tooltipY}px;">
+    {#if hoveredTitle}
+      <div style="font-size: 0.98em; opacity: 0.78; margin-bottom: 0.25em;">
+        <strong>
+          {@html highlightTerms(hoveredTitle, keywords)}
+        </strong>
+      </div>
+    {/if}
     {#if date}
       <div style="font-size: 0.98em; opacity: 0.78; margin-bottom: 0.25em;">
         <b>{date}</b>
