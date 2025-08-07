@@ -69,8 +69,9 @@
   .controls .inline-input {
     display: inline-block;
     margin: 0 0.25em;
-    background: #fff;
-    color: #111;
+    background-color: #272727;
+    color: white;
+
     border: 1px solid #444;
     border-radius: 6px;
     padding: 0.2rem 0.4rem;
