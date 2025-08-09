@@ -161,7 +161,7 @@ export const filtered = derived([articles, filters], ([$articles, $filters]) =>
   filterArticles(Array.isArray($articles) ? $articles : [], $filters, null)
 );
 
-const N = 200;
+const N = 300;
 
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
