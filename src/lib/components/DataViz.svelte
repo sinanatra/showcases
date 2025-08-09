@@ -86,6 +86,7 @@
       repulsionRadius = 12 * scale,
       widthBucket = 100 * scale,
       ltrSpacing = 8 * scale;
+      
     const charCache = new Map(),
       keywordColors = {};
     let branches = [],
