@@ -41,8 +41,11 @@
       {/each}
     </h2>
     <p>
-      This project automatically monitors police reports from Berlin and Brandenburg, highlighting and visualizing every new act of right-wing, xenophobic, or hate-motivated violence. It transforms official data into interactive records, making visible what is often overlooked in German society.
-      
+      This project automatically monitors police reports from Berlin and
+      Brandenburg, highlighting and visualizing every new act of right-wing,
+      xenophobic, or hate-motivated violence. It transforms official data into
+      interactive records, making visible what is often overlooked in German
+      society.
     </p>
     <button on:click={start}>
       {#each splitAndScatter(buttonText, 0.1) as { c, x, y, i }}
@@ -62,8 +65,8 @@
 
 <style>
   main {
-    font-size: 28px;
-    line-height: 20px;
+    font-size: 16px;
+    line-height: 10px;
     min-height: 100vh;
     background: #111;
     color: #fff;
@@ -113,10 +116,6 @@
     box-shadow: 0 0.5px 2px #0002;
     position: relative;
     top: 0.01em;
-  }
-  .letter--small {
-    background: none;
-    color: white;
   }
 
   .letter--button {

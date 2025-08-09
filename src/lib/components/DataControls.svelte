@@ -1,25 +1,88 @@
 <script>
+  import { onMount } from "svelte";
   import { filters, availableKeywords, filteredData } from "$lib/stores";
 
+  let lastInteraction = Date.now();
+  let stopped = false;
+  let controlsEl;
+
+  function markInteraction() {
+    lastInteraction = Date.now();
+    stopped = true;
+  }
+
   function setKeywordFilter(val) {
-    filters.set({ ...$filters, keyword: val });
+    markInteraction();
+    filters.update((f) => ({ ...f, keyword: val }));
   }
   function setTextFilter(val) {
-    filters.set({ ...$filters, text: val });
+    markInteraction();
+    filters.update((f) => ({ ...f, text: val }));
   }
   function setShowOnlyLatest(val) {
-    filters.set({ ...$filters, showOnlyLatest: val });
+    markInteraction();
+    filters.update((f) => ({ ...f, showOnlyLatest: val }));
   }
+
+  onMount(() => {
+    let index = 0;
+    let cycles = 0;
+    const maxCycles = 10;
+    const checkIntervalMs = 3000;
+    const idleThresholdMs = 10000;
+
+    const interval = setInterval(() => {
+      if (stopped) return;
+
+      const idleFor = Date.now() - lastInteraction;
+      if (idleFor >= idleThresholdMs && $availableKeywords.length > 0) {
+        index = (index + 1) % $availableKeywords.length;
+
+        filters.update((f) => ({ ...f, keyword: $availableKeywords[index] }));
+        cycles++;
+        if (cycles >= maxCycles) {
+          clearInterval(interval);
+        }
+      }
+    }, checkIntervalMs);
+
+    const stopOnActivity = () => {
+      if (!stopped) {
+        stopped = true;
+        clearInterval(interval);
+      }
+    };
+
+    const events = [
+      "mousemove",
+      "pointerdown",
+      "keydown",
+      "wheel",
+      "touchstart",
+    ];
+    events.forEach((e) =>
+      window.addEventListener(e, stopOnActivity, { passive: true })
+    );
+
+    const focusHandler = stopOnActivity;
+    controlsEl?.addEventListener("focusin", focusHandler);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach((e) => window.removeEventListener(e, stopOnActivity));
+      controlsEl?.removeEventListener("focusin", focusHandler);
+    };
+  });
 </script>
 
-<div class="controls">
-  Showing
+<div class="controls" bind:this={controlsEl}>
+  Showing the last
   <strong>{$filteredData.length}</strong>
-  police-reported incident{$filteredData.length === 1 ? "" : "s"}
+  police reports {$filteredData.length === 1 ? "" : "s"}
   {#if $availableKeywords.length}
-    &nbsp;with keyword
+    mentioning:
     <select
-      bind:value={$filters.keyword}
+      value={$filters.keyword}
       on:change={(e) => setKeywordFilter(e.target.value)}
     >
       <option value="">any</option>
@@ -31,16 +94,16 @@
   , containing
   <input
     type="text"
-    bind:value={$filters.text}
+    value={$filters.text}
     on:input={(e) => setTextFilter(e.target.value)}
     placeholder="text…"
     class="inline-input"
   />
-  in the description, or
+  , or
   <label class="inline-checkbox">
     <input
       type="checkbox"
-      bind:checked={$filters.showOnlyLatest}
+      checked={$filters.showOnlyLatest}
       on:change={(e) => setShowOnlyLatest(e.target.checked)}
     />
     only the latest.
@@ -71,7 +134,6 @@
     margin: 0 0.25em;
     background-color: #272727;
     color: white;
-
     border: 1px solid #444;
     border-radius: 6px;
     padding: 0.2rem 0.4rem;
@@ -79,17 +141,14 @@
     min-width: 90px;
     vertical-align: middle;
   }
-
   strong,
   select,
   input {
-    padding: 0px 10px;
+    padding: 0 10px;
   }
-
   .inline-input {
     width: 110px;
   }
-
   .inline-checkbox {
     display: inline-flex;
     align-items: center;

@@ -12,21 +12,19 @@
 
 {#if hoveredText}
   <div class="tooltip" style="left: {tooltipX + 15}px; top: {tooltipY}px;">
-    {#if hoveredTitle}
-      <div style="font-size: 0.98em; opacity: 0.78; margin-bottom: 0.25em;">
-        <strong>
-          {@html highlightTerms(hoveredTitle, keywords)}
-        </strong>
+    {#if date}
+      <div style="font-size: 0.98em; margin-bottom: 0.25em;">
+        <b>{date}</b>
       </div>
     {/if}
-    {#if date}
-      <div style="font-size: 0.98em; opacity: 0.78; margin-bottom: 0.25em;">
-        <b>{date}</b>
+    {#if hoveredTitle}
+      <div style="font-size: 0.98em; ; margin-bottom: 0.25em;">
+        {@html highlightTerms(hoveredTitle, keywords)}
       </div>
     {/if}
     {@html highlightTerms(hoveredText, keywords)}
     {#if hoveredUrl}
-      <div style="font-size:0.92em; opacity:0.7; margin-top:0.5em;">
+      <div style="font-size:0.92em; margin-top:0.5em;">
         [Press <kbd>space</kbd> to open link]
       </div>
     {/if}
@@ -50,7 +48,7 @@
 
   :global(.highlight) {
     color: white;
-    padding: 0 2px;
+
     border-radius: 3px;
     font-weight: 700;
     box-decoration-break: clone;
