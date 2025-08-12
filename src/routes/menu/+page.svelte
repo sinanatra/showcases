@@ -5,7 +5,7 @@
 
     <!-- <a href="infection2">Infection 2</a> —
     <a href="infection">Infection</a> — -->
-    <a href="infection1">Infection</a>
+    <a href="infection">Infection</a>
     <a href="spread">Spread</a>
   </header>
 </article>

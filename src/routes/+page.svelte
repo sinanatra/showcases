@@ -1,13 +1,8 @@
 <script>
   import { goto } from "$app/navigation";
   import { t, lang, setLang, availableLangs } from "$lib/i18n";
-  import { browser } from "$app/environment";
 
   let videoEl;
-
-  function start() {
-    goto("spread");
-  }
 
   function handleEnded() {
     videoEl.pause();
@@ -46,15 +41,17 @@
     <h1>{$t("showcases")}</h1>
     <h2>{$t("subtitle")}</h2>
     <p>{$t("description")}</p>
-    <button class="start" on:click={start}>{$t("enter")}</button>
+    <p>{$t("sub")}</p>
+
+    <div class="links">
+      <a href="/spread" sveltekit:prefetch>{$t("last")}</a> –
+      <a href="/timeline" sveltekit:prefetch>{$t("timeline")}</a> –
+      <a href="/methodology" sveltekit:prefetch>{$t("methodology")}</a>
+    </div>
   </article>
 </main>
 
 <style>
-  :global(body) {
-    background: #000;
-  }
-
   .lang-switch {
     position: fixed;
     top: 1rem;
@@ -100,7 +97,7 @@
   }
 
   .panel {
-    max-width: 60ch;
+    max-width: 70ch;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -113,16 +110,33 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   }
 
-  h1,
-  h2 {
-    font-size: 1.3em;
+  .links {
+    margin-top: 10px;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    opacity: 0.9;
+  }
+  .links a {
+    color: #ddd;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .links a:hover {
+    color: #fff;
+    border-bottom-color: #fff;
+  }
+
+  h1 {
+    font-size: 1.4em;
     margin: 0;
   }
   h2 {
-    font-size: 1.2em;
+    font-size: 1.1em;
+    margin: 0;
   }
   p {
-    font-size: 0.8em;
+    font-size: 1em;
     margin: 0.6rem 0 0;
   }
 
