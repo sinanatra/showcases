@@ -2,80 +2,77 @@
   import { onMount } from "svelte";
   import { filters, availableKeywords, filteredData } from "$lib/stores";
 
-  let lastInteraction = Date.now();
-  let stopped = false;
-  let controlsEl;
+  let lastActivity = Date.now();
+  let cycling = false;
+  let cycles = 0;
 
-  function markInteraction() {
-    lastInteraction = Date.now();
-    stopped = true;
+  const idle_delay = 10000;
+  const check_ms = 5000;
+  const max_cycles = 20;
+
+  function markActivity() {
+    lastActivity = Date.now();
+    cycling = false;
+    cycles = 0;
   }
 
   function setKeywordFilter(val) {
-    markInteraction();
+    markActivity();
     filters.update((f) => ({ ...f, keyword: val }));
   }
   function setTextFilter(val) {
-    markInteraction();
+    markActivity();
     filters.update((f) => ({ ...f, text: val }));
   }
   function setShowOnlyLatest(val) {
-    markInteraction();
+    markActivity();
     filters.update((f) => ({ ...f, showOnlyLatest: val }));
   }
 
   onMount(() => {
+    const activityEvents = [
+      "mousemove",
+      "mousedown",
+      "click",
+      "keydown",
+      "wheel",
+      "touchstart",
+      "pointermove",
+    ];
+    activityEvents.forEach((ev) =>
+      window.addEventListener(ev, markActivity, { passive: true })
+    );
+
     let index = 0;
-    let cycles = 0;
-    const maxCycles = 10;
-    const checkIntervalMs = 3000;
-    const idleThresholdMs = 10000;
+    const tick = setInterval(() => {
+      const idleFor = Date.now() - lastActivity;
 
-    const interval = setInterval(() => {
-      if (stopped) return;
+      if (!cycling && idleFor >= idle_delay && $availableKeywords.length > 0) {
+        cycling = true;
+        cycles = 0;
+      }
 
-      const idleFor = Date.now() - lastInteraction;
-      if (idleFor >= idleThresholdMs && $availableKeywords.length > 0) {
+      if (cycling && $availableKeywords.length > 0) {
         index = (index + 1) % $availableKeywords.length;
 
         filters.update((f) => ({ ...f, keyword: $availableKeywords[index] }));
         cycles++;
-        if (cycles >= maxCycles) {
-          clearInterval(interval);
+        if (cycles >= max_cycles) {
+          cycling = false;
         }
       }
-    }, checkIntervalMs);
-
-    const stopOnActivity = () => {
-      if (!stopped) {
-        stopped = true;
-        clearInterval(interval);
-      }
-    };
-
-    const events = [
-      "mousemove",
-      "pointerdown",
-      "keydown",
-      "wheel",
-      "touchstart",
-    ];
-    events.forEach((e) =>
-      window.addEventListener(e, stopOnActivity, { passive: true })
-    );
-
-    const focusHandler = stopOnActivity;
-    controlsEl?.addEventListener("focusin", focusHandler);
+    }, check_ms);
 
     return () => {
-      clearInterval(interval);
-      events.forEach((e) => window.removeEventListener(e, stopOnActivity));
-      controlsEl?.removeEventListener("focusin", focusHandler);
+      clearInterval(tick);
+      activityEvents.forEach((ev) =>
+        window.removeEventListener(ev, markActivity)
+      );
     };
   });
 </script>
 
-<div class="controls" bind:this={controlsEl}>
+<div class="controls">
   Showing the last
   <strong>{$filteredData.length}</strong>
   police reports {$filteredData.length === 1 ? "" : "s"}
