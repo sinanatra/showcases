@@ -24,7 +24,6 @@
   playsinline
   bind:this={videoEl}
   on:ended={handleEnded}
-  poster="/bg-poster.jpg"
 >
   <source src="bg.mp4" type="video/mp4" />
   <source src="bg.mov" type="video/quicktime" />
@@ -44,10 +43,6 @@
 </main>
 
 <style>
-  :global(body) {
-    background: #000;
-  }
-
   .bg-video {
     position: fixed;
     inset: 0;
@@ -60,15 +55,13 @@
   }
 
   main {
-    min-height: 100vh;
+    height: 100vh;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     z-index: 1;
-    padding: 4vh 2vw;
-    /* background: radial-gradient(120% 120% at 50% 50%, #0000 40%, #0006 100%); */
   }
 
   .panel {
