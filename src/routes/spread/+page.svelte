@@ -20,6 +20,16 @@
         Text: d.Text || "",
         URL: d.URL || "",
         Title: d.Title || "",
+        ExtractedGender: Array.isArray(d.ExtractedGender)
+          ? d.ExtractedGender
+          : d.ExtractedGender
+            ? [d.ExtractedGender]
+            : [],
+        ExtractedTime: Array.isArray(d.ExtractedTime)
+          ? d.ExtractedTime
+          : d.ExtractedTime
+            ? [d.ExtractedTime]
+            : [],
       }))
     );
   });

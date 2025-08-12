@@ -1,5 +1,7 @@
 <script>
   import { goto } from "$app/navigation";
+  import { t, lang, setLang, availableLangs } from "$lib/i18n";
+  import { browser } from "$app/environment";
 
   let videoEl;
 
@@ -9,13 +11,24 @@
 
   function handleEnded() {
     videoEl.pause();
-
     setTimeout(() => {
       videoEl.currentTime = 0;
       videoEl.play();
     }, 5000);
   }
 </script>
+
+<div class="lang-switch" aria-label="Language switcher">
+  {#each availableLangs as l}
+    <button
+      class:active={$lang === l}
+      on:click={() => setLang(l)}
+      aria-pressed={$lang === l}
+    >
+      {l.toUpperCase()}
+    </button>
+  {/each}
+</div>
 
 <video
   class="bg-video"
@@ -31,18 +44,42 @@
 
 <main>
   <article class="panel">
-    <h1>Showcases</h1>
-    <h2>Recoding Right-Wing Extremism</h2>
-    <p>
-      This project automatically monitors police reports from Berlin and
-      Brandenburg, highlighting and visualizing every new act of right-wing,
-      xenophobic, or hate-motivated violence.
-    </p>
-    <button on:click={start}> Enter </button>
+    <h1>{$t("showcases")}</h1>
+    <h2>{$t("subtitle")}</h2>
+    <p>{$t("description")}</p>
+    <button class="start" on:click={start}>{$t("enter")}</button>
   </article>
 </main>
 
 <style>
+  :global(body) {
+    background: #000;
+  }
+
+  .lang-switch {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    gap: 0.4rem;
+  }
+  .lang-switch button {
+    background: #111;
+    color: #eee;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+  .lang-switch button.active {
+    border-color: #888;
+    background: #222;
+    opacity: 1;
+  }
+
   .bg-video {
     position: fixed;
     inset: 0;
@@ -51,7 +88,6 @@
     object-fit: cover;
     z-index: 0;
     pointer-events: none;
-    /* filter: brightness(0.7); */
   }
 
   main {
@@ -80,20 +116,13 @@
 
   h1,
   h2 {
-    display: flex;
-    flex-wrap: wrap;
     font-size: 1.3em;
     margin: 0;
-    position: relative;
   }
-
   h2 {
     font-size: 1.2em;
   }
-
   p {
-    display: flex;
-    flex-wrap: wrap;
     font-size: 0.8em;
     margin: 0.6rem 0 0;
   }
@@ -102,18 +131,17 @@
     font-size: 1.13em;
     background: transparent;
     border: none;
-    font-family: inherit;
-    letter-spacing: 0.01em;
     cursor: pointer;
-    margin-top: 1.6ch;
-    box-shadow: none;
-    padding: 0;
-    display: flex;
     color: white;
   }
 
   button:hover {
     background: #ececec;
     color: black;
+  }
+
+  .start {
+    padding: 0;
+    margin-top: 20px;
   }
 </style>
