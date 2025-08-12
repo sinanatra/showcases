@@ -56,7 +56,7 @@
     object-fit: cover;
     z-index: 0;
     pointer-events: none;
-    filter: brightness(0.7);
+    /* filter: brightness(0.7); */
   }
 
   main {
