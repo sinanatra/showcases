@@ -1,6 +1,14 @@
 <script>
   import { onMount } from "svelte";
-  import { filters, availableKeywords, filteredData } from "$lib/stores";
+  import {
+    filters,
+    availableKeywordsLabeled,
+    availableGendersLabeled,
+    availableTimeClustersLabeled,
+    filteredData,
+  } from "$lib/stores";
+
+  import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
 
   let lastActivity = Date.now();
   let cycling = false;
@@ -47,15 +55,21 @@
     const tick = setInterval(() => {
       const idleFor = Date.now() - lastActivity;
 
-      if (!cycling && idleFor >= idle_delay && $availableKeywords.length > 0) {
+      if (
+        !cycling &&
+        idleFor >= idle_delay &&
+        $availableKeywordsLabeled.length > 0
+      ) {
         cycling = true;
         cycles = 0;
       }
 
-      if (cycling && $availableKeywords.length > 0) {
-        index = (index + 1) % $availableKeywords.length;
-
-        filters.update((f) => ({ ...f, keyword: $availableKeywords[index] }));
+      if (cycling && $availableKeywordsLabeled.length > 0) {
+        index = (index + 1) % $availableKeywordsLabeled.length;
+        filters.update((f) => ({
+          ...f,
+          keyword: $availableKeywordsLabeled[index].value,
+        }));
         cycles++;
         if (cycles >= max_cycles) {
           cycling = false;
@@ -72,38 +86,56 @@
   });
 </script>
 
+<div class="lang-switch">
+  {#each availableLangs as l}
+    <button
+      class:active={$lang === l}
+      on:click={() => setLang(l)}
+      aria-pressed={$lang === l}
+    >
+      {l.toUpperCase()}
+    </button>
+  {/each}
+</div>
 <div class="controls">
-  Showing the last
+  {$t("controls_showingLast")}
   <strong>{$filteredData.length}</strong>
-  police reports {$filteredData.length === 1 ? "" : "s"}
-  {#if $availableKeywords.length}
-    mentioning:
+  {#if $filteredData.length === 1}
+    {$tn("controls_report", 1)}
+  {:else}
+    {$tn("controls_report", $filteredData.length)}
+  {/if}
+
+  {#if $availableKeywordsLabeled.length}
+    &nbsp;{$t("controls_mentioning")}
     <select
       value={$filters.keyword}
       on:change={(e) => setKeywordFilter(e.target.value)}
     >
-      <option value="">any</option>
-      {#each $availableKeywords as canon}
-        <option value={canon}>{canon}</option>
+      <option value="">{$t("controls_any")}</option>
+      {#each $availableKeywordsLabeled as opt}
+        <option value={opt.value}>{opt.label}</option>
       {/each}
     </select>
   {/if}
-  , containing
+
+  {$t("controls_containing")}
   <input
     type="text"
     value={$filters.text}
     on:input={(e) => setTextFilter(e.target.value)}
-    placeholder="text…"
+    placeholder={$t("controls_textPlaceholder")}
     class="inline-input"
   />
-  , or
+
+  {$t("controls_or")}
   <label class="inline-checkbox">
     <input
       type="checkbox"
       checked={$filters.showOnlyLatest}
       on:change={(e) => setShowOnlyLatest(e.target.checked)}
     />
-    only the latest.
+    {$t("controls_onlyLatest")}
   </label>
 </div>
 
@@ -123,8 +155,34 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    white-space: none;
+    gap: 0.25rem;
   }
+
+  .lang-switch {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+  }
+
+  .lang-switch button {
+    background: #111;
+    color: #eee;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+  .lang-switch button.active {
+    border-color: #888;
+    background: #222;
+    opacity: 1;
+  }
+
   .controls select,
   .controls .inline-input {
     display: inline-block;

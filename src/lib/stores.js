@@ -1,4 +1,6 @@
+// src/lib/stores.js
 import { writable, derived } from "svelte/store";
+import { lang } from "$lib/i18n";
 
 export const KEYWORD_GROUPS = {
   antisemitisch: "antisemitismus",
@@ -201,6 +203,36 @@ export const filteredData = derived(
       out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
     }
 
+    // OPTIONAL: enable gender filter
+    if ($filters.gender) {
+      out = out.filter((a) => {
+        const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
+        const mapped = gs.map(
+          (g) => GENDER_MAP[String(g).toLowerCase()] || "Other"
+        );
+        return mapped.includes($filters.gender);
+      });
+    }
+
+    // OPTIONAL: enable time cluster filter
+    if ($filters.timeCluster) {
+      out = out.filter((a) => {
+        const times = Array.isArray(a.ExtractedTime) ? a.ExtractedTime : [];
+        return times.some((t) => {
+          const h = Number(String(t).split(":")[0]);
+          const label =
+            h >= 6 && h < 12
+              ? "Morning"
+              : h >= 12 && h < 18
+              ? "Afternoon"
+              : h >= 18 && h < 24
+              ? "Evening"
+              : "Night";
+          return label === $filters.timeCluster;
+        });
+      });
+    }
+
     if ($filters.showOnlyLatest) {
       return out.length ? [out[0]] : [];
     }
@@ -234,3 +266,83 @@ export const availableKeywords = derived(
 );
 
 export const record = writable(false);
+
+// ------------------ UI LABELS (localized) ------------------
+
+const GENDER_LABELS = {
+  en: {
+    "Adult Female": "Adult Female",
+    "Adult Male": "Adult Male",
+    Youth: "Youth",
+    Other: "Other",
+  },
+  de: {
+    "Adult Female": "Erwachsene Frau",
+    "Adult Male": "Erwachsener Mann",
+    Youth: "Jugendliche*r",
+    Other: "Sonstiges",
+  },
+};
+
+const TIME_LABELS = {
+  en: {
+    Morning: "Morning",
+    Afternoon: "Afternoon",
+    Evening: "Evening",
+    Night: "Night",
+  },
+  de: {
+    Morning: "Morgen",
+    Afternoon: "Nachmittag",
+    Evening: "Abend",
+    Night: "Nacht",
+  },
+};
+
+const KEYWORD_LABELS = {
+  antisemitismus: { en: "Antisemitism", de: "Antisemitismus" },
+  nationalsozialismus: { en: "National Socialism", de: "Nationalsozialismus" },
+  rechtsextremismus: { en: "Right-wing extremism", de: "Rechtsextremismus" },
+  rassismus: { en: "Racism", de: "Rassismus" },
+  fremdenfeindlich: { en: "Xenophobic", de: "Fremdenfeindlich" },
+  hakenkreuz: { en: "Swastika", de: "Hakenkreuz" },
+  hitlergruß: { en: "Hitler salute", de: "Hitlergruß" },
+  homophobie: { en: "Homophobia", de: "Homophobie" },
+  "mit politischem hintergrund": {
+    en: "With political background",
+    de: "Mit politischem Hintergrund",
+  },
+  nazi: { en: "Nazi", de: "Nazi" },
+  queerfeindlichkeit: { en: "Anti-queer", de: "Queerfeindlichkeit" },
+  "sieg heil": { en: '"Sieg Heil"', de: "„Sieg Heil“" },
+  transphobie: { en: "Transphobia", de: "Transphobie" },
+  verfassungswidrig: { en: "Unconstitutional", de: "Verfassungswidrig" },
+  volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
+};
+
+export const availableGendersLabeled = derived(
+  [availableGenders, lang],
+  ([$availableGenders, $lang]) =>
+    $availableGenders.map((v) => ({
+      value: v,
+      label: GENDER_LABELS[$lang]?.[v] ?? v,
+    }))
+);
+
+export const availableTimeClustersLabeled = derived(
+  [availableTimeClusters, lang],
+  ([$availableTimeClusters, $lang]) =>
+    $availableTimeClusters.map((v) => ({
+      value: v,
+      label: TIME_LABELS[$lang]?.[v] ?? v,
+    }))
+);
+
+export const availableKeywordsLabeled = derived(
+  [availableKeywords, lang],
+  ([$availableKeywords, $lang]) =>
+    $availableKeywords.map((canon) => ({
+      value: canon,
+      label: KEYWORD_LABELS[canon]?.[$lang] ?? canon,
+    }))
+);
