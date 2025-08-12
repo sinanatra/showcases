@@ -6,7 +6,7 @@
   import DataViz from "$lib/components/DataViz.svelte";
 
   onMount(async () => {
-    const raw = await d3.csv("/all_merged.csv");
+    const raw = await d3.csv("all_merged.csv");
     articles.set(
       raw.map((d) => ({
         ...d,
@@ -29,7 +29,6 @@
 <DataViz />
 
 <style>
-  body,
   :global(body) {
     background: #000;
   }
