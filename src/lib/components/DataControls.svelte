@@ -28,9 +28,12 @@
     markActivity();
     filters.update((f) => ({ ...f, keyword: val }));
   }
+
   function setTextFilter(val) {
     markActivity();
-    filters.update((f) => ({ ...f, text: val }));
+    const q = String(val || "").trim();
+    filters.update((f) => ({ ...f, text: q.length >= 3 ? q : "" }));
+    // console.log($filters);
   }
   function setShowOnlyLatest(val) {
     markActivity();
@@ -124,6 +127,7 @@
     type="text"
     value={$filters.text}
     on:input={(e) => setTextFilter(e.target.value)}
+    minlength="3"
     placeholder={$t("controls_textPlaceholder")}
     class="inline-input"
   />
