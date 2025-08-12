@@ -39,7 +39,6 @@
   on:ended={handleEnded}
 >
   <source src="bg.mp4" type="video/mp4" />
-  <source src="bg.mov" type="video/quicktime" />
 </video>
 
 <main>

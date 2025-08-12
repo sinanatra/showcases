@@ -1,8 +1,8 @@
-// src/lib/stores.js
 import { writable, derived } from "svelte/store";
 import { lang } from "$lib/i18n";
 
 export const KEYWORD_GROUPS = {
+  antisem: "antisemitismus",
   antisemitisch: "antisemitismus",
   antisemitismus: "antisemitismus",
   nationalsozialismus: "nationalsozialismus",
@@ -15,12 +15,15 @@ export const KEYWORD_GROUPS = {
   fremdenfeindlich: "fremdenfeindlich",
   hakenkreuz: "hakenkreuz",
   hitlergruß: "hitlergruß",
+  homophob: "homophobie",
   homophobie: "homophobie",
   "mit politischem hintergrund": "mit politischem hintergrund",
   nazi: "nazi",
   queerfeindlichkeit: "queerfeindlichkeit",
+  queerfeindlich: "queerfeindlichkeit",
   "sieg heil": "sieg heil",
   transphobie: "transphobie",
+  transphob: "transphobie",
   verfassungswidrig: "verfassungswidrig",
   volksverhetzung: "volksverhetzung",
 };
