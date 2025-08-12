@@ -1,7 +1,7 @@
 <script>
   import P5 from "p5-svelte";
   import KeywordTooltip from "$lib/components/KeywordTooltip.svelte";
-  import { filters, filteredData } from "$lib/stores";
+  import { filters, filteredData, getKeywordVariants } from "$lib/stores";
 
   const growthParams = {
     fungal: {
@@ -26,12 +26,21 @@
   const growthModes = Object.keys(growthParams);
 
   let growthMode = "chaos";
+
   $: dataSig = $filteredData
     .map((d) => `${d.URL || ""}|${d.ExtractedDate || d.Date || ""}`)
     .join("§");
-  $: if (dataSig)
+
+  $: activeHighlightTerms = [
+    ...($filters.keyword ? getKeywordVariants($filters.keyword) : []),
+    ...($filters.text ? [$filters.text] : []),
+  ].filter(Boolean);
+
+  $: if (dataSig) {
     growthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
-  $: sketchKey = `${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}`;
+  }
+
+  $: sketchKey = `${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}|kw:${$filters.keyword}|q:${$filters.text}`;
 
   let hoveredText = "",
     hoveredUrl = "",
@@ -39,14 +48,16 @@
     tooltipX = 0,
     tooltipY = 0,
     hoveredHitbox = null;
-  function setTooltip(text, url, x, y, keywords = [], date = "", title) {
-    hoveredText = text;
-    hoveredUrl = url;
-    hoveredTitle = title;
-    tooltipX = x;
-    tooltipY = y;
-    hoveredHitbox = { keywords, date };
+
+  function setTooltip(text, url, x, y, keywords = [], date = "", title = "") {
+    hoveredText = text || "";
+    hoveredUrl = url || "";
+    hoveredTitle = title || "";
+    tooltipX = x || 0;
+    tooltipY = y || 0;
+    hoveredHitbox = { keywords: keywords || [], date };
   }
+
   function shorten(text, maxLen = 300) {
     if (!text) return "";
     if (text.length <= maxLen) return text;
@@ -54,11 +65,16 @@
     if (cut === -1) cut = maxLen;
     return text.slice(0, cut) + "…";
   }
+
   function shortenAroundKeyword(text, keyword, maxLen = 200) {
-    if (!text || !keyword) return shorten(text, maxLen);
-    const i = text.toLowerCase().indexOf(String(keyword).toLowerCase());
+    if (!text) return "";
+    const k = String(keyword || "").trim();
+    if (!k) return shorten(text, maxLen);
+
+    const i = text.toLowerCase().indexOf(k.toLowerCase());
     if (i === -1) return shorten(text, maxLen);
-    let start = Math.max(0, i - Math.floor((maxLen - keyword.length) / 2));
+
+    let start = Math.max(0, i - Math.floor((maxLen - k.length) / 2));
     let end = start + maxLen;
     if (end > text.length) {
       end = text.length;
@@ -78,39 +94,52 @@
     return result;
   }
 
+  function currentFocusFor(text, fallbackKeyword) {
+    const q = ($filters.text || "").trim();
+    if (q) return q;
+    if ($filters.keyword) return $filters.keyword;
+    return fallbackKeyword || "";
+  }
+
   let sketch = (p) => {
     const data = $filteredData;
+
     const params = () => growthParams[growthMode] || growthParams.fungal;
+
     const scale = 0.75,
       segmentLength = 8 * scale,
       repulsionRadius = 12 * scale,
       widthBucket = 100 * scale,
       ltrSpacing = 8 * scale;
-      
-    const charCache = new Map(),
-      keywordColors = {};
-    let branches = [],
-      pan = { x: 0, y: 0 },
-      zoom = 0.8,
-      dragging = false,
-      lastX = 0,
+
+    const charCache = new Map();
+    const keywordColors = {};
+
+    let branches = [];
+    let pan = { x: 0, y: 0 };
+    let zoom = 0.8;
+    let dragging = false;
+    let lastX = 0,
       lastY = 0,
       simFrame = 0;
-    let bufferCenter = { x: 0, y: 0 },
-      bufferBounds = { left: 0, right: 0, top: 0, bottom: 0 };
-    let worldBuffer,
-      globalBuckets = new Map(),
-      letterHitboxes = [],
-      firstDraw = true;
+
+    let bufferCenter = { x: 0, y: 0 };
+    let bufferBounds = { left: 0, right: 0, top: 0, bottom: 0 };
+    let worldBuffer;
+    let globalBuckets = new Map();
+    let letterHitboxes = [];
+    let firstDraw = true;
 
     function getCachedLetter(kw, letter, textSize) {
       const key = `${kw}_${letter}_${textSize}`;
       if (charCache.has(key)) return charCache.get(key);
+
       const pg = p.createGraphics(40 * scale, 40 * scale);
       pg.colorMode(p.HSB);
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
       pg.textSize(textSize);
+
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
       pg.fill(keywordColors[kw] || p.color(0, 0, 75));
@@ -118,14 +147,17 @@
       pg.rect(pg.width / 2, pg.height / 2, w + 4, textSize + 4);
       pg.fill(0, 0, 0);
       pg.text(letter, pg.width / 2, pg.height / 2);
+
       charCache.set(key, pg);
       return pg;
     }
+
     function growBranch(br, tip) {
       const gp = params();
       let dir = br.dir0.copy();
       dir.y += gp.downwardBias;
       dir.normalize();
+
       let nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
@@ -143,9 +175,11 @@
       );
       return dir;
     }
+
     function setupBranches(data, w, h) {
       const cx = w / 2,
         cy = h / 2;
+
       const allKws = Array.from(
         new Set(
           data.flatMap((a) =>
@@ -153,21 +187,22 @@
           )
         )
       );
-      allKws.forEach(
-        (kw, i) =>
-          (keywordColors[kw] = p.color(
-            0,
-            0,
-            55 + (i * 120) / Math.max(allKws.length - 1, 1)
-          ))
-      );
+      allKws.forEach((kw, i) => {
+        keywordColors[kw] = p.color(
+          0,
+          0,
+          55 + (i * 120) / Math.max(allKws.length - 1, 1)
+        );
+      });
+
       const result = [];
       if (!data.length) return result;
-      let kw0 = data[0]?.KeywordMatch?.[0] || "";
-      let trunkText = shortenAroundKeyword(
-        data[0]?.Text ?? data[0]?.sentence ?? "",
-        kw0
-      );
+
+      const kw0 = data[0]?.KeywordMatch?.[0] || "";
+      const text0 = data[0]?.Text ?? data[0]?.sentence ?? "";
+      const focus0 = currentFocusFor(text0, kw0);
+      const trunkText = shortenAroundKeyword(text0, focus0);
+
       result.push({
         kw: kw0,
         nodes: [p.createVector(cx, cy)],
@@ -186,9 +221,11 @@
         parent: null,
         attachAt: 0,
       });
+
       for (let i = 1; i < data.length; i++) {
         let parentIndex = Math.floor(Math.random() * Math.max(1, i));
         let parentBranch = result[parentIndex];
+
         const attachMax = Math.max(3, parentBranch.nodes.length - 3);
         let parentAttachIdx = Math.max(
           1,
@@ -197,9 +234,11 @@
             attachMax - 1
           )
         );
-        let attachPoint =
+
+        const attachPoint =
           parentBranch.nodes[parentAttachIdx] ||
           parentBranch.nodes[parentBranch.nodes.length - 1];
+
         let direction = parentBranch.nodes[parentAttachIdx + 1]
           ? p
               .createVector(
@@ -210,21 +249,23 @@
               )
               .normalize()
           : p.createVector(0, -1);
+
         let branchAngle = ((Math.random() - 0.5) * Math.PI) / 1.2;
         direction.rotate(branchAngle);
-        let kw = data[i]?.KeywordMatch?.[0] || "";
-        let text = shortenAroundKeyword(
-          data[i]?.Text ?? data[i]?.sentence ?? "",
-          kw
-        );
+
+        const kw = data[i]?.KeywordMatch?.[0] || "";
+        const txtFull = data[i]?.Text ?? data[i]?.sentence ?? "";
+        const focus = currentFocusFor(txtFull, kw);
+        const txt = shortenAroundKeyword(txtFull, focus);
+
         result.push({
           kw,
           nodes: [attachPoint.copy()],
-          sentence: text,
+          sentence: txt,
           url: data[i]?.URL || "",
           date: data[i]?.ExtractedDate || data[i]?.Date || "",
           title: data[i]?.Title || "",
-          maxSteps: Math.ceil(text.length * (ltrSpacing / segmentLength)),
+          maxSteps: Math.ceil(txt.length * (ltrSpacing / segmentLength)),
           grown: 0,
           frameCount: 0,
           dir0: direction,
@@ -236,8 +277,10 @@
           attachAt: parentAttachIdx,
         });
       }
+
       return result;
     }
+
     function screenToWorld(sx, sy) {
       return {
         x: (sx - p.width / 2) / zoom - pan.x + bufferCenter.x,
@@ -250,37 +293,45 @@
         y: (wy - bufferCenter.y + pan.y) * zoom + p.height / 2,
       };
     }
+
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight);
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
       p.frameRate(30);
+
       if (!data || !data.length) {
         worldBuffer = null;
         letterHitboxes = [];
         return;
       }
+
       const w = 4200 * scale,
         h = 4200 * scale;
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
+
       worldBuffer = p.createGraphics(w, h);
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
       worldBuffer.textSize(13 * scale);
+
       branches = setupBranches(data, w, h);
+
       pan = { x: 0, y: 0 };
       simFrame = 0;
       letterHitboxes = [];
       firstDraw = true;
     };
+
     p.draw = () => {
       if (!worldBuffer) {
         p.background(0);
         return;
       }
+
       globalBuckets = new Map();
       branches.forEach((br) =>
         br.nodes.forEach((n) => {
@@ -290,13 +341,17 @@
           globalBuckets.get(key).push(n);
         })
       );
+
       branches.forEach((br) => {
         if (br.finished) return;
         br.frameCount++;
         if (br.frameCount % 1 !== 0 || br.grown >= br.maxSteps) return;
+
         const tip = br.nodes && br.nodes[br.nodes.length - 1];
         if (!tip) return;
+
         let dir = growBranch(br, tip);
+
         const [bx, by] = [
           Math.floor(tip.x / widthBucket),
           Math.floor(tip.y / widthBucket),
@@ -315,6 +370,7 @@
                 );
               }
             });
+
         dir.normalize();
         const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
         next.x = p.constrain(
@@ -328,10 +384,12 @@
           bufferBounds.bottom - 10 * scale
         );
         br.nodes.push(next);
+
         br.grown++;
         const segLen = tip.dist(next);
         br.pathLength += segLen;
         br.distArr.push(br.pathLength);
+
         let ci = br.lastPlacedCharIndex + 1;
         while (
           ci < br.sentence.length &&
@@ -344,10 +402,12 @@
             const v0 = br.nodes[si - 1],
               v1 = br.nodes[si];
             if (!v0 || !v1) break;
+
             const tnorm = (target - d0) / v1.dist(v0);
             const px = p.lerp(v0.x, v1.x, tnorm),
               py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
+
             const letter = br.sentence[ci];
             const textSize = repulsionRadius / 1.2;
             const cached = getCachedLetter(br.kw, letter, textSize);
@@ -359,6 +419,7 @@
               worldBuffer.image(cached, 0, -segmentLength);
               worldBuffer.pop();
             }
+
             if (br.lastPlacedCharIndex < ci) {
               letterHitboxes.push({
                 worldX: px,
@@ -371,13 +432,17 @@
                 title: br.title,
               });
             }
+
             br.lastPlacedCharIndex = ci;
             ci++;
           } else break;
         }
+
         if (br.grown >= br.maxSteps) br.finished = true;
       });
+
       simFrame++;
+
       p.background(0);
       p.push();
       p.translate(p.width / 2, p.height / 2);
@@ -385,6 +450,7 @@
       p.translate(pan.x, pan.y);
       p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
       p.pop();
+
       if (firstDraw && letterHitboxes.length > 0) {
         firstDraw = false;
         setTimeout(() => {
@@ -392,6 +458,7 @@
         }, 0);
       }
     };
+
     p.mousePressed = () => {
       dragging = true;
       lastX = p.mouseX;
@@ -418,18 +485,24 @@
       p.resizeCanvas(window.innerWidth, window.innerHeight);
     };
     p.mouseOut = () => setTooltip("", "", 0, 0, []);
+
     p.mouseMoved = () => {
       const { x: wx, y: wy } = screenToWorld(p.mouseX, p.mouseY);
       hoveredHitbox = null;
+
       for (let hit of letterHitboxes) {
         if (p.dist(wx, wy, hit.worldX, hit.worldY) < hit.radius) {
           const { x, y } = worldToScreen(hit.worldX, hit.worldY);
+          const highlightList =
+            activeHighlightTerms.length > 0
+              ? activeHighlightTerms
+              : hit.keywords || [];
           setTooltip(
             hit.text,
             hit.url,
             x,
             y - 22,
-            hit.keywords,
+            highlightList,
             hit.date,
             hit.title
           );
@@ -439,6 +512,7 @@
       }
       if (!hoveredHitbox) setTooltip("", "", 0, 0, []);
     };
+
     p.keyPressed = () => {
       if ((p.key === " " || p.keyCode === 32) && hoveredHitbox?.url) {
         window.open(hoveredHitbox.url, "_blank");
@@ -464,7 +538,9 @@
   {hoveredUrl}
   {tooltipX}
   {tooltipY}
-  keywords={hoveredHitbox?.keywords || []}
+  keywords={activeHighlightTerms.length
+    ? activeHighlightTerms
+    : hoveredHitbox?.keywords || []}
   date={hoveredHitbox?.date || ""}
 />
 
