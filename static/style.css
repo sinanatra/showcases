@@ -1,6 +1,5 @@
 html {
   --color-1: rgb(81, 0, 255);
-  
 }
 
 body {
@@ -8,11 +7,11 @@ body {
   padding: 0px;
   font-size: 14px;
   overscroll-behavior: none;
-  font-family: "Courier New", Courier, monospace;
+  font-family: "Compagnon", Courier, monospace;
 }
 
 button {
-  font-family: "Courier New", Courier, monospace;
+  font-family: "Compagnon", Courier, monospace;
 }
 
 ::selection {
@@ -23,5 +22,19 @@ button {
 select,
 label {
   font-size: 1em;
+  font-family: "Compagnon", Courier, monospace;
+}
+
+strong,
+em,
+.highlight {
   font-family: "Courier New", Courier, monospace;
+}
+
+@font-face {
+  font-family: "Compagnon";
+  src: url("/fonts/Compagnon-Roman.woff2") format("woff2"),
+    url("/fonts/Compagnon-Roman.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
 }
