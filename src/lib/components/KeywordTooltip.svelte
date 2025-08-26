@@ -1,5 +1,6 @@
 <script>
   import { highlightTerms } from "$lib/utils/highlightTerms.js";
+  import { t } from "$lib/i18n";
   export let hoveredText = "";
   export let hoveredTitle = "";
 
@@ -25,7 +26,7 @@
     {@html highlightTerms(hoveredText, keywords)}
     {#if hoveredUrl}
       <div style="font-size:0.92em; margin-top:0.5em;">
-        [Press <kbd>space</kbd> to open link]
+        {@html $t("tooltip_open_link")}
       </div>
     {/if}
   </div>

@@ -1,11 +1,6 @@
 <article>
   <header>
-    <!-- <a href="overview">Overview</a> — -->
     <a href="timeline">Timeline</a>
-
-    <!-- <a href="infection2">Infection 2</a> —
-    <a href="infection">Infection</a> — -->
-    <a href="infection">Infection</a>
     <a href="spread">Spread</a>
   </header>
 </article>
