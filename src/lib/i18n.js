@@ -48,6 +48,7 @@ const dict = {
     controls_textPlaceholder: "text…",
     controls_or: ", or",
     controls_onlyLatest: "only the latest.",
+    tooltip_open_link: "Press <kbd>space</kbd> to open link",
   },
   de: {
     showcases: "Showcases",
@@ -72,6 +73,7 @@ const dict = {
     controls_textPlaceholder: "Text…",
     controls_or: ", oder",
     controls_onlyLatest: "nur die neuesten.",
+    tooltip_open_link: "Drücke <kbd>Leertaste</kbd>, um den Link zu öffnen",
   },
 };
 
