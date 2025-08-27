@@ -1,0 +1,52 @@
+[
+  {
+    "id": "intro",
+    "media": {
+      "type": "video",
+      "sources": [{ "src": "/bg.mp4", "type": "video/mp4" }]
+    },
+    "heading": { "en": "Showcases", "de": "Showcases" },
+    "subtitle": {
+      "en": "Recoding Right-Wing Extremism",
+      "de": "Rekodierung des Rechtsextremismus"
+    },
+    "body": {
+      "en": "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of xenophobic, transphobic and homophobic violence, as well as right-wing extremism in Germany.",
+      "de": "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht."
+    }
+  },
+  {
+    "id": "context",
+    "media": {
+      "type": "video",
+      "sources": [{ "src": "/scrolly/1.mov", "type": "video/mp4" }]
+    },
+    "heading": { "en": "What we track", "de": "Was wir erfassen" },
+    "body": {
+      "en": "We monitor police press releases across Berlin and Brandenburg—parsing time, location, actors and keywords.",
+      "de": "Wir überwachen Polizeipressemitteilungen in Berlin und Brandenburg – mit Parsing von Zeit, Ort, Akteur*innen und Schlüsselwörtern."
+    }
+  },
+  {
+    "id": "why",
+    "media": {
+      "type": "image",
+      "src": "/scrolly/0.png",
+      "alt": "Data patterns",
+      "type": "video",
+      "sources": [{ "src": "/scrolly/2.mov", "type": "video/mp4" }]
+    },
+
+    "heading": { "en": "Why it matters", "de": "Warum das wichtig ist" },
+    "body": {
+      "en": "The chronology reveals patterns and highlights the normalization of xenophobic, trans- and homophobic violence, and right-wing extremism.",
+      "de": "Die Chronologie macht Muster sichtbar und zeigt die Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie Rechtsextremismus."
+    },
+    "cta": [
+      {
+        "href": "/spread",
+        "label": { "en": "Explore latest incidents", "de": "Neueste Meldungen" }
+      }
+    ]
+  }
+]

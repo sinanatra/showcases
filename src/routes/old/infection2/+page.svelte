@@ -241,7 +241,6 @@
             worldBuffer.rotate(ang);
 
             worldBuffer.textSize(repulsionRadius / 2);
-            // measure the text
             const glyphW = Math.max(worldBuffer.textWidth(br.sentence[ci]), 4);
             const glyphH = worldBuffer.textAscent() + worldBuffer.textDescent();
             const PAD = 0.4 * SCALE;
