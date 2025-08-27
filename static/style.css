@@ -7,11 +7,14 @@ body {
   padding: 0px;
   font-size: 14px;
   overscroll-behavior: none;
-  font-family: "Compagnon", Courier, monospace;
+  font-family:  Courier, monospace;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button {
-  font-family: "Compagnon", Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
 ::selection {
@@ -22,19 +25,19 @@ button {
 select,
 label {
   font-size: 1em;
-  font-family: "Compagnon", Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
 strong,
 em,
 .highlight {
-  font-family: "Courier New", Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
-@font-face {
+/* @font-face {
   font-family: "Compagnon";
   src: url("/fonts/Compagnon-Roman.woff2") format("woff2"),
     url("/fonts/Compagnon-Roman.woff") format("woff");
   font-weight: 400;
   font-style: normal;
-}
+} */

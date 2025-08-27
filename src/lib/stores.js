@@ -166,7 +166,7 @@ export const filtered = derived([articles, filters], ([$articles, $filters]) =>
   filterArticles(Array.isArray($articles) ? $articles : [], $filters, null)
 );
 
-const N = 300;
+const N = 200;
 
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
@@ -206,7 +206,6 @@ export const filteredData = derived(
       out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
     }
 
-    // OPTIONAL: enable gender filter
     if ($filters.gender) {
       out = out.filter((a) => {
         const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
@@ -217,7 +216,6 @@ export const filteredData = derived(
       });
     }
 
-    // OPTIONAL: enable time cluster filter
     if ($filters.timeCluster) {
       out = out.filter((a) => {
         const times = Array.isArray(a.ExtractedTime) ? a.ExtractedTime : [];
@@ -270,7 +268,6 @@ export const availableKeywords = derived(
 
 export const record = writable(false);
 
-// ------------------ UI LABELS (localized) ------------------
 
 const GENDER_LABELS = {
   en: {
