@@ -32,10 +32,9 @@ const dict = {
       "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of xenophobic, transphobic and homophobic violence, as well as right-wing extremism in Germany.",
     sub: "This website automatically monitors police reports from Berlin and Brandenburg and updates the dataset daily.",
 
-    enter: "Enter",
     last: "Latest Incidents",
-    timeline: "Overview",
-    methodology: "Methodology",
+    timeline: "All Incidents",
+
     de: "DE",
     en: "EN",
 
@@ -57,10 +56,9 @@ const dict = {
       "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht. ",
     sub: "Diese Website überwacht Polizeimeldungen aus Berlin und Brandenburg automatisch und aktualisiert die Daten täglich.",
 
-    enter: "Weiter",
     last: "Neueste",
     timeline: "Zeitleiste",
-    methodology: "Methodik",
+
     de: "DE",
     en: "EN",
 

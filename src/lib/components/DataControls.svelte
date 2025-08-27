@@ -168,22 +168,21 @@
     right: 1rem;
     z-index: 10;
     display: flex;
-    gap: 10px;
+    gap: 0.4rem;
   }
 
   .lang-switch button {
     background: #111;
     color: #eee;
     border: 1px solid #333;
-    border-radius: 8px;
-    padding: 0.35rem 0.6rem;
     font-size: 0.9rem;
     cursor: pointer;
-    opacity: 0.85;
   }
+
   .lang-switch button.active {
-    border-color: #888;
-    background: #222;
+    color: #000;
+    border-color: #fff;
+    background: #fff;
     opacity: 1;
   }
 

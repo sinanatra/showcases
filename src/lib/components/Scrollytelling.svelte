@@ -1,0 +1,284 @@
+<script>
+  import { onMount, onDestroy, tick } from "svelte";
+  import { fade } from "svelte/transition";
+  import { lang, setLang, availableLangs } from "$lib/i18n";
+
+  export let scenes = null;
+  export let src = null;
+  export let threshold = 0.6;
+
+  let active = 0;
+  let videoRef;
+  let status = "loading";
+  let errorMsg = "";
+  let observer;
+  let root;
+
+  $: currentLang = $lang;
+
+  function L(v, langCode) {
+    if (!v) return "";
+    if (typeof v === "string") return v;
+    return v?.[langCode] ?? v?.en ?? v?.de ?? "";
+  }
+
+  $: localizedScenes = (scenes || []).map((s) => ({
+    ...s,
+    _heading: L(s.heading, currentLang),
+    _subtitle: L(s.subtitle, currentLang),
+    _body: L(s.body, currentLang),
+    _cta: (s.cta || []).map((c) => ({ ...c, _label: L(c.label, currentLang) })),
+  }));
+
+  $: current = localizedScenes?.[active] ?? null;
+  $: isVideo = current?.media?.type === "video";
+
+  function handleEnded() {
+    if (!videoRef) return;
+    videoRef.pause();
+    setTimeout(() => {
+      try {
+        videoRef.currentTime = 0;
+        videoRef.play();
+      } catch {}
+    }, 5000);
+  }
+
+  function preloadImages(list) {
+    (list || []).forEach((s) => {
+      if (s?.media?.type === "image" && s.media.src) {
+        const img = new Image();
+        img.src = s.media.src;
+      }
+    });
+  }
+
+  async function initObserver() {
+    await tick();
+    const steps = Array.from(root.querySelectorAll(".step"));
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            const idx = Number(e.target.dataset.index);
+            if (!Number.isNaN(idx)) active = idx;
+          }
+        });
+      },
+      { root: null, threshold }
+    );
+    steps.forEach((el, i) => {
+      el.dataset.index = String(i);
+      observer.observe(el);
+    });
+  }
+
+  onMount(async () => {
+    try {
+      if (!(Array.isArray(scenes) && scenes.length)) {
+        if (!src) throw new Error("No scenes provided");
+        const res = await fetch(src, { credentials: "same-origin" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        scenes = await res.json();
+      }
+      status = "ready";
+      active = 0;
+      preloadImages(scenes);
+      await initObserver();
+
+      await tick();
+      videoRef?.play?.().catch(() => {});
+    } catch (e) {
+      status = "error";
+      errorMsg = e?.message || String(e);
+    }
+  });
+
+  onDestroy(() => observer?.disconnect());
+</script>
+
+<div class="lang-switch" aria-label="Language switcher">
+  {#each availableLangs as l}
+    <button
+      class:active={$lang === l}
+      on:click={() => setLang(l)}
+      aria-pressed={$lang === l}
+    >
+      {l.toUpperCase()}
+    </button>
+  {/each}
+</div>
+
+<div class="scrolly" bind:this={root}>
+  <div class="bg">
+    {#if status === "ready" && current}
+      {#key current.id}
+        {#if isVideo}
+          <video
+            bind:this={videoRef}
+            class="bg-media"
+            autoplay
+            muted
+            playsinline
+            preload="metadata"
+            poster={current.media?.poster}
+            on:ended={handleEnded}
+            transition:fade
+          >
+            {#if Array.isArray(current.media?.sources) && current.media.sources.length}
+              {#each current.media.sources as s}
+                <source src={s.src} type={s.type} />
+              {/each}
+            {:else if current.media?.src}
+              <source src={current.media.src} type="video/mp4" />
+            {/if}
+          </video>
+        {:else if current?.media?.type === "image"}
+          <img
+            class="bg-media"
+            src={current.media?.src}
+            alt={current.media?.alt || ""}
+            transition:fade
+          />
+        {/if}
+      {/key}
+    {:else if status === "loading"}
+      <div class="bg-media" style="background:#000;"></div>
+    {/if}
+    <div class="bg-gradient" aria-hidden="true"></div>
+  </div>
+
+  <main>
+    {#if status === "error"}
+      <section class="step">
+        <article>Failed to load scenes: {errorMsg}</article>
+      </section>
+    {:else}
+      {#each localizedScenes as s, i}
+        <section class="step" aria-label={"section-" + i}>
+          <!-- no fade on text -->
+          <article>
+            {#if s._heading}<h1>{s._heading}</h1>{/if}
+            {#if s._subtitle}<h2>{s._subtitle}</h2>{/if}
+            {#if s._body}<p>{s._body}</p>{/if}
+            {#if s._cta?.length}
+              <div class="links">
+                {#each s._cta as link}
+                  <a href={link.href} sveltekit:prefetch>{link._label}</a>
+                {/each}
+              </div>
+            {/if}
+          </article>
+        </section>
+      {/each}
+    {/if}
+  </main>
+</div>
+
+<style>
+  .lang-switch {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 30;
+    display: flex;
+    gap: 0.4rem;
+  }
+  .lang-switch button {
+    background: #111;
+    color: #eee;
+    border: 1px solid #333;
+    font-size: 0.9rem;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+  }
+  .lang-switch button.active {
+    color: #000;
+    border-color: #fff;
+    background: #fff;
+  }
+
+  .scrolly {
+    position: relative;
+    min-height: 100vh;
+  }
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+  .bg-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+  .bg-gradient {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 120% at 50% 50%, #0000 40%, #0008 100%),
+      linear-gradient(to bottom, #0006, #0000 30%, #0000 70%, #0006);
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+  }
+  .step {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 6vh 2vw;
+  }
+  .step article {
+    max-width: 70ch;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1ch;
+  }
+  .step article h1,
+  .step article h2,
+  .step article p,
+  .step article a {
+    background: black;
+    color: white;
+    padding: 0.1ch 0.5ch;
+  }
+
+  h1 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3em;
+    font-weight: 400;
+    margin: 0;
+  }
+  h2 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.5em;
+    font-weight: 400;
+    margin: 0;
+    font-style: italic;
+  }
+  p {
+    font-size: 1em;
+    margin: 0.6rem 0 0;
+  }
+
+  .links {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+  }
+  .links a {
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .links a:hover {
+    border-bottom-color: #fff;
+  }
+</style>

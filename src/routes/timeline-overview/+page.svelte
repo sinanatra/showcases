@@ -42,6 +42,7 @@
       };
     });
     articles.set(data);
+    console.log($articles);
   });
 </script>
 

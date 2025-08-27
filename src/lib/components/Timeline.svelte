@@ -159,6 +159,7 @@
       timelineHeight = yOffset + data.length * lineHeight + 40;
     }
   }
+
 </script>
 
 <section>
