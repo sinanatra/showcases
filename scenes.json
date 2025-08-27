@@ -22,7 +22,7 @@
       "sources": [{ "src": "/scrolly/1.mov", "type": "video/mp4" }]
     },
     "subtitle": {
-      "en": "We monitor police press releases across Berlin and Brandenburg,parsing time, location, actors and keywords.",
+      "en": "We monitor police press releases across Berlin and Brandenburg, parsing time, location, actors and keywords.",
       "de": "Wir überwachen Polizeipressemitteilungen in Berlin und Brandenburg, mit Parsing von Zeit, Ort, Akteur*innen und Schlüsselwörtern."
     }
   },
