@@ -145,17 +145,13 @@
 
 <style>
   .controls {
+    font-family: Arial, Helvetica, sans-serif;
     position: absolute;
-    top: 1rem;
-    left: 1rem;
     z-index: 10;
     color: #eee;
     background: #000;
-    padding: 0.7rem 1rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 24px #0005;
+    padding: 5px 10px;
     font-size: 1rem;
-    line-height: 1.7;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -174,7 +170,6 @@
   .lang-switch button {
     background: #111;
     color: #eee;
-    border: 1px solid #333;
     font-size: 0.9rem;
     cursor: pointer;
   }
@@ -190,23 +185,20 @@
   .controls .inline-input {
     display: inline-block;
     margin: 0 0.25em;
-    background-color: #272727;
-    color: white;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 0.2rem 0.4rem;
     font-size: 1em;
     min-width: 90px;
     vertical-align: middle;
   }
-  strong,
+
   select,
   input {
-    padding: 0 10px;
+    font-family: Arial, Helvetica, sans-serif;
   }
+
   .inline-input {
     width: 110px;
   }
+
   .inline-checkbox {
     display: inline-flex;
     align-items: center;
@@ -214,8 +206,9 @@
     cursor: pointer;
     user-select: none;
   }
+
   .inline-checkbox input[type="checkbox"] {
-    accent-color: #0055ff;
+    accent-color: var(--color-1);
     width: 1.1em;
     height: 1.1em;
     vertical-align: middle;

@@ -21,10 +21,9 @@
       "type": "video",
       "sources": [{ "src": "/scrolly/1.mov", "type": "video/mp4" }]
     },
-    "heading": { "en": "What we track", "de": "Was wir erfassen" },
-    "body": {
-      "en": "We monitor police press releases across Berlin and Brandenburg—parsing time, location, actors and keywords.",
-      "de": "Wir überwachen Polizeipressemitteilungen in Berlin und Brandenburg – mit Parsing von Zeit, Ort, Akteur*innen und Schlüsselwörtern."
+    "subtitle": {
+      "en": "We monitor police press releases across Berlin and Brandenburg, parsing time, location, actors and keywords.",
+      "de": "Wir überwachen Polizeipressemitteilungen in Berlin und Brandenburg, mit Parsing von Zeit, Ort, Akteur*innen und Schlüsselwörtern."
     }
   },
   {
@@ -37,11 +36,6 @@
       "sources": [{ "src": "/scrolly/2.mov", "type": "video/mp4" }]
     },
 
-    "heading": { "en": "Why it matters", "de": "Warum das wichtig ist" },
-    "body": {
-      "en": "The chronology reveals patterns and highlights the normalization of xenophobic, trans- and homophobic violence, and right-wing extremism.",
-      "de": "Die Chronologie macht Muster sichtbar und zeigt die Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie Rechtsextremismus."
-    },
     "cta": [
       {
         "href": "/spread",
