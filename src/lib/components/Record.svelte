@@ -7,9 +7,9 @@
 </button>
 
 <style>
-  button {
+  /* button {
     position: fixed;
     top: 10px;
     left: 10px;
-  }
+  } */
 </style>
