@@ -199,6 +199,7 @@
   }
 
   .scrolly {
+  background-color: black;
     position: relative;
     min-height: 100vh;
   }
