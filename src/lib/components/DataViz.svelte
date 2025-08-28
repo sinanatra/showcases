@@ -2,6 +2,7 @@
   import P5 from "p5-svelte";
   import KeywordTooltip from "$lib/components/KeywordTooltip.svelte";
   import { filters, filteredData, getKeywordVariants } from "$lib/stores";
+  import { record } from "$lib/stores.js";
 
   const growthParams = {
     fungal: {
@@ -100,6 +101,12 @@
     if ($filters.keyword) return $filters.keyword;
     return fallbackKeyword || "";
   }
+
+  let isRecording = false;
+  let savedFrames = 0;
+  let framesToSave = 1000;
+
+  const unsub = record.subscribe((v) => (isRecording = v));
 
   let sketch = (p) => {
     const data = $filteredData;
@@ -457,6 +464,21 @@
           if (typeof p.mouseMoved === "function") p.mouseMoved();
         }, 0);
       }
+
+      if (isRecording) {
+        p.frameRate(6); // slow down when saving
+        if (savedFrames < framesToSave) {
+          p.saveCanvas("frame-" + p.nf(savedFrames, 4), "png");
+          savedFrames++;
+        }
+      } else {
+        p.frameRate(30);
+        savedFrames = 0;
+      }
+    };
+
+    p.remove = () => {
+      unsub();
     };
 
     p.mousePressed = () => {

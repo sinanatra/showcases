@@ -156,15 +156,25 @@
     {:else}
       {#each localizedScenes as s, i}
         <section class="step" aria-label={"section-" + i}>
-          <!-- no fade on text -->
           <article>
-            {#if s._heading}<h1>{s._heading}</h1>{/if}
-            {#if s._subtitle}<h2>{s._subtitle}</h2>{/if}
-            {#if s._body}<p>{s._body}</p>{/if}
+            {#if s._heading}<h1>
+                <span class="line-bg"> {s._heading}</span>
+              </h1>{/if}
+
+            {#if s._subtitle}<h2>
+                <span class="line-bg"> {s._subtitle}</span>
+              </h2>
+            {/if}
+
+            {#if s._body}
+              <p><span class="line-bg">{s._body}</span></p>
+            {/if}
             {#if s._cta?.length}
               <div class="links">
                 {#each s._cta as link}
-                  <a href={link.href} sveltekit:prefetch>{link._label}</a>
+                  <a href={link.href} sveltekit:prefetch
+                    ><span class="line-bg"> {link._label}</span></a
+                  >
                 {/each}
               </div>
             {/if}
@@ -199,7 +209,7 @@
   }
 
   .scrolly {
-  background-color: black;
+    background-color: black;
     position: relative;
     min-height: 100vh;
   }
@@ -233,6 +243,7 @@
     place-items: center;
     padding: 6vh 2vw;
   }
+
   .step article {
     max-width: 70ch;
     margin: 0 auto;
@@ -241,13 +252,29 @@
     align-items: center;
     padding: 1ch;
   }
+
   .step article h1,
-  .step article h2,
-  .step article p,
-  .step article a {
-    background: black;
-    color: white;
+  .step article h2 {
+    text-align: center;
+  }
+
+  .step article p {
+    align-self: flex-start;
+    text-align: left;
+  }
+
+  .step article .links {
+    align-self: center;
+    text-align: center;
+  }
+
+  .line-bg {
+    background: #000;
+    color: #fff;
     padding: 0.1ch 0.5ch;
+    display: inline;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   h1 {
@@ -279,7 +306,9 @@
     text-decoration: none;
     border-bottom: 1px solid transparent;
   }
-  .links a:hover {
-    border-bottom-color: #fff;
+
+  .links a span:hover {
+    background-color: var(--color-1);
+    color: black;
   }
 </style>
