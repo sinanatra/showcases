@@ -7,6 +7,7 @@
     availableTimeClustersLabeled,
     filteredData,
   } from "$lib/stores";
+  import Record from "$lib/components/Record.svelte";
 
   import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
 
@@ -90,6 +91,8 @@
 </script>
 
 <div class="lang-switch">
+  <!-- <Record /> -->
+
   {#each availableLangs as l}
     <button
       class:active={$lang === l}

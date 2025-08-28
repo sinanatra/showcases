@@ -314,7 +314,7 @@ const KEYWORD_LABELS = {
   },
   nazi: { en: "Nazi", de: "Nazi" },
   queerfeindlichkeit: { en: "Anti-queer", de: "Queerfeindlichkeit" },
-  "sieg heil": { en: '"Sieg Heil"', de: "„Sieg Heil“" },
+  "sieg heil": { en: 'Sieg Heil', de: "Sieg Heil" },
   transphobie: { en: "Transphobia", de: "Transphobie" },
   verfassungswidrig: { en: "Unconstitutional", de: "Verfassungswidrig" },
   volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
