@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import {
     filters,
+    articles,
     availableKeywordsLabeled,
     availableGendersLabeled,
     availableTimeClustersLabeled,
@@ -105,7 +106,7 @@
 </div>
 <div class="controls">
   {$t("controls_showingLast")}
-  <strong>{$filteredData.length}</strong>
+  <strong>{$filteredData.length}/{$articles.length}</strong>
   {#if $filteredData.length === 1}
     {$tn("controls_report", 1)}
   {:else}
