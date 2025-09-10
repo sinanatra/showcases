@@ -186,25 +186,25 @@
 </div>
 
 <style>
-  .lang-switch {
+   .lang-switch {
     position: fixed;
-    top: 1rem;
+    bottom: 1rem;
     right: 1rem;
-    z-index: 30;
+    z-index: 10;
     display: flex;
     gap: 0.4rem;
   }
+
   .lang-switch button {
     background: #111;
     color: #eee;
-    border: 1px solid #333;
     font-size: 0.9rem;
-    padding: 0.35rem 0.6rem;
     cursor: pointer;
+    border: none;
   }
+  
   .lang-switch button.active {
     color: #000;
-    border-color: #fff;
     background: #fff;
   }
 

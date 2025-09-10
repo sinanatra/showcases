@@ -108,6 +108,24 @@
 
   const unsub = record.subscribe((v) => (isRecording = v));
 
+  let isPinned = false;
+
+  function clearTooltip() {
+    hoveredText = "";
+    hoveredUrl = "";
+    hoveredTitle = "";
+    tooltipX = 0;
+    tooltipY = 0;
+    hoveredHitbox = null;
+  }
+  function pinTooltip() {
+    isPinned = true;
+  }
+  function unpinTooltip() {
+    isPinned = false;
+    clearTooltip();
+  }
+
   let sketch = (p) => {
     const data = $filteredData;
 
@@ -466,7 +484,7 @@
       }
 
       if (isRecording) {
-        p.frameRate(6); // slow down when saving
+        p.frameRate(6);
         if (savedFrames < framesToSave) {
           p.saveCanvas("frame-" + p.nf(savedFrames, 4), "png");
           savedFrames++;
@@ -485,6 +503,10 @@
       dragging = true;
       lastX = p.mouseX;
       lastY = p.mouseY;
+
+      if (hoveredHitbox?.url) {
+        pinTooltip();
+      }
     };
     p.mouseReleased = () => {
       dragging = false;
@@ -506,9 +528,12 @@
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
     };
-    p.mouseOut = () => setTooltip("", "", 0, 0, []);
+    p.mouseOut = () => {
+      if (!isPinned) setTooltip("", "", 0, 0, []);
+    };
 
     p.mouseMoved = () => {
+      if (isPinned) return;
       const { x: wx, y: wy } = screenToWorld(p.mouseX, p.mouseY);
       hoveredHitbox = null;
 
@@ -532,15 +557,10 @@
           break;
         }
       }
-      if (!hoveredHitbox) setTooltip("", "", 0, 0, []);
+      if (!hoveredHitbox && !isPinned) setTooltip("", "", 0, 0, []);
     };
 
-    p.keyPressed = () => {
-      if ((p.key === " " || p.keyCode === 32) && hoveredHitbox?.url) {
-        window.open(hoveredHitbox.url, "_blank");
-        return false;
-      }
-    };
+    p.keyPressed = () => {};
   };
 </script>
 
@@ -554,6 +574,11 @@
   {/if}
 </div>
 
+<!-- click-outside overlay (shown only when pinned). No window listeners. -->
+{#if isPinned}
+  <div class="outside-overlay" on:click={unpinTooltip} aria-hidden="true" />
+{/if}
+
 <KeywordTooltip
   {hoveredText}
   {hoveredTitle}
@@ -564,15 +589,17 @@
     ? activeHighlightTerms
     : hoveredHitbox?.keywords || []}
   date={hoveredHitbox?.date || ""}
+  {isPinned}
 />
 
 <style>
   .viz-container {
     width: 100vw;
     height: 100vh;
-    /* overflow: hidden; */
     background: #000;
     cursor: cell;
+    position: relative;
+    /* z-index: 9999; */
   }
   .empty-state {
     color: #888;
@@ -593,5 +620,12 @@
   }
   :global(canvas:not(#defaultCanvas0)) {
     display: none !important;
+  }
+
+  .outside-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: transparent;
   }
 </style>
