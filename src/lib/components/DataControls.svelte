@@ -6,6 +6,7 @@
     availableKeywordsLabeled,
     availableGendersLabeled,
     availableTimeClustersLabeled,
+    recent,
     filteredData,
   } from "$lib/stores";
   import Record from "$lib/components/Record.svelte";
@@ -106,7 +107,11 @@
 </div>
 <div class="controls">
   {$t("controls_showingLast")}
-  <strong>{$filteredData.length}/{$articles.length}</strong>
+  <strong
+    >{$filteredData.length !== $recent.length
+      ? `${$filteredData.length}/${$recent.length}`
+      : `${$filteredData.length}/${$articles.length}`}
+  </strong>
   {#if $filteredData.length === 1}
     {$tn("controls_report", 1)}
   {:else}
@@ -114,7 +119,7 @@
   {/if}
 
   {#if $availableKeywordsLabeled.length}
-    &nbsp;{$t("controls_mentioning")}
+    {$t("controls_mentioning")}
     <select
       value={$filters.keyword}
       on:change={(e) => setKeywordFilter(e.target.value)}
@@ -124,9 +129,7 @@
         <option value={opt.value}>{opt.label}</option>
       {/each}
     </select>
-  {/if}
-
-  {$t("controls_containing")}
+  {/if}{$t("controls_containing")}
   <input
     type="text"
     value={$filters.text}
@@ -176,11 +179,11 @@
     color: #eee;
     font-size: 0.9rem;
     cursor: pointer;
+    border: none;
   }
 
   .lang-switch button.active {
     color: #000;
-    border-color: #fff;
     background: #fff;
     opacity: 1;
   }
@@ -188,7 +191,7 @@
   .controls select,
   .controls .inline-input {
     display: inline-block;
-    margin: 0 0.25em;
+    margin: 0;
     font-size: 1em;
     min-width: 90px;
     vertical-align: middle;

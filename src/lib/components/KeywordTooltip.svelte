@@ -9,10 +9,14 @@
   export let tooltipY = 0;
   export let keywords = [];
   export let date = "";
+  export let isPinned = false;
 </script>
 
 {#if hoveredText}
-  <div class="tooltip" style="left: {tooltipX + 15}px; top: {tooltipY}px;">
+  <div
+    class="tooltip {isPinned ? 'pinned' : ''}"
+    style="left: {tooltipX + 15}px; top: {tooltipY}px;"
+  >
     {#if date}
       <div style="font-size: 0.98em; margin-bottom: 0.25em;">
         <b>{date}</b>
@@ -26,7 +30,7 @@
     {@html highlightTerms(hoveredText, keywords)}
     {#if hoveredUrl}
       <div style="font-size:0.92em; margin-top:0.5em;">
-        {@html $t("tooltip_open_link")}
+        <a href={hoveredUrl} target="_blank" rel="noopener noreferrer">Link</a>
       </div>
     {/if}
   </div>
@@ -37,20 +41,21 @@
     position: fixed;
     background: rgba(0, 0, 0, 1);
     color: #cccccc;
-    border-radius: 9px;
     padding: 5px 10px;
     z-index: 10000;
-    pointer-events: none;
+    /* pointer-events: none; */
     box-shadow: 0 2px 24px #0008;
     max-width: 450px;
     min-width: 140px;
     transform: translateY(-100%);
   }
 
+  a {
+    color: white;
+  }
+
   :global(.highlight) {
     color: white;
-
-    border-radius: 3px;
     font-weight: 700;
     box-decoration-break: clone;
   }
