@@ -1,23 +1,23 @@
 <script>
-  import { filters, availableGenders } from "$lib/stores";
+  import { filters, availableGendersLabeled } from "$lib/stores";
 </script>
 
 <label>
   Gender:
   <select
-    bind:value={$filters.gender}
-    on:change={(e) => filters.set({ ...$filters, gender: e.target.value })}
+    value={$filters.gender}
+    on:change={(e) => filters.update((f) => ({ ...f, gender: e.target.value }))}
   >
     <option value="">All</option>
-    {#each $availableGenders ?? [] as g}
-      <option value={g}>{g}</option>
+    {#each $availableGendersLabeled ?? [] as g}
+      <option value={g.value}>{g.label}</option>
     {/each}
   </select>
 </label>
 
 <style>
   select {
-    background-color: white;
+    background: white;
     padding: 1px;
   }
 </style>

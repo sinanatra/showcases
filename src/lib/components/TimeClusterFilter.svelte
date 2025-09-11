@@ -1,23 +1,24 @@
 <script>
-  import { filters, availableTimeClusters } from "$lib/stores";
+  import { filters, availableTimeClustersLabeled } from "$lib/stores";
 </script>
 
 <label>
   Time of Day:
   <select
-    bind:value={$filters.timeCluster}
-    on:change={(e) => filters.set({ ...$filters, timeCluster: e.target.value })}
+    value={$filters.timeCluster}
+    on:change={(e) =>
+      filters.update((f) => ({ ...f, timeCluster: e.target.value }))}
   >
     <option value="">All</option>
-    {#each $availableTimeClusters ?? [] as tc}
-      <option value={tc}>{tc}</option>
+    {#each $availableTimeClustersLabeled ?? [] as tc}
+      <option value={tc.value}>{tc.label}</option>
     {/each}
   </select>
 </label>
 
 <style>
   select {
-    background-color: white;
+    background: white;
     padding: 1px;
   }
 </style>
