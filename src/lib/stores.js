@@ -119,9 +119,9 @@ export function filterArticles(list, { district, keyword }, exclude) {
 export const availableDistricts = derived(
   [articles, filters],
   ([$articles, $filters]) => {
-    const filtered = filterArticles($articles, $filters, "district");
+    const base = applyFilters($articles, { ...$filters, district: "" });
     return Array.from(
-      new Set(filtered.map((a) => a.ExtractedDistrict).filter(Boolean))
+      new Set(base.map((a) => a.ExtractedDistrict).filter(Boolean))
     ).sort();
   }
 );
@@ -129,8 +129,8 @@ export const availableDistricts = derived(
 export const availableGenders = derived(
   [articles, filters],
   ([$articles, $filters]) => {
-    const filtered = filterArticles($articles, $filters, "gender");
-    const clusters = filtered
+    const base = applyFilters($articles, { ...$filters, gender: "" });
+    const clusters = base
       .flatMap((a) =>
         Array.isArray(a.ExtractedGender) ? a.ExtractedGender : []
       )
@@ -142,28 +142,40 @@ export const availableGenders = derived(
 export const availableTimeClusters = derived(
   [articles, filters],
   ([$articles, $filters]) => {
-    const filtered = filterArticles($articles, $filters, "timeCluster");
-    const clusters = new Set();
-    filtered.forEach((a) =>
+    const base = applyFilters($articles, { ...$filters, timeCluster: "" });
+    const set = new Set();
+    base.forEach((a) =>
       (Array.isArray(a.ExtractedTime) ? a.ExtractedTime : []).forEach((t) => {
         const h = Number(String(t).split(":")[0]);
-        const label =
+        set.add(
           h >= 6 && h < 12
             ? "Morning"
             : h >= 12 && h < 18
             ? "Afternoon"
             : h >= 18 && h < 24
             ? "Evening"
-            : "Night";
-        clusters.add(label);
+            : "Night"
+        );
       })
     );
-    return Array.from(clusters).sort();
+    return Array.from(set).sort();
   }
 );
 
-export const filtered = derived([articles, filters], ([$articles, $filters]) =>
-  filterArticles(Array.isArray($articles) ? $articles : [], $filters, null)
+export const availableKeywords = derived(
+  [articles, filters],
+  ([$articles, $filters]) => {
+    const base = applyFilters($articles, { ...$filters, keyword: "" });
+    return Array.from(
+      new Set(
+        base
+          .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
+          .map((k) => KEYWORD_GROUPS[String(k).toLowerCase()] || String(k))
+      )
+    )
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "de"));
+  }
 );
 
 const N = 200;
@@ -180,6 +192,14 @@ export const recent = derived(articles, ($articles) => {
   });
   return sorted.slice(0, N);
 });
+
+export const filtered = derived([articles, filters], ([$articles, $filters]) =>
+  applyFilters($articles, $filters)
+);
+
+export const filteredTopN = derived([recent, filters], ([$recent, $filters]) =>
+  applyFilters($recent, $filters)
+);
 
 export const filteredData = derived(
   [recent, filters],
@@ -241,33 +261,7 @@ export const filteredData = derived(
   }
 );
 
-export const availableKeywords = derived(
-  [recent, filters],
-  ([$recent, $filters]) => {
-    let base = $recent;
-
-    if ($filters.district) {
-      base = base.filter((a) => a.ExtractedDistrict === $filters.district);
-    }
-    if ($filters.text) {
-      const q = $filters.text.toLowerCase();
-      base = base.filter((a) => (a.Text || "").toLowerCase().includes(q));
-    }
-
-    return Array.from(
-      new Set(
-        base
-          .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-          .map((k) => KEYWORD_GROUPS[String(k).toLowerCase()] || String(k))
-      )
-    )
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, "de"));
-  }
-);
-
 export const record = writable(false);
-
 
 const GENDER_LABELS = {
   en: {
@@ -314,7 +308,7 @@ const KEYWORD_LABELS = {
   },
   nazi: { en: "Nazi", de: "Nazi" },
   queerfeindlichkeit: { en: "Anti-queer", de: "Queerfeindlichkeit" },
-  "sieg heil": { en: 'Sieg Heil', de: "Sieg Heil" },
+  "sieg heil": { en: "Sieg Heil", de: "Sieg Heil" },
   transphobie: { en: "Transphobia", de: "Transphobie" },
   verfassungswidrig: { en: "Unconstitutional", de: "Verfassungswidrig" },
   volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
@@ -346,3 +340,76 @@ export const availableKeywordsLabeled = derived(
       label: KEYWORD_LABELS[canon]?.[$lang] ?? canon,
     }))
 );
+
+function applyFilters(list, f) {
+  const {
+    district = "",
+    keyword = "",
+    gender = "",
+    timeCluster = "",
+    text = "",
+    showOnlyLatest = false,
+  } = f || {};
+
+  let out = Array.isArray(list) ? list : [];
+
+  if (district) out = out.filter((a) => a.ExtractedDistrict === district);
+
+  if (keyword) {
+    const variants = getKeywordVariants(keyword).map((s) =>
+      String(s).toLowerCase()
+    );
+    out = out.filter(
+      (a) =>
+        Array.isArray(a.KeywordMatch) &&
+        a.KeywordMatch.some((k) => variants.includes(String(k).toLowerCase()))
+    );
+  }
+
+  if (text) {
+    const q = text.toLowerCase();
+    out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
+  }
+
+  if (gender) {
+    out = out.filter((a) => {
+      const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
+      const mapped = gs.map(
+        (g) => GENDER_MAP[String(g).toLowerCase()] || "Other"
+      );
+      return mapped.includes(gender);
+    });
+  }
+
+  if (timeCluster) {
+    out = out.filter((a) => {
+      const times = Array.isArray(a.ExtractedTime) ? a.ExtractedTime : [];
+      return times.some((t) => {
+        const h = Number(String(t).split(":")[0]);
+        const label =
+          h >= 6 && h < 12
+            ? "Morning"
+            : h >= 12 && h < 18
+            ? "Afternoon"
+            : h >= 18 && h < 24
+            ? "Evening"
+            : "Night";
+        return label === timeCluster;
+      });
+    });
+  }
+
+  if (showOnlyLatest) {
+    const sorted = [...out].sort((a, b) => {
+      const da = parseDateLoose(a.ExtractedDate || a.Date);
+      const db = parseDateLoose(b.ExtractedDate || b.Date);
+      if (da && db) return db - da;
+      if (db) return 1;
+      if (da) return -1;
+      return 0;
+    });
+    return sorted.length ? [sorted[0]] : [];
+  }
+
+  return out;
+}
