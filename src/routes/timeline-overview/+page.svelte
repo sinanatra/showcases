@@ -6,6 +6,8 @@
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
   import GenderFilter from "$lib/components/GenderFilter.svelte";
   import TimeClusterFilter from "$lib/components/TimeClusterFilter.svelte";
+  import TextSearch from "$lib/components/TextSearch.svelte";
+  import Stats from "$lib/components/Stats.svelte";
   import Timeline from "$lib/components/Timeline.svelte";
 
   function parseList(str) {
@@ -52,9 +54,11 @@
     <KeywordFilter />
     <GenderFilter />
     <TimeClusterFilter />
+    <TextSearch />
   </section>
 
   <section class="timeline-wrapper">
+    <Stats />
     <Timeline />
   </section>
 </main>

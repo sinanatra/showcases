@@ -1,186 +1,159 @@
 <script>
-  import { articles, filtered } from "$lib/stores";
+  import { filtered } from "$lib/stores";
 
   const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
-  const timelineWidth = 2000;
-  const tickInterval = 120;
+  const timelineWidth = 2000; // horizontal span in px
   const yOffset = 40;
+  const tickEvery = 120; // label every Nth unique date
 
-  let data = [];
-  let uniqueDates = [];
-  let initialStart = null;
-  let initialEnd = null;
-  let timelineHeight = 0;
-
+  /** Robust date parser for "dd.mm.yyyy" + optional "HH:MM" */
   function parseDate(dStr, tStr = "00:00") {
-    const [d, m, y] = dStr.split(".");
-    const [hh = "00", mm = "00"] = tStr.split(":");
-    return new Date(+y, +m - 1, +d, +hh, +mm);
+    if (!dStr) return null;
+    const [d, m, y] = String(dStr).split(".");
+    const [hh = "00", mm = "00"] = String(tStr || "00:00").split(":");
+    const dt = new Date(+y, (+m || 1) - 1, +d, +hh, +mm);
+    return isNaN(+dt) ? null : dt;
   }
 
+  // tiny snippet extractor around any of the extracted keywords
   const ABBREVS = ["Nr", "Dr", "z.B", "etc", "u.a"];
-
-  function escapeRegExp(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
-  function isAbbrevBoundary(text, idx) {
-    for (const ab of ABBREVS) {
-      if (text.slice(idx - ab.length, idx) === ab) return true;
-    }
-    return false;
-  }
-
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const isAbbrevBoundary = (txt, i) =>
+    ABBREVS.some((ab) => txt.slice(i - ab.length, i) === ab);
   function findPrevBoundary(text, pos) {
-    let candidate = Math.max(
+    let cand = Math.max(
       text.lastIndexOf(".", pos - 1),
       text.lastIndexOf("!", pos - 1),
       text.lastIndexOf("?", pos - 1)
     );
-    while (
-      candidate > -1 &&
-      text[candidate] === "." &&
-      isAbbrevBoundary(text, candidate)
-    ) {
-      candidate = Math.max(
-        text.lastIndexOf(".", candidate - 1),
-        text.lastIndexOf("!", candidate - 1),
-        text.lastIndexOf("?", candidate - 1)
+    while (cand > -1 && text[cand] === "." && isAbbrevBoundary(text, cand)) {
+      cand = Math.max(
+        text.lastIndexOf(".", cand - 1),
+        text.lastIndexOf("!", cand - 1),
+        text.lastIndexOf("?", cand - 1)
       );
     }
-    return candidate;
+    return cand;
   }
-
   function findNextBoundary(text, pos) {
     let dots = [
       text.indexOf(".", pos),
       text.indexOf("!", pos),
       text.indexOf("?", pos),
     ].filter((i) => i >= 0);
-    let candidate = dots.length ? Math.min(...dots) : -1;
-    while (
-      candidate > -1 &&
-      text[candidate] === "." &&
-      isAbbrevBoundary(text, candidate)
-    ) {
+    let cand = dots.length ? Math.min(...dots) : -1;
+    while (cand > -1 && text[cand] === "." && isAbbrevBoundary(text, cand)) {
       dots = [
-        text.indexOf(".", candidate + 1),
-        text.indexOf("!", candidate + 1),
-        text.indexOf("?", candidate + 1),
+        text.indexOf(".", cand + 1),
+        text.indexOf("!", cand + 1),
+        text.indexOf("?", cand + 1),
       ].filter((i) => i >= 0);
-      candidate = dots.length ? Math.min(...dots) : -1;
+      cand = dots.length ? Math.min(...dots) : -1;
     }
-    return candidate;
+    return cand;
   }
-
-  function extractSnippet(text, terms) {
-    if (!terms || !terms.length) {
+  function extractSnippet(text = "", terms = []) {
+    if (!terms.length) {
       const snippet = text.slice(0, 200);
       return { before: snippet, match: "", after: "" };
     }
-    let matchObj = null;
-    let term = "";
+    let match = null,
+      term = "";
     for (const t of terms) {
-      const esc = escapeRegExp(t);
-      const re = new RegExp(`\\b${esc}\\b`, "i");
-      const m = re.exec(text);
+      const m = new RegExp(`\\b${escapeRegExp(String(t))}\\b`, "i").exec(text);
       if (m) {
-        matchObj = m;
+        match = m;
         term = m[0];
         break;
       }
     }
-    if (!matchObj) {
+    if (!match) {
       const snippet = text.slice(0, 200);
       return { before: snippet, match: "", after: "" };
     }
-    const idx = matchObj.index;
-    const len = term.length;
-    const startBoundary = findPrevBoundary(text, idx);
-    const endBoundaryRaw = findNextBoundary(text, idx + len);
-    const endBoundary = endBoundaryRaw > -1 ? endBoundaryRaw : text.length - 1;
-    const snippet = text.slice(startBoundary + 1, endBoundary + 1);
-    const relIdx = idx - (startBoundary + 1);
+    const idx = match.index,
+      len = term.length;
+    const start = findPrevBoundary(text, idx);
+    const endRaw = findNextBoundary(text, idx + len);
+    const end = endRaw > -1 ? endRaw : text.length - 1;
+    const snippet = text.slice(start + 1, end + 1);
+    const rel = idx - (start + 1);
     return {
-      before: snippet.slice(0, relIdx),
-      match: snippet.slice(relIdx, relIdx + len),
-      after: snippet.slice(relIdx + len),
+      before: snippet.slice(0, rel),
+      match: snippet.slice(rel, rel + len),
+      after: snippet.slice(rel + len),
     };
   }
 
-  function fmtDate(d) {
-    return d.toLocaleDateString("de-DE", {
+  const fmtDate = (d) =>
+    d.toLocaleDateString("de-DE", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
+
+  // reactive data built ONLY from the filtered set
+  let rows = [];
+  let uniqueDates = [];
+  let start = null,
+    end = null;
+  let timelineHeight = 0;
+
+  $: {
+    const src = Array.isArray($filtered) ? $filtered : [];
+    const mapped = src
+      .map((a) => {
+        const t0 =
+          Array.isArray(a.ExtractedTime) && a.ExtractedTime[0]
+            ? a.ExtractedTime[0]
+            : "00:00";
+        const d = parseDate(a.ExtractedDate || a.Date, t0);
+        if (!d) return null;
+        const { before, match, after } = extractSnippet(
+          a.Text || "",
+          a.KeywordExtracted || a.KeywordMatch || []
+        );
+        return { date: d, before, match, after, url: a.URL };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.date - a.date); // newest first
+
+    rows = mapped;
+    const dateMsAsc = Array.from(new Set(mapped.map((r) => +r.date))).sort(
+      (a, b) => a - b
+    );
+    uniqueDates = dateMsAsc.map((ms) => new Date(ms));
+    start = uniqueDates[0] || null;
+    end = uniqueDates[uniqueDates.length - 1] || null;
+
+    // vertical size = one line per item
+    timelineHeight = yOffset + rows.length * lineHeight + 40;
   }
 
   function normPos(date) {
-    if (!initialStart || !initialEnd || initialEnd - initialStart === 0)
-      return 0;
-    return ((initialEnd - date) / (initialEnd - initialStart)) * timelineWidth;
+    if (!start || !end || +end - +start === 0) return 0;
+    return ((+end - +date) / (+end - +start)) * timelineWidth;
   }
-
-  $: {
-    const all = $articles;
-    const vis = new Set(
-      $filtered.map((a) => `${a.ExtractedDate}|${a.ExtractedTime[0]}|${a.URL}`)
-    );
-    if (Array.isArray(all) && all.length) {
-      data = all
-        .map((a) => {
-          const terms = a.KeywordExtracted || [];
-          const { before, match, after } = extractSnippet(a.Text, terms);
-          const date = parseDate(a.ExtractedDate, a.ExtractedTime[0]);
-          const key = `${a.ExtractedDate}|${a.ExtractedTime[0]}|${a.URL}`;
-          return {
-            date,
-            before,
-            match,
-            after,
-            url: a.URL,
-            visible: vis.has(key),
-          };
-        })
-        .sort((a, b) => b.date - a.date);
-
-      const dates = data.map((d) => d.date.getTime());
-      uniqueDates = Array.from(new Set(dates))
-        .sort((a, b) => a - b)
-        .map((ms) => new Date(ms));
-
-      if (!initialStart) {
-        initialStart = uniqueDates[0];
-        initialEnd = uniqueDates[uniqueDates.length - 1];
-      }
-
-      timelineHeight = yOffset + data.length * lineHeight + 40;
-    }
-  }
-
 </script>
 
 <section>
-  {#if !data.length}
-    <p>Loading snippets…</p>
+  {#if rows.length === 0}
+    <p>No results for the current filters.</p>
   {:else}
     <div class="timeline-container">
-      <svg
-        width={timelineWidth + 2500}
-        height={timelineHeight}
-      >
+      <svg width={timelineWidth + 250} height={timelineHeight}>
+        <!-- vertical date ticks -->
         <g class="dates">
           {#each uniqueDates as d, i}
-            {#if i % tickInterval === 0}
+            {#if i % tickEvery === 0}
               <text
                 class="date"
                 x={normPos(d)}
                 y={yOffset - lineHeight / 2}
                 font-size={fontSize}
                 dominant-baseline="middle"
-                text-anchor="left">{fmtDate(d)}</text
+                text-anchor="start">{fmtDate(d)}</text
               >
               <line
                 x1={normPos(d)}
@@ -191,24 +164,20 @@
             {/if}
           {/each}
         </g>
+
+        <!-- one line per FILTERED item -->
         <g>
-          {#each data as item, i}
+          {#each rows as item, i}
             <text
               x={normPos(item.date)}
               y={yOffset + i * lineHeight + lineHeight / 2}
               font-size={fontSize}
               dominant-baseline="middle"
-              opacity={item.visible ? 1 : 0.2}
             >
               <tspan class="text">{item.before}</tspan>
-              <tspan
-                class="highlight"
-                fill={item.visible ? "var(--color-1)" : "#999"}
-              >
-                {item.match}
-              </tspan>
+              <tspan class="highlight">{item.match}</tspan>
               <tspan class="text">{item.after}</tspan>
-              <a href={item.url} target="_blank">
+              <a href={item.url} target="_blank" rel="noopener">
                 <tspan class="date" dx="2"> {fmtDate(item.date)} ↗</tspan>
               </a>
             </text>
@@ -225,7 +194,6 @@
     flex-direction: column;
     padding: 10px;
   }
-
   .timeline-container {
     overflow: auto;
     flex-grow: 1;
@@ -233,7 +201,7 @@
 
   .timeline-container text,
   .timeline-container tspan {
-    font-size: 13px; /* Match to JS fontSize variable for clarity */
+    font-size: 13px; /* keep in sync with fontSize above if you change it */
   }
 
   a tspan:hover {
@@ -244,11 +212,10 @@
   .text {
     font-style: italic;
   }
-
   .highlight {
-    font-weight: bold;
+    font-weight: 700;
+    fill: var(--color-1);
   }
-
   .date,
   a {
     fill: #666;
@@ -257,6 +224,6 @@
 
   line {
     stroke: #b6b6b6;
-    stroke-dasharray: 4, 4;
+    stroke-dasharray: 4 4;
   }
 </style>
