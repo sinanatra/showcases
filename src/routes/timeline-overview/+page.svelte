@@ -53,6 +53,7 @@
     <DistrictFilter />
     <KeywordFilter />
     <GenderFilter />
+    <br>
     <TimeClusterFilter />
     <TextSearch />
   </section>
@@ -66,5 +67,6 @@
 <style>
   .filters {
     padding: 10px;
+    margin-bottom: 10px;
   }
 </style>

@@ -14,8 +14,7 @@
 
 <style>
   input[type="search"] {
-    padding: 4px 6px;
-    width: 18rem;
     max-width: 100%;
+    margin: 10px 0;
   }
 </style>
