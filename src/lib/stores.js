@@ -1,7 +1,7 @@
 import { writable, derived } from "svelte/store";
 import { lang } from "$lib/i18n";
 
-export const KEYWORD_GROUPS = {
+export const keywordsGroup = {
   antisem: "antisemitismus",
   antisemitisch: "antisemitismus",
   antisemitismus: "antisemitismus",
@@ -28,11 +28,11 @@ export const KEYWORD_GROUPS = {
   volksverhetzung: "volksverhetzung",
 };
 
-export const CANONICAL_KEYWORDS = Array.from(
-  new Set(Object.values(KEYWORD_GROUPS))
+export const canonicalKeywords = Array.from(
+  new Set(Object.values(keywordsGroup))
 ).sort((a, b) => a.localeCompare(b, "de"));
 
-const GENDER_MAP = {
+const genderMap = {
   frau: "Adult Female",
   mann: "Adult Male",
   junge: "Youth",
@@ -53,7 +53,7 @@ export const filters = writable({
 
 export function getKeywordVariants(canon) {
   if (!canon) return [];
-  const variants = Object.entries(KEYWORD_GROUPS)
+  const variants = Object.entries(keywordsGroup)
     .filter(([, mapped]) => mapped === canon)
     .map(([variant]) => variant);
   return Array.from(new Set([...variants, canon]));
@@ -134,7 +134,7 @@ export const availableGenders = derived(
       .flatMap((a) =>
         Array.isArray(a.ExtractedGender) ? a.ExtractedGender : []
       )
-      .map((g) => GENDER_MAP[String(g).toLowerCase()] || "Other");
+      .map((g) => genderMap[String(g).toLowerCase()] || "Other");
     return Array.from(new Set(clusters)).filter(Boolean).sort();
   }
 );
@@ -170,7 +170,7 @@ export const availableKeywords = derived(
       new Set(
         base
           .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-          .map((k) => KEYWORD_GROUPS[String(k).toLowerCase()] || String(k))
+          .map((k) => keywordsGroup[String(k).toLowerCase()] || String(k))
       )
     )
       .filter(Boolean)
@@ -230,7 +230,7 @@ export const filteredData = derived(
       out = out.filter((a) => {
         const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
         const mapped = gs.map(
-          (g) => GENDER_MAP[String(g).toLowerCase()] || "Other"
+          (g) => genderMap[String(g).toLowerCase()] || "Other"
         );
         return mapped.includes($filters.gender);
       });
@@ -375,7 +375,7 @@ function applyFilters(list, f) {
     out = out.filter((a) => {
       const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
       const mapped = gs.map(
-        (g) => GENDER_MAP[String(g).toLowerCase()] || "Other"
+        (g) => genderMap[String(g).toLowerCase()] || "Other"
       );
       return mapped.includes(gender);
     });

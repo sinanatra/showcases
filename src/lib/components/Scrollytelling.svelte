@@ -145,7 +145,6 @@
     {:else if status === "loading"}
       <div class="bg-media" style="background:#000;"></div>
     {/if}
-    <div class="bg-gradient" aria-hidden="true"></div>
   </div>
 
   <main>
@@ -186,13 +185,13 @@
 </div>
 
 <style>
-   .lang-switch {
+  .lang-switch {
     position: fixed;
     bottom: 1rem;
     right: 1rem;
     z-index: 10;
     display: flex;
-    gap: 0.4rem;
+    gap: 10px;
   }
 
   .lang-switch button {
@@ -202,7 +201,7 @@
     cursor: pointer;
     border: none;
   }
-  
+
   .lang-switch button.active {
     color: #000;
     background: #fff;
@@ -213,11 +212,13 @@
     position: relative;
     min-height: 100vh;
   }
+
   .bg {
     position: fixed;
     inset: 0;
     z-index: 0;
   }
+
   .bg-media {
     position: absolute;
     inset: 0;
@@ -226,17 +227,12 @@
     object-fit: cover;
     pointer-events: none;
   }
-  .bg-gradient {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(120% 120% at 50% 50%, #0000 40%, #0008 100%),
-      linear-gradient(to bottom, #0006, #0000 30%, #0000 70%, #0006);
-  }
 
   main {
     position: relative;
     z-index: 1;
   }
+
   .step {
     min-height: 100vh;
     display: grid;
@@ -283,6 +279,7 @@
     font-weight: 400;
     margin: 0;
   }
+
   h2 {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 1.5em;
@@ -290,6 +287,7 @@
     margin: 0;
     font-style: italic;
   }
+
   p {
     font-size: 1em;
     margin: 0.6rem 0 0;
@@ -301,6 +299,7 @@
     gap: 0.8rem;
     flex-wrap: wrap;
   }
+  
   .links a {
     color: #fff;
     text-decoration: none;
