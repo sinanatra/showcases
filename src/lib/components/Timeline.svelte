@@ -3,11 +3,10 @@
 
   const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
-  const timelineWidth = 2000; // horizontal span in px
+  const timelineWidth = 2000;
   const yOffset = 40;
-  const tickEvery = 120; // label every Nth unique date
+  const tickEvery = 120;
 
-  /** Robust date parser for "dd.mm.yyyy" + optional "HH:MM" */
   function parseDate(dStr, tStr = "00:00") {
     if (!dStr) return null;
     const [d, m, y] = String(dStr).split(".");
@@ -16,7 +15,6 @@
     return isNaN(+dt) ? null : dt;
   }
 
-  // tiny snippet extractor around any of the extracted keywords
   const ABBREVS = ["Nr", "Dr", "z.B", "etc", "u.a"];
   const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const isAbbrevBoundary = (txt, i) =>
@@ -93,7 +91,6 @@
       year: "numeric",
     });
 
-  // reactive data built ONLY from the filtered set
   let rows = [];
   let uniqueDates = [];
   let start = null,
@@ -117,7 +114,7 @@
         return { date: d, before, match, after, url: a.URL };
       })
       .filter(Boolean)
-      .sort((a, b) => b.date - a.date); // newest first
+      .sort((a, b) => b.date - a.date);
 
     rows = mapped;
     const dateMsAsc = Array.from(new Set(mapped.map((r) => +r.date))).sort(
@@ -127,7 +124,6 @@
     start = uniqueDates[0] || null;
     end = uniqueDates[uniqueDates.length - 1] || null;
 
-    // vertical size = one line per item
     timelineHeight = yOffset + rows.length * lineHeight + 40;
   }
 
@@ -143,7 +139,6 @@
   {:else}
     <div class="timeline-container">
       <svg width={timelineWidth + 250} height={timelineHeight}>
-        <!-- vertical date ticks -->
         <g class="dates">
           {#each uniqueDates as d, i}
             {#if i % tickEvery === 0}
@@ -165,22 +160,23 @@
           {/each}
         </g>
 
-        <!-- one line per FILTERED item -->
         <g>
           {#each rows as item, i}
-            <text
-              x={normPos(item.date)}
-              y={yOffset + i * lineHeight + lineHeight / 2}
-              font-size={fontSize}
-              dominant-baseline="middle"
-            >
-              <tspan class="text">{item.before}</tspan>
-              <tspan class="highlight">{item.match}</tspan>
-              <tspan class="text">{item.after}</tspan>
-              <a href={item.url} target="_blank" rel="noopener">
+            <a href={item.url} target="_blank" rel="noopener">
+              <text
+                x={normPos(item.date)}
+                y={yOffset + i * lineHeight + lineHeight / 2}
+                font-size={fontSize}
+                dominant-baseline="middle"
+              >
+                <tspan class="text">{item.before}</tspan>
+                <tspan class="highlight">{item.match}</tspan>
+                <tspan class="text">{item.after}</tspan>
+                <!-- <a href={item.url} target="_blank" rel="noopener"> -->
                 <tspan class="date" dx="2"> {fmtDate(item.date)} ↗</tspan>
-              </a>
-            </text>
+                <!-- </a> -->
+              </text>
+            </a>
           {/each}
         </g>
       </svg>
@@ -201,10 +197,10 @@
 
   .timeline-container text,
   .timeline-container tspan {
-    font-size: 13px; /* keep in sync with fontSize above if you change it */
+    font-size: 13px; 
   }
 
-  a tspan:hover {
+  a:hover {
     fill: var(--color-1);
     text-decoration: underline;
   }
