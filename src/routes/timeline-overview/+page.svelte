@@ -53,18 +53,22 @@
     <DistrictFilter />
     <KeywordFilter />
     <GenderFilter />
-    <br>
+    <br />
     <TimeClusterFilter />
     <TextSearch />
   </section>
 
-  <section class="timeline-wrapper">
+  <section class="timeline">
     <Stats />
     <Timeline />
   </section>
 </main>
 
 <style>
+  section, :global(.filters *), :global(.timeline *) {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
   .filters {
     padding: 10px;
     margin-bottom: 10px;
