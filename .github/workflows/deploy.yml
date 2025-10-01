@@ -13,7 +13,11 @@ permissions:
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
 
     steps:
       - name: Checkout repository
@@ -45,3 +49,5 @@ jobs:
         run: |
           npx gh-pages -d build --dotfiles --cname showcases.giacomo.website \
             -r https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
+
+Notes:
