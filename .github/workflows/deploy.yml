@@ -49,5 +49,3 @@ jobs:
         run: |
           npx gh-pages -d build --dotfiles --cname showcases.giacomo.website \
             -r https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
-
-Notes:
