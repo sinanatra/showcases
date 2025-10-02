@@ -10,7 +10,13 @@ import datetime
 base_url = "https://polizei.brandenburg.de"
 url_template = f"{base_url}/suche/typ/null/kategorie/Kriminalit%C3%A4t/{{page}}/1?reset=1"
 file_path = 'data/brandenburg_police_results.csv'
-max_date = datetime.date(2019, 1, 1) 
+max_date = datetime.date(2019, 1, 1)
+
+start_page = 4279 #459                    
+max_page = 5000                
+max_empty = 10        
+sleep_between = 0.3           
+
 
 existing_urls = set()
 existing_data = []
@@ -27,43 +33,69 @@ rp.set_url(urljoin(base_url, "robots.txt"))
 rp.read()
 if not rp.can_fetch("*", url_template.format(page=1)):
     print("⛔ Scraping disallowed by robots.txt")
-    exit()
+    raise SystemExit(1)
 
 session = requests.Session()
 session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 new_rows = []
-page = 1
+page = start_page
 stop_scraping = False
+consecutive_empty = 0
 
-while not stop_scraping:
+while not stop_scraping and page - start_page < max_page:
     page_url = url_template.format(page=page)
     print("🔎 Fetching:", page_url)
     try:
         response = session.get(page_url, timeout=30)
     except requests.exceptions.RequestException as e:
-        print(f"⚠️ Request error: {e}")
-        break
+        print(f"⚠️ Request error on page {page}: {e}")
+        
+        consecutive_empty += 1
+        if consecutive_empty >= max_empty:
+            print(f"🛑 Hit {max_empty} empty/error pages in a row. Stopping.")
+            break
+        page += 1
+        time.sleep(sleep_between)
+        continue
 
     if response.status_code == 500:
         print(f"⚠️ Page {page} returned 500. Skipping.")
+        consecutive_empty += 1
+        if consecutive_empty >= max_empty:
+            print(f"🛑 Hit {max_empty} empty/error pages in a row. Stopping.")
+            break
         page += 1
-        time.sleep(5)
+        time.sleep(sleep_between)
         continue
     elif response.status_code != 200:
-        print(f"⛔ Unexpected status: {response.status_code}")
-        break
+        print(f"⛔ Unexpected status {response.status_code} on page {page}. Treating as empty.")
+        consecutive_empty += 1
+        if consecutive_empty >= max_empty:
+            print(f"🛑 Hit {max_empty} empty/error pages in a row. Stopping.")
+            break
+        page += 1
+        time.sleep(sleep_between)
+        continue
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    ul = soup.find("ul", class_=lambda x: x and "pbb-searchlist" in x)
-    if not ul:
-        print("⛔ No search results container found.")
-        break
 
-    items = ul.find_all("li")
+    
+    ul = soup.find("ul", class_=lambda x: x and "pbb-searchlist" in x)
+    items = ul.find_all("li") if ul else soup.select("ul.pbb-searchlist li")
+
     if not items:
-        print("⛔ No results found on page.")
-        break
+        print(f"⚠️ No results on page {page}. Skipping ahead.")
+        consecutive_empty += 1
+        if consecutive_empty >= max_empty:
+            print(f"🛑 Hit {max_empty} empty/error pages in a row. Stopping.")
+            break
+        page += 1
+        time.sleep(sleep_between)
+        continue
+
+    
+    consecutive_empty = 0
 
     for li in items:
         h4 = li.find("h4")
@@ -77,29 +109,33 @@ while not stop_scraping:
 
         if article_url in existing_urls:
             print(f"⏭️ Already saved: {article_url}")
-            break
+            continue  
 
-        p = li.find("p")
+        
         date_str = ""
+        p = li.find("p")
         if p:
             span = p.find("span")
             if span:
-                span_text = span.get_text(separator=" ", strip=True)
+                span_text = span.get_text(" ", strip=True)
                 if "Artikel vom" in span_text:
-                    date_str = span_text.split("Artikel vom")[-1].strip().split()[0]
+                    parts = span_text.split("Artikel vom")[-1].strip().split()
+                    if parts:
+                        date_str = parts[0]
 
         article_date = None
         if date_str:
             try:
                 article_date = datetime.datetime.strptime(date_str, '%d.%m.%Y').date()
             except ValueError:
-                pass
+                article_date = None
 
         if article_date and article_date <= max_date:
-            print(f"🛑 Reached max date ({article_date.strftime('%d.%m.%Y')}). Stopping.")
+            print(f"🛑 Reached max date ({article_date.strftime('%d.%m.%Y')}) on page {page}. Stopping.")
             stop_scraping = True
             break
 
+        
         try:
             art_response = session.get(article_url, timeout=30)
         except requests.exceptions.RequestException as e:
@@ -116,11 +152,12 @@ while not stop_scraping:
 
             ort_tag = art_soup.find("p", class_="pbb-ort")
             landkreis_tag = art_soup.find("p", class_="pbb-landkreis")
-            location = ""
+            parts_loc = []
             if ort_tag:
-                location = ort_tag.get_text(strip=True)
+                parts_loc.append(ort_tag.get_text(strip=True))
             if landkreis_tag:
-                location += ", " + landkreis_tag.get_text(strip=True) if location else landkreis_tag.get_text(strip=True)
+                parts_loc.append(landkreis_tag.get_text(strip=True))
+            location = ", ".join(p for p in parts_loc if p)
 
         new_rows.append({
             "Title": title,
@@ -130,16 +167,20 @@ while not stop_scraping:
             "URL": article_url
         })
 
+    if stop_scraping:
+        break
+
     page += 1
-    time.sleep(3)
+    time.sleep(sleep_between)
 
 combined = existing_data + new_rows
 
-if len(new_rows) > 0:
+if new_rows:
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["Title", "Date", "Location", "Text", "URL"])
+        fieldnames = ["Title", "Date", "Location", "Text", "URL"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
         for r in combined:
-            writer.writerow([r["Title"], r["Date"], r["Location"], r["Text"], r["URL"]])
+            writer.writerow({k: r.get(k, "") for k in fieldnames})
 
-print(f"\nScraping complete. {len(new_rows)} new articles saved.")
+print(f"\nScraping complete. {len(new_rows)} new articles saved. Last attempted page {page}.")

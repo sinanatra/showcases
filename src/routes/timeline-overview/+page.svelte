@@ -3,6 +3,7 @@
   import * as d3 from "d3";
   import { articles } from "$lib/stores";
   import DistrictFilter from "$lib/components/DistrictFilter.svelte";
+  import RegionFilter from "$lib/components/RegionFilter.svelte";
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
   import GenderFilter from "$lib/components/GenderFilter.svelte";
   import TimeClusterFilter from "$lib/components/TimeClusterFilter.svelte";
@@ -50,6 +51,7 @@
 
 <main>
   <section class="filters">
+    <RegionFilter /> <br /><br />
     <DistrictFilter />
     <KeywordFilter />
     <GenderFilter />
@@ -65,7 +67,9 @@
 </main>
 
 <style>
-  section, :global(.filters *), :global(.timeline *) {
+  section,
+  :global(.filters *),
+  :global(.timeline *) {
     font-family: Arial, Helvetica, sans-serif;
   }
 

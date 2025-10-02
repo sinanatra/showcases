@@ -94,6 +94,7 @@ def find_keywords_with_matches(text, terms, threshold):
     return list(set(hits)) 
 
 for idx, text in df_text.items():
+    print(f"Processing row {idx+1} of {len(df_new)}")
     kws = find_keywords(text, keywords, diff_threshold)
     related = bool(kws)
     df_new.at[idx, 'RightWingRelated'] = related
