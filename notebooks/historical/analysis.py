@@ -97,6 +97,7 @@ def find_keywords_with_matches(text, terms, threshold):
     return list(set(hits)) 
 
 for idx, text in df_text.items():
+    print(f"Processing row {idx+1} of {len(df)}")
     kws = find_keywords(text, keywords, diff_threshold)
     related = bool(kws)
     df.at[idx, 'RightWingRelated'] = related
@@ -115,7 +116,13 @@ for idx, text in df_text.items():
         df.at[idx, 'ExtractedGender'] = gender_regex.findall(text)
         df.at[idx, 'ExtractedAction'] = find_keywords(text, action_terms, diff_threshold)
 
+
+
 out_path = os.path.join(output_dir, "merged_parsed_documents_with_topic.csv")
-df.to_csv(out_path, index=False)
+# df.to_csv(out_path, index=False)
+
+df_filtered = df[df['RightWingRelated'] == True]
+df_filtered.to_csv(out_path, index=False)
+
 
 print(f"Saved parsed data with topics to: {out_path}")
