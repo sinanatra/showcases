@@ -49,6 +49,7 @@ export const filters = writable({
   timeCluster: "",
   text: "",
   showOnlyLatest: false,
+  region: "",
 });
 
 export function getKeywordVariants(canon) {
@@ -206,6 +207,10 @@ export const filteredData = derived(
   ([$recent, $filters]) => {
     let out = $recent;
 
+    if ($filters.region) {
+      out = out.filter((a) => detectRegion(a) === $filters.region);
+    }
+
     if ($filters.district) {
       out = out.filter((a) => a.ExtractedDistrict === $filters.district);
     }
@@ -349,9 +354,12 @@ function applyFilters(list, f) {
     timeCluster = "",
     text = "",
     showOnlyLatest = false,
+    region = "",
   } = f || {};
 
   let out = Array.isArray(list) ? list : [];
+
+  if (region) out = out.filter((a) => detectRegion(a) === region);
 
   if (district) out = out.filter((a) => a.ExtractedDistrict === district);
 
@@ -412,4 +420,22 @@ function applyFilters(list, f) {
   }
 
   return out;
+}
+
+export const availableRegions = derived(articles, ($articles) => {
+  const set = new Set(
+    (Array.isArray($articles) ? $articles : [])
+      .map(detectRegion)
+      .filter(Boolean)
+  );
+  return Array.from(set).sort(); // ["Berlin","Brandenburg"]
+});
+
+function detectRegion(a) {
+  const src = String(a?.SourceFile || "").toLowerCase();
+  const url = String(a?.URL || "").toLowerCase();
+  if (src.includes("berlin") || url.includes("berlin.de")) return "Berlin";
+  if (src.includes("brandenburg") || url.includes("brandenburg.de"))
+    return "Brandenburg";
+  return "";
 }
