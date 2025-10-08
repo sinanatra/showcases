@@ -179,7 +179,7 @@ export const availableKeywords = derived(
   }
 );
 
-const N = 200;
+const N = 300;
 
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
