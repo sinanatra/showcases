@@ -106,48 +106,50 @@
   {/each}
 </div>
 <div class="controls">
-  {$t("controls_showingLast")}
-  <strong
-    >{$filteredData.length !== $recent.length
-      ? `${$filteredData.length}/${$recent.length}`
-      : `${$filteredData.length}/${$articles.length}`}
-  </strong>
-  {#if $filteredData.length === 1}
-    {$tn("controls_report", 1)}
-  {:else}
-    {$tn("controls_report", $filteredData.length)}
-  {/if}
-
-  {#if $availableKeywordsLabeled.length}
-    {$t("controls_mentioning")}
-    <select
-      value={$filters.keyword}
-      on:change={(e) => setKeywordFilter(e.target.value)}
-    >
-      <option value="">{$t("controls_any")}</option>
-      {#each $availableKeywordsLabeled as opt}
-        <option value={opt.value}>{opt.label}</option>
-      {/each}
-    </select>
-  {/if}{$t("controls_containing")}
-  <input
-    type="text"
-    value={$filters.text}
-    on:input={(e) => setTextFilter(e.target.value)}
-    minlength="3"
-    placeholder={$t("controls_textPlaceholder")}
-    class="inline-input"
-  />
-
-  {$t("controls_or")}
-  <label class="inline-checkbox">
+  <div>
+    {$t("controls_showingLast")}
+    <strong
+      >{$filteredData.length !== $recent.length
+        ? `${$filteredData.length}/${$recent.length}`
+        : `${$filteredData.length}/${$articles.length}`}
+    </strong>
+    {#if $filteredData.length === 1}
+      {$tn("controls_report", 1)}
+    {:else}
+      {$tn("controls_report", $filteredData.length)}
+    {/if}
+  </div>
+  <div>
+    {#if $availableKeywordsLabeled.length}
+      {$t("controls_filter")}
+      <select
+        value={$filters.keyword}
+        on:change={(e) => setKeywordFilter(e.target.value)}
+      >
+        <option value="">{$t("controls_any")}</option>
+        {#each $availableKeywordsLabeled as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    {/if}
     <input
-      type="checkbox"
-      checked={$filters.showOnlyLatest}
-      on:change={(e) => setShowOnlyLatest(e.target.checked)}
+      type="text"
+      value={$filters.text}
+      on:input={(e) => setTextFilter(e.target.value)}
+      minlength="3"
+      placeholder={$t("controls_textPlaceholder")}
+      class="inline-input"
     />
-    {$t("controls_onlyLatest")}
-  </label>
+
+    <label class="inline-checkbox">
+      <input
+        type="checkbox"
+        checked={$filters.showOnlyLatest}
+        on:change={(e) => setShowOnlyLatest(e.target.checked)}
+      />
+      {$t("controls_onlyLatest")}
+    </label>
+  </div>
 </div>
 
 <style>
@@ -155,14 +157,23 @@
     font-family: Arial, Helvetica, sans-serif;
     position: absolute;
     z-index: 10;
-    color: #eee;
+    color: #b2b2b2;
     background: #000;
     padding: 5px 10px;
-    font-size: 1rem;
-    display: flex;
-    flex-wrap: wrap;
+    font-size: 2rem;
+    line-height: 2.8rem;
     align-items: center;
     gap: 0.25rem;
+  }
+
+  .controls > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  strong {
+    color: white;
   }
 
   .lang-switch {
@@ -192,18 +203,21 @@
   .controls .inline-input {
     display: inline-block;
     margin: 0;
-    font-size: 1em;
-    min-width: 90px;
+    font-size: .8em;
+    width: 220px;
     vertical-align: middle;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  label {
+    font-family: Arial, Helvetica, sans-serif;
   }
 
   select,
   input {
-    font-family: Arial, Helvetica, sans-serif;
-  }
-
-  .inline-input {
-    width: 110px;
+    background-color: black;
+    color: white;
+    border: 1px solid;
   }
 
   .inline-checkbox {
@@ -216,8 +230,8 @@
 
   .inline-checkbox input[type="checkbox"] {
     accent-color: var(--color-1);
-    width: 1.1em;
-    height: 1.1em;
+    width: 1.8rem;
+    height: 1.8rem;
     vertical-align: middle;
   }
 </style>

@@ -39,8 +39,9 @@ const dict = {
     en: "EN",
 
     controls_showingLast: "Showing the last",
-    controls_report_one: "police report",
-    controls_report_other: "police reports",
+    controls_report_one: "police report.",
+    controls_report_other: "police reports.",
+    controls_filter: "Filter by:",
     controls_mentioning: "mentioning:",
     controls_any: "any",
     controls_containing: ", containing",
@@ -63,8 +64,10 @@ const dict = {
     en: "EN",
 
     controls_showingLast: "Zeige die letzten",
-    controls_report_one: "Polizeimeldung",
-    controls_report_other: "Polizeimeldungen",
+    controls_report_one: "Polizeimeldung.",
+    controls_report_other: "Polizeimeldungen.",
+    controls_filter: "Filtern nach:",
+
     controls_mentioning: "mit Erwähnung:",
     controls_any: "beliebig",
     controls_containing: ", mit",
