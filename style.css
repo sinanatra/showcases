@@ -7,31 +7,31 @@ body {
   padding: 0px;
   font-size: 14px;
   overscroll-behavior: none;
-  font-family: Courier, monospace;
+  font-family:  Courier, monospace;
   text-rendering: optimizeSpeed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 button {
-  font-family: Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
 ::selection {
-  background-color: white;
-  color: var(--color-1);
+  background-color: var(--color-1);
+  color: white;
 }
 
 select,
 label {
   font-size: 1em;
-  font-family: Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
 strong,
 em,
 .highlight {
-  font-family: Courier, monospace;
+  font-family:  Courier, monospace;
 }
 
 /* @font-face {
