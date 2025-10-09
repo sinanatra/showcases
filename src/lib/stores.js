@@ -50,7 +50,39 @@ export const filters = writable({
   text: "",
   showOnlyLatest: false,
   region: "",
+  yearMin: null,
+  yearMax: null,
 });
+
+export const yearsExtent = derived(articles, ($articles) => {
+  let min = Infinity,
+    max = -Infinity;
+  for (const a of Array.isArray($articles) ? $articles : []) {
+    const d = parseDateLoose(a.ExtractedDate || a.Date);
+    if (!d || isNaN(+d)) continue;
+    const y = d.getFullYear();
+    if (y < min) min = y;
+    if (y > max) max = y;
+  }
+  if (!isFinite(min) || !isFinite(max)) {
+    const y = new Date().getFullYear();
+    return { min: y, max: y };
+  }
+  return { min, max };
+});
+
+export const effectiveYearRange = derived(
+  [filters, yearsExtent],
+  ([$filters, $extent]) => ({
+    min: $filters.yearMin ?? $extent.min,
+    max: $filters.yearMax ?? $extent.max,
+  })
+);
+
+function getYearFromItem(a) {
+  const d = parseDateLoose(a?.ExtractedDate || a?.Date);
+  return d && !isNaN(+d) ? d.getFullYear() : null;
+}
 
 export function getKeywordVariants(canon) {
   if (!canon) return [];
@@ -398,6 +430,8 @@ function applyFilters(list, f) {
     text = "",
     showOnlyLatest = false,
     region = "",
+    yearMin = null,
+    yearMax = null,
   } = f || {};
 
   let out = Array.isArray(list) ? list : [];
@@ -447,6 +481,16 @@ function applyFilters(list, f) {
             : "Night";
         return label === timeCluster;
       });
+    });
+  }
+
+  if (yearMin != null || yearMax != null) {
+    out = out.filter((a) => {
+      const y = getYearFromItem(a);
+      if (y == null) return false; // exclude undated items
+      if (yearMin != null && y < yearMin) return false;
+      if (yearMax != null && y > yearMax) return false;
+      return true;
     });
   }
 
