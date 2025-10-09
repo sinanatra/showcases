@@ -117,6 +117,49 @@ export function filterArticles(list, { district, keyword }, exclude) {
   });
 }
 
+function splitOutsideQuotes(str, sepRegex) {
+  const parts = [];
+  let buf = "";
+  let inQuotes = false;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (!inQuotes && sepRegex.test(ch)) {
+      if (buf.trim()) parts.push(buf.trim());
+      buf = "";
+    } else {
+      buf += ch;
+    }
+  }
+  if (buf.trim()) parts.push(buf.trim());
+  return parts;
+}
+
+export function buildTextPredicate(query) {
+  const raw = String(query || "").trim();
+  if (!raw) return () => true;
+
+  const orGroups = splitOutsideQuotes(raw, /,/)
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .map((g) =>
+      splitOutsideQuotes(g, /\+/)
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+    )
+    .filter((group) => group.length > 0);
+
+  if (orGroups.length === 0) return () => true;
+
+  return (item) => {
+    const hay = String(item?.Text || "").toLowerCase();
+    return orGroups.some((andTerms) => andTerms.every((t) => hay.includes(t)));
+  };
+}
+
 export const availableDistricts = derived(
   [articles, filters],
   ([$articles, $filters]) => {
@@ -375,8 +418,8 @@ function applyFilters(list, f) {
   }
 
   if (text) {
-    const q = text.toLowerCase();
-    out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
+    const test = buildTextPredicate(text);
+    out = out.filter((a) => test(a));
   }
 
   if (gender) {
