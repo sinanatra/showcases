@@ -10,21 +10,22 @@
     filteredData,
   } from "$lib/stores";
   import Record from "$lib/components/Record.svelte";
-
   import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
 
   let lastActivity = Date.now();
   let cycling = false;
   let cycles = 0;
+  let hasCycledSinceIdle = false; 
 
   const idle_delay = 10000;
   const check_ms = 5000;
-  const max_cycles = 20;
+  const max_cycles = 2;
 
   function markActivity() {
     lastActivity = Date.now();
     cycling = false;
     cycles = 0;
+    hasCycledSinceIdle = false; 
   }
 
   function setKeywordFilter(val) {
@@ -36,7 +37,6 @@
     markActivity();
     const q = String(val || "").trim();
     filters.update((f) => ({ ...f, text: q.length >= 3 ? q : "" }));
-    // console.log($filters);
   }
   function setShowOnlyLatest(val) {
     markActivity();
@@ -61,8 +61,10 @@
     const tick = setInterval(() => {
       const idleFor = Date.now() - lastActivity;
 
+      
       if (
         !cycling &&
+        !hasCycledSinceIdle &&
         idleFor >= idle_delay &&
         $availableKeywordsLabeled.length > 0
       ) {
@@ -79,6 +81,7 @@
         cycles++;
         if (cycles >= max_cycles) {
           cycling = false;
+          hasCycledSinceIdle = true; 
         }
       }
     }, check_ms);
@@ -203,7 +206,7 @@
   .controls .inline-input {
     display: inline-block;
     margin: 0;
-    font-size: .8em;
+    font-size: 0.8em;
     width: 220px;
     vertical-align: middle;
     font-family: Arial, Helvetica, sans-serif;

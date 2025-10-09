@@ -574,7 +574,6 @@
   {/if}
 </div>
 
-<!-- click-outside overlay (shown only when pinned). No window listeners. -->
 {#if isPinned}
   <div class="outside-overlay" on:click={unpinTooltip} aria-hidden="true" />
 {/if}
