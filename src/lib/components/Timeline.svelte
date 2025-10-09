@@ -5,7 +5,7 @@
   const fontSize = Math.round(lineHeight * 0.9);
   const timelineWidth = 2000;
   const yOffset = 40;
-  const tickEvery = 120;
+  const tickEvery = 180;
 
   function parseDate(dStr, tStr = "00:00") {
     if (!dStr) return null;
