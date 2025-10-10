@@ -36,7 +36,7 @@
 </script>
 
 <DataControls />
-<DataViz />
+<DataViz autoCycle={true} />
 
 <style>
   :global(body) {
