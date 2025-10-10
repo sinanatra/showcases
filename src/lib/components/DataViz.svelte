@@ -142,7 +142,7 @@
 
     let branches = [];
     let pan = { x: 0, y: 0 };
-    let zoom = 0.8;
+    let zoom = 0.5;
     let dragging = false;
     let lastX = 0,
       lastY = 0,
@@ -522,7 +522,7 @@
     };
     p.mouseWheel = (e) => {
       const f = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-      zoom = p.constrain(zoom * f, 0.5, 2);
+      zoom = p.constrain(zoom * f, 0.2, 2);
       return false;
     };
     p.windowResized = () => {

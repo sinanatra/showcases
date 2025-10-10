@@ -4,10 +4,9 @@
     filters,
     articles,
     availableKeywordsLabeled,
-    availableGendersLabeled,
-    availableTimeClustersLabeled,
     recent,
     filteredData,
+    parseDateLoose,
   } from "$lib/stores";
   import Record from "$lib/components/Record.svelte";
   import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
@@ -15,7 +14,7 @@
   let lastActivity = Date.now();
   let cycling = false;
   let cycles = 0;
-  let hasCycledSinceIdle = false; 
+  let hasCycledSinceIdle = false;
 
   const idle_delay = 10000;
   const check_ms = 5000;
@@ -25,7 +24,7 @@
     lastActivity = Date.now();
     cycling = false;
     cycles = 0;
-    hasCycledSinceIdle = false; 
+    hasCycledSinceIdle = false;
   }
 
   function setKeywordFilter(val) {
@@ -61,7 +60,6 @@
     const tick = setInterval(() => {
       const idleFor = Date.now() - lastActivity;
 
-      
       if (
         !cycling &&
         !hasCycledSinceIdle &&
@@ -81,7 +79,7 @@
         cycles++;
         if (cycles >= max_cycles) {
           cycling = false;
-          hasCycledSinceIdle = true; 
+          hasCycledSinceIdle = true;
         }
       }
     }, check_ms);
@@ -93,11 +91,60 @@
       );
     };
   });
+
+  function fmtNum(n) {
+    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    return new Intl.NumberFormat(locale).format(n);
+  }
+
+  function fmtDate(d) {
+    if (!d) return "";
+    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(d);
+  }
+
+  function spanFor(list) {
+    if (!Array.isArray(list) || !list.length) return null;
+    let start = null,
+      end = null;
+    for (const a of list) {
+      const d = parseDateLoose(a?.ExtractedDate || a?.Date);
+      if (!d || isNaN(+d)) continue;
+      if (!start || d < start) start = d;
+      if (!end || d > end) end = d;
+    }
+    return start && end ? { start, end } : null;
+  }
+
+  function sameDay(a, b) {
+    if (!a || !b) return false;
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  function fmtRange(range, toKey = "summary_l1_to") {
+    if (!range) return "";
+    const { start, end } = range;
+    if (!end || sameDay(start, end)) return `${fmtDate(start)}`;
+    return `${fmtDate(start)} ${$t(toKey)} ${fmtDate(end)}`;
+  }
+
+  $: totalFiltered = $filteredData.length;
+  $: totalRecent = $recent.length;
+  $: totalAll = $articles.length;
+
+  $: spanFiltered = spanFor($filteredData);
+  $: spanTotal = spanFor($articles);
 </script>
 
 <div class="lang-switch">
-  <!-- <Record /> -->
-
   {#each availableLangs as l}
     <button
       class:active={$lang === l}
@@ -108,23 +155,35 @@
     </button>
   {/each}
 </div>
+
 <div class="controls">
+  <h2>
+    {fmtNum(totalFiltered)}
+    {$t("summary_l1_mid")}
+    {fmtRange(spanFiltered, "summary_l1_to")}.
+  </h2>
   <div>
-    {$t("controls_showingLast")}
-    <strong
-      >{$filteredData.length !== $recent.length
-        ? `${$filteredData.length}/${$recent.length}`
-        : `${$filteredData.length}/${$articles.length}`}
-    </strong>
-    {#if $filteredData.length === 1}
-      {$tn("controls_report", 1)}
-    {:else}
-      {$tn("controls_report", $filteredData.length)}
-    {/if}
+    <p>
+      {$t("summary_l2_prefix")}
+      {fmtNum(totalRecent)}
+      {$t("summary_l2_incidents")}
+      {$t("summary_l2_within")}
+      {fmtNum(totalAll)}
+      {$t("summary_l2_cases")}
+      {$t("summary_l2_span_open")}
+      {fmtRange(spanTotal, "summary_l2_to")}{$t("summary_l2_span_close")}.
+    </p>
+    <br />
+    <p>
+      {$t("summary_l2_see")} <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
+      {$t("summary_l2_for")}
+    </p>
   </div>
   <div>
     {#if $availableKeywordsLabeled.length}
-      {$t("controls_filter")}
+      <p>
+        {$t("controls_filter")}
+      </p>
       <select
         value={$filters.keyword}
         on:change={(e) => setKeywordFilter(e.target.value)}
@@ -160,23 +219,41 @@
     font-family: Arial, Helvetica, sans-serif;
     position: absolute;
     z-index: 10;
-    color: #b2b2b2;
+    color: white;
     background: #000;
     padding: 5px 10px;
-    font-size: 2rem;
-    line-height: 2.8rem;
+    font-size: 1.2rem;
+    line-height: 1.4rem;
     align-items: center;
-    gap: 0.25rem;
+
+    display: grid;
+    grid-template-columns: minmax(320px, 640px) repeat(
+        auto-fit,
+        minmax(240px, 1fr)
+      );
+    column-gap: 5px;
+    row-gap: 5px;
+    align-items: start;
   }
 
-  .controls > div {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+  h2,
+  p {
+    margin: 0;
   }
 
-  strong {
-    color: white;
+  h2 {
+    font-weight: 400;
+    font-size: 2rem;
+    line-height: 2.2rem;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.2rem;
+  }
+
+  a {
+    color: var(--color-2);
   }
 
   .lang-switch {
@@ -205,7 +282,7 @@
   .controls select,
   .controls .inline-input {
     display: inline-block;
-    margin: 0;
+    margin: 2px 0;
     font-size: 0.8em;
     width: 220px;
     vertical-align: middle;
@@ -233,8 +310,15 @@
 
   .inline-checkbox input[type="checkbox"] {
     accent-color: var(--color-1);
-    width: 1.8rem;
-    height: 1.8rem;
+    /* width: 1.8rem;
+    height: 1.8rem; */
     vertical-align: middle;
+  }
+
+  @media (max-width: 800px) {
+    .controls {
+      grid-template-columns: 1fr;
+      font-size: 1rem;
+    }
   }
 </style>
