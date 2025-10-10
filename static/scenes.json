@@ -38,7 +38,7 @@
 
     "cta": [
       {
-        "href": "/spread",
+        "href": "/latest",
         "label": { "en": "Explore latest incidents", "de": "Neueste Meldungen" }
       }
     ]
