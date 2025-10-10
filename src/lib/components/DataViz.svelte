@@ -808,7 +808,7 @@
       <P5 {sketch} style="position:absolute; top:0; left:0;" />
     {/key}
   {:else}
-    <div class="empty-state">No items to visualize.</div>
+    <div class="empty-state">...</div>
   {/if}
 </div>
 

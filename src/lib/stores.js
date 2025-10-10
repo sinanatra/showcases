@@ -5,32 +5,54 @@ export const keywordsGroup = {
   antisem: "antisemitismus",
   antisemitisch: "antisemitismus",
   antisemitismus: "antisemitismus",
-  nationalsozialismus: "nationalsozialismus",
-  nationalsozialistisch: "nationalsozialismus",
-  nationalsozialistische: "nationalsozialismus",
+
+  islamophobie: "islamfeindlichkeit",
+  islamfeindlichkeit: "islamfeindlichkeit",
+  islamophobia: "islamfeindlichkeit",
+
+  rassistisch: "fremdenfeindlichkeit",
+  rassismus: "fremdenfeindlichkeit",
+  fremdenfeindlich: "fremdenfeindlichkeit",
+  fremdenfeindlichkeit: "fremdenfeindlichkeit",
+
   rechtsextremisch: "rechtsextremismus",
   rechtsextremistisch: "rechtsextremismus",
-  rassistisch: "rassismus",
-  rassismus: "rassismus",
-  fremdenfeindlich: "fremdenfeindlich",
-  hakenkreuz: "hakenkreuz",
-  hitlergruß: "hitlergruß",
-  homophob: "homophobie",
-  homophobie: "homophobie",
-  "mit politischem hintergrund": "mit politischem hintergrund",
-  nazi: "nazi",
+  rechtsextremismus: "rechtsextremismus",
+  hakenkreuz: "rechtsextremismus",
+  hitlergruß: "rechtsextremismus",
+  "sieg heil": "rechtsextremismus",
+  nazi: "rechtsextremismus",
+  nationalsozialismus: "rechtsextremismus",
+  nationalsozialistisch: "rechtsextremismus",
+  nationalsozialistische: "rechtsextremismus",
+  
+  verfassungswidrig: "rechtsextremismus",
+  "mit politischem hintergrund": "rechtsextremismus",
+
+  homophob: "queerfeindlichkeit",
+  homophobie: "queerfeindlichkeit",
   queerfeindlichkeit: "queerfeindlichkeit",
   queerfeindlich: "queerfeindlichkeit",
-  "sieg heil": "sieg heil",
-  transphobie: "transphobie",
-  transphob: "transphobie",
-  verfassungswidrig: "verfassungswidrig",
+  queerphobie: "queerfeindlichkeit",
+  queerphobia: "queerfeindlichkeit",
+  transphobie: "queerfeindlichkeit",
+  transphob: "queerfeindlichkeit",
+
   volksverhetzung: "volksverhetzung",
 };
 
-export const canonicalKeywords = Array.from(
-  new Set(Object.values(keywordsGroup))
-).sort((a, b) => a.localeCompare(b, "de"));
+// export const canonicalKeywords = Array.from(
+//   new Set(Object.values(keywordsGroup))
+// ).sort((a, b) => a.localeCompare(b, "de"));
+
+export const canonicalKeywords = [
+  "antisemitismus",
+  "islamfeindlichkeit",
+  "fremdenfeindlichkeit",
+  "rechtsextremismus",
+  "volksverhetzung",
+  "queerfeindlichkeit",
+];
 
 const genderMap = {
   frau: "Adult Female",
@@ -254,7 +276,7 @@ export const availableKeywords = derived(
   }
 );
 
-const N = 300;
+const N = 350;
 
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
@@ -375,23 +397,11 @@ const TIME_LABELS = {
 
 const KEYWORD_LABELS = {
   antisemitismus: { en: "Antisemitism", de: "Antisemitismus" },
-  nationalsozialismus: { en: "National Socialism", de: "Nationalsozialismus" },
+  islamfeindlichkeit: { en: "Anti-Muslim bigotry", de: "Islamfeindlichkeit" },
+  fremdenfeindlichkeit: { en: "Xenophobia/Racism", de: "Fremdenfeindlichkeit" },
   rechtsextremismus: { en: "Right-wing extremism", de: "Rechtsextremismus" },
-  rassismus: { en: "Racism", de: "Rassismus" },
-  fremdenfeindlich: { en: "Xenophobic", de: "Fremdenfeindlich" },
-  hakenkreuz: { en: "Swastika", de: "Hakenkreuz" },
-  hitlergruß: { en: "Hitler salute", de: "Hitlergruß" },
-  homophobie: { en: "Homophobia", de: "Homophobie" },
-  "mit politischem hintergrund": {
-    en: "With political background",
-    de: "Mit politischem Hintergrund",
-  },
-  nazi: { en: "Nazi", de: "Nazi" },
-  queerfeindlichkeit: { en: "Anti-queer", de: "Queerfeindlichkeit" },
-  "sieg heil": { en: "Sieg Heil", de: "Sieg Heil" },
-  transphobie: { en: "Transphobia", de: "Transphobie" },
-  verfassungswidrig: { en: "Unconstitutional", de: "Verfassungswidrig" },
   volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
+  queerfeindlichkeit: { en: "Anti-queer (LGBTQ*)", de: "Queerfeindlichkeit" },
 };
 
 export const availableGendersLabeled = derived(
