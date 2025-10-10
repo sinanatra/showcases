@@ -39,16 +39,25 @@ const dict = {
     en: "EN",
 
     controls_showingLast: "Showing the last",
-    controls_report_one: "police report.",
-    controls_report_other: "police reports.",
-    controls_filter: "Filter by:",
-    controls_mentioning: "mentioning:",
-    controls_any: "any",
-    controls_containing: ", containing",
-    controls_textPlaceholder: "text…",
-    controls_or: ", or",
     controls_onlyLatest: "only the latest.",
-    tooltip_open_link: "Press <kbd>space</kbd> to open link",
+    controls_filter: "Filter by:",
+    controls_textPlaceholder: "Text…",
+
+    controls_any: "any",
+
+    summary_l1_mid: "police reports currently visible from",
+    summary_l1_to: "to",
+
+    summary_l2_prefix: "Drawn from the most recent",
+    summary_l2_incidents: "incidents,",
+    summary_l2_within: "within a dataset of",
+    summary_l2_cases: "cases.",
+    summary_l2_span_open: "(spanning from",
+    summary_l2_to: "to",
+    summary_l2_span_close: ")",
+    summary_l2_see: "See the",
+    summary_l2_link: "timeline",
+    summary_l2_for: "for earlier records.",
   },
   de: {
     showcases: "Showcases",
@@ -63,18 +72,33 @@ const dict = {
     de: "DE",
     en: "EN",
 
-    controls_showingLast: "Zeige die letzten",
-    controls_report_one: "Polizeimeldung.",
-    controls_report_other: "Polizeimeldungen.",
-    controls_filter: "Filtern nach:",
-
-    controls_mentioning: "mit Erwähnung:",
-    controls_any: "beliebig",
-    controls_containing: ", mit",
-    controls_textPlaceholder: "Text…",
-    controls_or: ", oder",
     controls_onlyLatest: "nur die neuesten.",
     tooltip_open_link: "Drücke <kbd>Leertaste</kbd>, um den Link zu öffnen",
+
+    controls_any: "beliebig",
+    controls_filter: "Filtern nach:",
+
+    controls_results: "Ergebnisse",
+    controls_of: "von",
+    controls_of_all: " (von gesamt ",
+    controls_filters_on: "Filter aktiv",
+    controls_clear: "Zurücksetzen",
+    controls_timespan: "Zeitraum",
+    controls_timespan_unknown: "—",
+
+    summary_l1_mid: "polizei Meldungen aktuell sichtbar von",
+    summary_l1_to: "bis",
+
+    summary_l2_prefix: "Aus den jüngsten",
+    summary_l2_incidents: "Vorfällen,",
+    summary_l2_within: "innerhalb eines Datensatzes von",
+    summary_l2_cases: "Fällen.",
+    summary_l2_span_open: "(Zeitraum von",
+    summary_l2_to: "bis",
+    summary_l2_span_close: ")",
+    summary_l2_see: "Zur",
+    summary_l2_link: "Zeitleiste",
+    summary_l2_for: "für frühere Einträge.",
   },
 };
 
