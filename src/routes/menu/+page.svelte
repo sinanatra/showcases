@@ -1,7 +1,11 @@
 <article>
   <header>
     <a href="timeline">Timeline</a>
-    <a href="spread">Spread</a>
+    <a href="latest">Latest</a>
+    <a href="timeline-animated">Animated</a>
+  </header>
+  <header>
+    <a href="custom-1">custom-1</a>
   </header>
 </article>
 
