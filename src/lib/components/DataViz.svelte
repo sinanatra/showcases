@@ -267,23 +267,290 @@
   const growthParams = {
     fungal: {
       branchingChance: 0.29,
-      directionRandomness: 2,
+      directionRandomness: 2.0,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
     chaos: {
-      branchingChance: 2,
-      directionRandomness: 7,
+      branchingChance: 2.0,
+      directionRandomness: 7.0,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
     covid: {
-      branchingChance: 10,
-      directionRandomness: 200,
+      branchingChance: 10.0,
+      directionRandomness: 200.0,
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
+
+    tendrils: {
+      branchingChance: 0.18,
+      directionRandomness: 1.2,
+      branchAngle: Math.PI / 2.0,
+      downwardBias: 0.005,
+    },
+    river: {
+      branchingChance: 0.06,
+      directionRandomness: 0.6,
+      branchAngle: Math.PI / 2.6,
+      downwardBias: 0.0,
+    },
+    spiral: {
+      branchingChance: 0.22,
+      directionRandomness: 1.6,
+      branchAngle: Math.PI / 1.2,
+      downwardBias: 0.008,
+    },
+    fern: {
+      branchingChance: 0.35,
+      directionRandomness: 0.9,
+      branchAngle: Math.PI / 3.0,
+      downwardBias: 0.004,
+    },
+    lightning: {
+      branchingChance: 0.1,
+      directionRandomness: 9.0,
+      branchAngle: Math.PI / 1.8,
+      downwardBias: 0.0,
+    },
+    constellation: {
+      branchingChance: 0.04,
+      directionRandomness: 0.4,
+      branchAngle: Math.PI / 1.3,
+      downwardBias: 0.0,
+    },
+    vortex: {
+      branchingChance: 0.28,
+      directionRandomness: 3.0,
+      branchAngle: Math.PI / 1.1,
+      downwardBias: 0.006,
+    },
+    meadow: {
+      branchingChance: 0.42,
+      directionRandomness: 2.4,
+      branchAngle: Math.PI / 2.2,
+      downwardBias: -0.002,
+    },
+    roots: {
+      branchingChance: 0.33,
+      directionRandomness: 1.4,
+      branchAngle: Math.PI / 2.8,
+      downwardBias: 0.012,
+    },
+    zigzag: {
+      branchingChance: 0.2,
+      directionRandomness: 0.8,
+      branchAngle: Math.PI / 2.2,
+      downwardBias: 0.004,
+    },
+    square: {
+      branchingChance: 0.08,
+      directionRandomness: 0.3,
+      branchAngle: Math.PI / 2.0,
+      downwardBias: 0.0,
+    },
+    orbit: {
+      branchingChance: 0.15,
+      directionRandomness: 1.0,
+      branchAngle: Math.PI / 1.6,
+      downwardBias: 0.002,
+    },
+    wave: {
+      branchingChance: 0.2,
+      directionRandomness: 0.7,
+      branchAngle: Math.PI / 2.4,
+      downwardBias: 0.003,
+    },
+    drunk: {
+      branchingChance: 0.12,
+      directionRandomness: 3.6,
+      branchAngle: Math.PI / 2.0,
+      downwardBias: 0.006,
+    },
+
+    spiral_in: {
+      branchingChance: 0.25,
+      directionRandomness: 1.1,
+      branchAngle: Math.PI / 1.5,
+      downwardBias: 0.005,
+    },
+    spiral_out: {
+      branchingChance: 0.25,
+      directionRandomness: 1.9,
+      branchAngle: Math.PI / 1.5,
+      downwardBias: -0.003,
+    },
+    zigzag_hard: {
+      branchingChance: 0.28,
+      directionRandomness: 0.35,
+      branchAngle: Math.PI / 1.9,
+      downwardBias: 0.002,
+    },
+    zigzag_soft: {
+      branchingChance: 0.18,
+      directionRandomness: 0.6,
+      branchAngle: Math.PI / 2.5,
+      downwardBias: 0.001,
+    },
+    lissajous: {
+      branchingChance: 0.24,
+      directionRandomness: 1.3,
+      branchAngle: Math.PI / 1.7,
+      downwardBias: 0.007,
+    },
+    helix: {
+      branchingChance: 0.21,
+      directionRandomness: 0.9,
+      branchAngle: Math.PI / 1.3,
+      downwardBias: -0.004,
+    },
+    swirl: {
+      branchingChance: 0.32,
+      directionRandomness: 2.2,
+      branchAngle: Math.PI / 1.2,
+      downwardBias: 0.005,
+    },
+    tumbleweed: {
+      branchingChance: 0.27,
+      directionRandomness: 4.5,
+      branchAngle: Math.PI / 1.6,
+      downwardBias: -0.006,
+    },
+    gust: {
+      branchingChance: 0.14,
+      directionRandomness: 5.2,
+      branchAngle: Math.PI / 2.3,
+      downwardBias: 0.0,
+    },
+    lattice: {
+      branchingChance: 0.05,
+      directionRandomness: 0.25,
+      branchAngle: Math.PI / 2.0,
+      downwardBias: 0.0,
+    },
+    starburst: {
+      branchingChance: 0.4,
+      directionRandomness: 3.4,
+      branchAngle: Math.PI / 3.2,
+      downwardBias: -0.001,
+    },
+    petal: {
+      branchingChance: 0.3,
+      directionRandomness: 1.1,
+      branchAngle: Math.PI / 2.6,
+      downwardBias: 0.004,
+    },
+    braid: {
+      branchingChance: 0.22,
+      directionRandomness: 1.8,
+      branchAngle: Math.PI / 1.9,
+      downwardBias: 0.003,
+    },
+    corkscrew: {
+      branchingChance: 0.2,
+      directionRandomness: 2.8,
+      branchAngle: Math.PI / 1.25,
+      downwardBias: 0.005,
+    },
+    meander: {
+      branchingChance: 0.09,
+      directionRandomness: 0.95,
+      branchAngle: Math.PI / 2.9,
+      downwardBias: 0.0,
+    },
+    dunes: {
+      branchingChance: 0.16,
+      directionRandomness: 0.55,
+      branchAngle: Math.PI / 2.7,
+      downwardBias: -0.003,
+    },
+    eddies: {
+      branchingChance: 0.26,
+      directionRandomness: 2.6,
+      branchAngle: Math.PI / 1.6,
+      downwardBias: 0.002,
+    },
+    pulse: {
+      branchingChance: 0.31,
+      directionRandomness: 1.5,
+      branchAngle: Math.PI / 2.1,
+      downwardBias: 0.006,
+    },
+    jitter: {
+      branchingChance: 0.13,
+      directionRandomness: 6.5,
+      branchAngle: Math.PI / 2.4,
+      downwardBias: 0.0,
+    },
+    sawtooth: {
+      branchingChance: 0.19,
+      directionRandomness: 0.7,
+      branchAngle: Math.PI / 1.8,
+      downwardBias: 0.003,
+    },
+    diamond: {
+      branchingChance: 0.07,
+      directionRandomness: 0.35,
+      branchAngle: Math.PI / 4.0,
+      downwardBias: 0.0,
+    },
+    attractor: {
+      branchingChance: 0.23,
+      directionRandomness: 2.1,
+      branchAngle: Math.PI / 1.7,
+      downwardBias: -0.005,
+    },
+    repel: {
+      branchingChance: 0.23,
+      directionRandomness: 2.1,
+      branchAngle: Math.PI / 1.7,
+      downwardBias: 0.009,
+    },
+    perlin_flow: {
+      branchingChance: 0.11,
+      directionRandomness: 1.4,
+      branchAngle: Math.PI / 2.8,
+      downwardBias: 0.0,
+    },
+    curl: {
+      branchingChance: 0.29,
+      directionRandomness: 2.9,
+      branchAngle: Math.PI / 1.3,
+      downwardBias: 0.004,
+    },
+    checker: {
+      branchingChance: 0.04,
+      directionRandomness: 0.2,
+      branchAngle: Math.PI / 2.0,
+      downwardBias: 0.0,
+    },
+    metro: {
+      branchingChance: 0.08,
+      directionRandomness: 0.45,
+      branchAngle: Math.PI / 1.1,
+      downwardBias: 0.0,
+    },
+    stairs: {
+      branchingChance: 0.17,
+      directionRandomness: 0.5,
+      branchAngle: Math.PI / 2.1,
+      downwardBias: 0.002,
+    },
+    arcs: {
+      branchingChance: 0.2,
+      directionRandomness: 1.0,
+      branchAngle: Math.PI / 2.8,
+      downwardBias: 0.001,
+    },
+    petals: {
+      branchingChance: 0.34,
+      directionRandomness: 1.3,
+      branchAngle: Math.PI / 2.3,
+      downwardBias: 0.003,
+    },
   };
+
   const growthModes = Object.keys(growthParams);
   let growthMode = "chaos";
 
@@ -420,27 +687,100 @@
       return pg;
     }
 
+    /* ———————————————————————————————————————————
+       EFFECTS: richer, mode-specific steering
+       ——————————————————————————————————————————— */
     function growBranch(br, tip) {
       const gp = params();
       let dir = br.dir0.copy();
       dir.y += gp.downwardBias;
       dir.normalize();
-      let nv = p.noise(
+
+      const nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
         simFrame * 0.05
       );
-      const ramp = 1;
       dir.rotate(
-        p.map(
-          nv,
-          0,
-          1,
-          -gp.directionRandomness * ramp,
-          gp.directionRandomness * ramp
-        )
+        p.map(nv, 0, 1, -gp.directionRandomness, gp.directionRandomness)
       );
-      return dir;
+
+      switch (growthMode) {
+        case "tendrils": {
+          const osc = 0.25 * Math.sin(br.phase + simFrame * 0.08);
+          dir.rotate(osc);
+          break;
+        }
+        case "river": {
+          const s = 0.0025,
+            t = simFrame * 0.015;
+          const a = p.noise(tip.x * s, tip.y * s, t) * Math.PI * 2;
+          const flow = p.createVector(Math.cos(a), Math.sin(a));
+          dir.add(flow.mult(0.6)).normalize();
+          break;
+        }
+        case "spiral": {
+          const toC = p.createVector(tip.x - br.center.x, tip.y - br.center.y);
+          if (toC.mag() > 0.001) {
+            const tang = p.createVector(-toC.y, toC.x).normalize();
+            dir.add(tang.mult(0.45)).normalize();
+          }
+          break;
+        }
+        case "fern": {
+          const beat =
+            br.grown % 10 === 0
+              ? (Math.random() < 0.5 ? -1 : 1) * (gp.branchAngle * 0.45)
+              : 0;
+          if (beat) dir.rotate(beat);
+          break;
+        }
+        case "lightning": {
+          const jitter = (Math.random() - 0.5) * 0.9; // sharp kinks
+          dir.rotate(jitter);
+          if (Math.random() < 0.08)
+            dir.rotate(((Math.random() < 0.5 ? -1 : 1) * Math.PI) / 2.2);
+          break;
+        }
+        case "constellation": {
+          const snap = Math.PI / 8;
+          const a = Math.atan2(dir.y, dir.x);
+          const snapped = Math.round(a / snap) * snap;
+          const jitter = (Math.random() - 0.5) * 0.05;
+          dir = p.createVector(
+            Math.cos(snapped + jitter),
+            Math.sin(snapped + jitter)
+          );
+          break;
+        }
+        case "vortex": {
+          const toC = p.createVector(tip.x - br.center.x, tip.y - br.center.y);
+          if (toC.mag() > 0.001) {
+            const tang = p.createVector(-toC.y, toC.x).normalize();
+            const swirl = 0.9;
+            dir.add(tang.mult(swirl)).normalize();
+          }
+          dir.rotate((Math.random() - 0.5) * 0.2);
+          break;
+        }
+        case "meadow": {
+          const breeze = 0.35 * Math.sin(br.phase + simFrame * 0.03);
+          dir.rotate(breeze);
+          break;
+        }
+        case "roots": {
+          dir.y += 0.05; // extra gravity
+          dir.normalize();
+          const creep = (Math.random() - 0.5) * 0.15;
+          dir.rotate(creep);
+          break;
+        }
+        default:
+          // fungal/chaos/covid use the base noise & randomness already applied
+          break;
+      }
+
+      return dir.normalize();
     }
 
     function setupBranches(data, w, h) {
@@ -486,6 +826,9 @@
         finished: false,
         parent: null,
         attachAt: 0,
+        phase: Math.random() * Math.PI * 2,
+        turnDir: Math.random() < 0.5 ? -1 : 1,
+        center: { x: cx, y: cy },
       });
 
       for (let i = 1; i < data.length; i++) {
@@ -538,6 +881,9 @@
           finished: false,
           parent: parentIndex,
           attachAt: parentAttachIdx,
+          phase: Math.random() * Math.PI * 2,
+          turnDir: Math.random() < 0.5 ? -1 : 1,
+          center: { x: cx, y: cy },
         });
       }
       return result;
@@ -828,6 +1174,12 @@
   date={hoveredHitbox?.date || ""}
   {isPinned}
 />
+
+<!-- <p
+  style="position:fixed; bottom:0; left:0; color:#888; font-size:10px; padding:4px; z-index:9999; background:rgba(0,0,0,0.5);"
+>
+  {growthMode}
+</p> -->
 
 <style>
   .viz-container {
