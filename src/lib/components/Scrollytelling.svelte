@@ -6,6 +6,7 @@
   export let scenes = null;
   export let src = null;
   export let threshold = 0.6;
+  export let data = {};
 
   let active = 0;
   let videoRef;
@@ -22,13 +23,24 @@
     return v?.[langCode] ?? v?.en ?? v?.de ?? "";
   }
 
-  $: localizedScenes = (scenes || []).map((s) => ({
-    ...s,
-    _heading: L(s.heading, currentLang),
-    _subtitle: L(s.subtitle, currentLang),
-    _body: L(s.body, currentLang),
-    _cta: (s.cta || []).map((c) => ({ ...c, _label: L(c.label, currentLang) })),
-  }));
+  function fill(str, map) {
+    if (!str || typeof str !== "string") return str;
+    return str.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k) => {
+      const v = map?.[k];
+      return v === 0 || v ? String(v) : "—";
+    });
+  }
+
+  $: localizedScenes = (scenes || []).map((s) => {
+    const _heading = fill(L(s.heading, currentLang), data);
+    const _subtitle = fill(L(s.subtitle, currentLang), data);
+    const _body = fill(L(s.body, currentLang), data);
+    const _cta = (s.cta || []).map((c) => ({
+      ...c,
+      _label: fill(L(c.label, currentLang), data),
+    }));
+    return { ...s, _heading, _subtitle, _body, _cta };
+  });
 
   $: current = localizedScenes?.[active] ?? null;
   $: isVideo = current?.media?.type === "video";
@@ -85,7 +97,6 @@
       active = 0;
       preloadImages(scenes);
       await initObserver();
-
       await tick();
       videoRef?.play?.().catch(() => {});
     } catch (e) {
@@ -157,22 +168,17 @@
         <section class="step" aria-label={"section-" + i}>
           <article>
             {#if s._heading}<h1>
-                <span class="line-bg"> {s._heading}</span>
+                <span class="line-bg">{s._heading}</span>
               </h1>{/if}
-
             {#if s._subtitle}<h2>
-                <span class="line-bg"> {s._subtitle}</span>
-              </h2>
-            {/if}
-
-            {#if s._body}
-              <p><span class="line-bg">{s._body}</span></p>
-            {/if}
+                <span class="line-bg">{s._subtitle}</span>
+              </h2>{/if}
+            {#if s._body}<p><span class="line-bg">{s._body}</span></p>{/if}
             {#if s._cta?.length}
               <div class="links">
                 {#each s._cta as link}
                   <a href={link.href} sveltekit:prefetch
-                    ><span class="line-bg"> {link._label}</span></a
+                    ><span class="line-bg">{link._label}</span></a
                   >
                 {/each}
               </div>
@@ -193,7 +199,6 @@
     display: flex;
     gap: 10px;
   }
-
   .lang-switch button {
     background: #111;
     color: #eee;
@@ -201,24 +206,20 @@
     cursor: pointer;
     border: none;
   }
-
   .lang-switch button.active {
     color: #000;
     background: #fff;
   }
-
   .scrolly {
-    background-color: black;
+    background: #000;
     position: relative;
     min-height: 100vh;
   }
-
   .bg {
     position: fixed;
     inset: 0;
     z-index: 0;
   }
-
   .bg-media {
     position: absolute;
     inset: 0;
@@ -227,19 +228,16 @@
     object-fit: cover;
     pointer-events: none;
   }
-
   main {
     position: relative;
     z-index: 1;
   }
-
   .step {
     min-height: 100vh;
     display: grid;
     place-items: center;
     padding: 6vh 2vw;
   }
-
   .step article {
     max-width: 70ch;
     margin: 0 auto;
@@ -248,22 +246,18 @@
     align-items: center;
     padding: 1ch;
   }
-
   .step article h1,
   .step article h2 {
     text-align: center;
   }
-
   .step article p {
     align-self: flex-start;
     text-align: left;
   }
-
   .step article .links {
     align-self: center;
     text-align: center;
   }
-
   .line-bg {
     background: #000;
     color: #fff;
@@ -272,14 +266,12 @@
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
-
   h1 {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 3em;
     font-weight: 400;
     margin: 0;
   }
-
   h2 {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 1.5em;
@@ -287,27 +279,23 @@
     margin: 0;
     font-style: italic;
   }
-
   p {
     font-size: 1em;
     margin: 0.6rem 0 0;
   }
-
   .links {
     margin-top: 1rem;
     display: flex;
     gap: 0.8rem;
     flex-wrap: wrap;
   }
-  
   .links a {
     color: #fff;
     text-decoration: none;
     border-bottom: 1px solid transparent;
   }
-
   .links a span:hover {
-    background-color: var(--color-1);
-    color: black;
+    background: var(--color-1);
+    color: #000;
   }
 </style>
