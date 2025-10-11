@@ -15,31 +15,50 @@
       "de": "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht."
     }
   },
+
   {
-    "id": "context",
+    "id": "totals",
     "media": {
       "type": "video",
-      "sources": [{ "src": "/scrolly/1.mov", "type": "video/mp4" }]
+      "sources": [{ "src": "/scrolly/timeline.mp4", "type": "video/mp4" }]
     },
     "subtitle": {
-      "en": "We monitor police press releases across Berlin and Brandenburg, parsing time, location, actors and keywords.",
-      "de": "Wir überwachen Polizeipressemitteilungen in Berlin und Brandenburg, mit Parsing von Zeit, Ort, Akteur*innen und Schlüsselwörtern."
+      "en": "From {{firstDate}} to {{lastDate}} we logged {{totalAll}} police reports: {{berlinCount}} in Berlin and {{brandenburgCount}} in Brandenburg.",
+      "de": "Von {{firstDate}} bis {{lastDate}} haben wir {{totalAll}} Polizeimeldungen erfasst: {{berlinCount}} in Berlin und {{brandenburgCount}} in Brandenburg."
+    }
+  },
+
+  {
+    "id": "patterns-glance",
+    "media": {
+      "type": "video",
+      "sources": [{ "src": "/scrolly/1.mp4", "type": "video/mp4" }],
+      "alt": "Overview of patterns"
+    },
+    "subtitle": {
+      "en": "Most entries occur at {{topTimeLabel}} ({{topTimeCount}}); the most-cited mention category is {{topGenderLabel}} ({{topGenderCount}}); and {{topYear}} currently has the highest count ({{topYearCount}}).",
+      "de": "Die meisten Einträge fallen in {{topTimeLabel}} ({{topTimeCount}}); am häufigsten erwähnt wird {{topGenderLabel}} ({{topGenderCount}}); und {{topYear}} verzeichnet derzeit die höchste Anzahl ({{topYearCount}})."
     }
   },
   {
-    "id": "why",
+    "id": "explore-data",
     "media": {
-      "type": "image",
-      "src": "/scrolly/0.png",
-      "alt": "Data patterns",
       "type": "video",
-      "sources": [{ "src": "/scrolly/2.mov", "type": "video/mp4" }]
+      "sources": [{ "src": "/scrolly/2.mp4", "type": "video/mp4" }]
     },
 
+    "subtitle": {
+      "en": "Browse the latest entries or the full timeline.",
+      "de": "Stöbere in den neuesten Einträgen oder die gesamte Zeitleiste."
+    },
     "cta": [
       {
-        "href": "/spread",
-        "label": { "en": "Explore latest incidents", "de": "Neueste Meldungen" }
+        "href": "/latest",
+        "label": { "en": "Latest incidents", "de": "Neueste Meldungen" }
+      },
+      {
+        "href": "/timeline",
+        "label": { "en": "Full timeline", "de": "Gesamte Zeitleiste" }
       }
     ]
   }
