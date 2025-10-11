@@ -13,7 +13,6 @@
   } from "$lib/stores";
   import { t, lang } from "$lib/i18n";
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
 
   export let urls = [];
   export let autoCycle = false;
@@ -39,28 +38,12 @@
     }
   }
 
-  $: idsFromQuery = ($page?.url?.searchParams?.get("ids") || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  $: qAuto = ($page?.url?.searchParams?.get("autocycle") || "").toLowerCase();
-  $: qIdle = parseInt($page?.url?.searchParams?.get("idle") || "");
-  $: qTick = parseInt($page?.url?.searchParams?.get("tick") || "");
-  $: qMax = parseInt($page?.url?.searchParams?.get("cycles") || "");
-
   let autoCycleEnabled = autoCycle;
   let idleDelayMs = idleDelay;
   let tickEveryMs = tickMs;
   let maxCycles = maxCyclesProp;
 
-  $: if (qAuto)
-    autoCycleEnabled = !(qAuto === "0" || qAuto === "false" || qAuto === "off");
-  $: if (!isNaN(qIdle) && qIdle > 0) idleDelayMs = qIdle;
-  $: if (!isNaN(qTick) && qTick > 0) tickEveryMs = qTick;
-  $: if (!isNaN(qMax) && qMax >= 0) maxCycles = qMax;
-
-  $: customUrls = Array.from(new Set([...(urls || []), ...idsFromQuery]))
+  $: customUrls = Array.from(new Set(urls || []))
     .map(normalizeUrl)
     .filter(Boolean);
   $: customUrlKeys = new Set(customUrls.map(toKey));
@@ -687,9 +670,6 @@
       return pg;
     }
 
-    /* ———————————————————————————————————————————
-       EFFECTS: richer, mode-specific steering
-       ——————————————————————————————————————————— */
     function growBranch(br, tip) {
       const gp = params();
       let dir = br.dir0.copy();
@@ -736,7 +716,7 @@
           break;
         }
         case "lightning": {
-          const jitter = (Math.random() - 0.5) * 0.9; // sharp kinks
+          const jitter = (Math.random() - 0.5) * 0.9;
           dir.rotate(jitter);
           if (Math.random() < 0.08)
             dir.rotate(((Math.random() < 0.5 ? -1 : 1) * Math.PI) / 2.2);
@@ -769,14 +749,13 @@
           break;
         }
         case "roots": {
-          dir.y += 0.05; // extra gravity
+          dir.y += 0.05;
           dir.normalize();
           const creep = (Math.random() - 0.5) * 0.15;
           dir.rotate(creep);
           break;
         }
         default:
-          // fungal/chaos/covid use the base noise & randomness already applied
           break;
       }
 
@@ -1104,7 +1083,6 @@
     p.mouseWheel = (e) => {
       const f = e.deltaY < 0 ? 1.05 : 1 / 1.05;
       zoom = p.constrain(zoom * f, 0.2, 2);
-      return false;
     };
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
@@ -1175,12 +1153,6 @@
   {isPinned}
 />
 
-<!-- <p
-  style="position:fixed; bottom:0; left:0; color:#888; font-size:10px; padding:4px; z-index:9999; background:rgba(0,0,0,0.5);"
->
-  {growthMode}
-</p> -->
-
 <style>
   .viz-container {
     width: 100vw;
@@ -1188,6 +1160,7 @@
     background: #000;
     cursor: cell;
     position: relative;
+    overflow: hidden;
   }
   .empty-state {
     color: #888;

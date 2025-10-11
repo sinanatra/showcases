@@ -73,6 +73,7 @@
   :global(.filters *),
   :global(.timeline *) {
     font-family: Arial, Helvetica, sans-serif;
+    background-color: white;
   }
 
   .filters {
