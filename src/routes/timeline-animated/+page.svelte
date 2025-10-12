@@ -69,7 +69,7 @@
     }
 
     p.preload = () => {
-      p.dataTable = p.loadTable("parsed.csv", "csv", "header");
+      p.dataTable = p.loadTable("all_merged.csv", "csv", "header");
     };
 
     function shorten(text, maxLen = 300) {
@@ -219,7 +219,7 @@
           branches.push({
             kw,
             nodes: [p.createVector(x0, y0)],
-            sentence: snippet, 
+            sentence: snippet,
             maxSteps,
             grown: 0,
             frameCount: 0,
@@ -493,7 +493,7 @@
   };
 </script>
 
-<!-- <Record /> -->
+<Record />
 <div class="viz-container">
   <P5 {sketch} style="position:absolute; top:0; left:0;" />
 </div>
