@@ -5,7 +5,6 @@
   const fontSize = Math.round(lineHeight * 0.9);
   const timelineWidth = 2000;
   const yOffset = 40;
-  const tickEvery = 180;
 
   function parseDate(dStr, tStr = "00:00") {
     if (!dStr) return null;
@@ -19,6 +18,7 @@
   const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const isAbbrevBoundary = (txt, i) =>
     ABBREVS.some((ab) => txt.slice(i - ab.length, i) === ab);
+
   function findPrevBoundary(text, pos) {
     let cand = Math.max(
       text.lastIndexOf(".", pos - 1),
@@ -84,6 +84,91 @@
     };
   }
 
+  const MS = {
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000,
+    month: 30 * 24 * 60 * 60 * 1000,
+    quarter: 91 * 24 * 60 * 60 * 1000,
+    year: 365 * 24 * 60 * 60 * 1000,
+  };
+
+  function chooseStep(start, end, maxTicks = 8) {
+    const span = +end - +start;
+    if (span <= 45 * MS.day) return { unit: "day", step: 1 };
+    if (span <= 6 * MS.month) return { unit: "week", step: 1 };
+    if (span <= 18 * MS.month) return { unit: "month", step: 1 };
+    if (span <= 4 * MS.year) return { unit: "quarter", step: 1 };
+
+    const years = span / MS.year;
+    const approx = Math.ceil(years / maxTicks);
+    const nice = [1, 2, 5, 10].find((n) => n >= approx) || approx;
+    return { unit: "year", step: nice };
+  }
+
+  function floorToUnit(d, unit) {
+    const x = new Date(d);
+    if (unit === "day") x.setHours(0, 0, 0, 0);
+    if (unit === "week") {
+      const day = x.getDay();
+      const diff = (day + 6) % 7;
+      x.setDate(x.getDate() - diff);
+      x.setHours(0, 0, 0, 0);
+    }
+    if (unit === "month") {
+      x.setDate(1);
+      x.setHours(0, 0, 0, 0);
+    }
+    if (unit === "quarter") {
+      const qStart = Math.floor(x.getMonth() / 3) * 3;
+      x.setMonth(qStart, 1);
+      x.setHours(0, 0, 0, 0);
+    }
+    if (unit === "year") {
+      x.setMonth(0, 1);
+      x.setHours(0, 0, 0, 0);
+    }
+    return x;
+  }
+
+  function addUnit(d, unit, step) {
+    const x = new Date(d);
+    if (unit === "day") x.setDate(x.getDate() + step);
+    if (unit === "week") x.setDate(x.getDate() + 7 * step);
+    if (unit === "month") x.setMonth(x.getMonth() + step);
+    if (unit === "quarter") x.setMonth(x.getMonth() + 3 * step);
+    if (unit === "year") x.setFullYear(x.getFullYear() + step);
+    return x;
+  }
+
+  function formatTick(d, unit) {
+    const locale = "de-DE";
+    if (unit === "year")
+      return d.toLocaleDateString(locale, { year: "numeric" });
+    if (unit === "quarter") {
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      return `Q${q} ${d.getFullYear()}`;
+    }
+    if (unit === "month")
+      return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
+    return d.toLocaleDateString(locale, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  function makeTicks(start, end, maxTicks = 8) {
+    if (!start || !end || +end <= +start) return [];
+    const { unit, step } = chooseStep(start, end, maxTicks);
+    let t = floorToUnit(start, unit);
+    const out = [];
+    while (+t <= +end) {
+      out.push({ d: new Date(t), unit });
+      t = addUnit(t, unit, step);
+    }
+    return out;
+  }
+
   const fmtDate = (d) =>
     d.toLocaleDateString("de-DE", {
       day: "numeric",
@@ -92,9 +177,9 @@
     });
 
   let rows = [];
-  let uniqueDates = [];
   let start = null,
     end = null;
+  let ticks = [];
   let timelineHeight = 0;
 
   $: {
@@ -117,13 +202,11 @@
       .sort((a, b) => b.date - a.date);
 
     rows = mapped;
-    const dateMsAsc = Array.from(new Set(mapped.map((r) => +r.date))).sort(
-      (a, b) => a - b
-    );
-    uniqueDates = dateMsAsc.map((ms) => new Date(ms));
-    start = uniqueDates[0] || null;
-    end = uniqueDates[uniqueDates.length - 1] || null;
+    const dates = mapped.map((r) => r.date);
+    start = dates.length ? new Date(Math.min(...dates)) : null;
+    end = dates.length ? new Date(Math.max(...dates)) : null;
 
+    ticks = makeTicks(start, end, 8);
     timelineHeight = yOffset + rows.length * lineHeight + 40;
   }
 
@@ -135,31 +218,31 @@
 
 <section>
   {#if rows.length === 0}
-    <p>No results for the current filters.</p>
+    <p></p>
   {:else}
     <div class="timeline-container">
       <svg width={timelineWidth + 250} height={timelineHeight}>
+        <!-- ticks dinamici -->
         <g class="dates">
-          {#each uniqueDates as d, i}
-            {#if i % tickEvery === 0}
-              <text
-                class="date"
-                x={normPos(d)}
-                y={yOffset - lineHeight / 2}
-                font-size={fontSize}
-                dominant-baseline="middle"
-                text-anchor="start">{fmtDate(d)}</text
-              >
-              <line
-                x1={normPos(d)}
-                y1={yOffset - 0.5 * lineHeight}
-                x2={normPos(d)}
-                y2={timelineHeight}
-              />
-            {/if}
+          {#each ticks as t}
+            <text
+              class="date"
+              x={normPos(t.d)}
+              y={yOffset - lineHeight / 2}
+              font-size={fontSize}
+              dominant-baseline="middle"
+              text-anchor="start">{formatTick(t.d, t.unit)}</text
+            >
+            <line
+              x1={normPos(t.d)}
+              y1={yOffset - 0.5 * lineHeight}
+              x2={normPos(t.d)}
+              y2={timelineHeight}
+            />
           {/each}
         </g>
 
+        <!-- righe -->
         <g>
           {#each rows as item, i}
             <a href={item.url} target="_blank" rel="noopener">
@@ -172,9 +255,7 @@
                 <tspan class="text">{item.before}</tspan>
                 <tspan class="highlight">{item.match}</tspan>
                 <tspan class="text">{item.after}</tspan>
-                <!-- <a href={item.url} target="_blank" rel="noopener"> -->
                 <tspan class="date" dx="2"> {fmtDate(item.date)} ↗</tspan>
-                <!-- </a> -->
               </text>
             </a>
           {/each}
@@ -189,7 +270,12 @@
     display: flex;
     flex-direction: column;
     padding: 10px;
+    color: white;
+    background-color: black;
+    min-height: 100vh;
+    text-rendering: geometricPrecision;
   }
+
   .timeline-container {
     overflow: auto;
     flex-grow: 1;
@@ -197,7 +283,7 @@
 
   .timeline-container text,
   .timeline-container tspan {
-    font-size: 13px; 
+    font-size: 13px;
   }
 
   a:hover {
@@ -209,17 +295,21 @@
     font-style: italic;
   }
   .highlight {
-    font-weight: 700;
+    font-weight: 400;
     fill: var(--color-1);
   }
+
   .date,
   a {
-    fill: #666;
     font-size: 0.8em;
+    fill: gainsboro;
+  }
+  .date {
+    fill: #444;
   }
 
   line {
-    stroke: #b6b6b6;
+    stroke: #444;
     stroke-dasharray: 4 4;
   }
 </style>
