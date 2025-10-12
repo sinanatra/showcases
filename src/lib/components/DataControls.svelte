@@ -262,7 +262,7 @@
     right: 1rem;
     z-index: 10;
     display: flex;
-    gap: 0.4rem;
+    gap: 0.2rem;
   }
 
   .lang-switch button {

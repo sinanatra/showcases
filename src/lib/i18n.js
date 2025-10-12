@@ -42,7 +42,6 @@ const dict = {
     controls_onlyLatest: "only the latest.",
     controls_filter: "Filter by:",
     controls_textPlaceholder: "Text…",
-
     controls_any: "any",
 
     summary_l1_mid: "police reports currently visible from",
@@ -58,12 +57,27 @@ const dict = {
     summary_l2_see: "See the",
     summary_l2_link: "timeline",
     summary_l2_for: "for earlier records.",
+
+    "filters.title": "Filters",
+    "filters.region": "Region:",
+    "filters.district": "District:",
+    "filters.keyword": "Keyword:",
+    "filters.gender": "Gender:",
+    "filters.timeOfDay": "Time of Day:",
+    "filters.yearRange": "Year range:",
+    "filters.yearStart": "Start year",
+    "filters.yearEnd": "End year",
+    "filters.reset": "Reset",
+    "filters.search": "Search:",
+    "filters.searchPlaceholder": "type to filter…",
+    "filters.all": "All",
   },
+
   de: {
     showcases: "Showcases",
     subtitle: "Recoding Right-Wing Extremism",
     description:
-      "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht. ",
+      "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht.",
     sub: "Diese Website überwacht Polizeimeldungen aus Berlin und Brandenburg automatisch und aktualisiert die Daten täglich.",
 
     last: "Neueste",
@@ -86,7 +100,7 @@ const dict = {
     controls_timespan: "Zeitraum",
     controls_timespan_unknown: "—",
 
-    summary_l1_mid: "polizei Meldungen aktuell sichtbar von",
+    summary_l1_mid: "Polizeimeldungen aktuell sichtbar von",
     summary_l1_to: "bis",
 
     summary_l2_prefix: "Aus den jüngsten",
@@ -99,6 +113,31 @@ const dict = {
     summary_l2_see: "Zur",
     summary_l2_link: "Zeitleiste",
     summary_l2_for: "für frühere Einträge.",
+
+    "filters.title": "Filter",
+    "filters.region": "Region:",
+    "filters.district": "Bezirk:",
+    "filters.keyword": "Schlagwort:",
+    "filters.gender": "Geschlecht:",
+    "filters.timeOfDay": "Tageszeit:",
+    "filters.yearRange": "Jahresbereich:",
+    "filters.yearStart": "Startjahr",
+    "filters.yearEnd": "Endjahr",
+    "filters.reset": "Zurücksetzen",
+    "filters.search": "Suche:",
+    "filters.searchPlaceholder": "zum Filtern tippen…",
+    "filters.all": "Alle",
+
+    "stats.of": "angezeigt von",
+    "stats.topKeywords": "Top-Schlagworte",
+    "stats.topDistricts": "Top-Bezirke",
+    "stats.timeOfDay": "Tageszeit",
+    "stats.genders": "Geschlechter",
+
+    "time.morning": "Morgen",
+    "time.afternoon": "Nachmittag",
+    "time.evening": "Abend",
+    "time.night": "Nacht",
   },
 };
 
