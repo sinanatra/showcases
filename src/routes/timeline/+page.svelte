@@ -150,8 +150,9 @@
     display: grid;
     grid-template-columns: minmax(320px, 640px) repeat(
         auto-fit,
-        minmax(240px, 1fr)
+        minmax(40px, 1fr)
       );
+
     column-gap: 5px;
     row-gap: 5px;
     align-items: start;
@@ -187,10 +188,6 @@
     color: #000;
   }
 
-  .filters {
-    padding: 12px 12px 0;
-  }
-
   .filters-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -201,10 +198,16 @@
     .filters-grid {
       grid-template-columns: 1fr;
     }
+
+    article {
+      display: block;
+    }
+
+    .filters {
+      padding-top: 10px;
+    }
   }
-  .timeline {
-    padding: 10px 12px 20px;
-  }
+
   .visually-hidden {
     position: absolute;
     left: -9999px;
