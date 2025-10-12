@@ -3,7 +3,7 @@
 
   const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
-  const timelineWidth = 2000;
+  const timelineWidth = 4000;
   const yOffset = 40;
 
   function parseDate(dStr, tStr = "00:00") {

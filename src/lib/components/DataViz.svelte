@@ -10,9 +10,10 @@
     parseDateLoose,
     getKeywordVariants,
     record,
+    isMobile,
   } from "$lib/stores";
   import { t, lang } from "$lib/i18n";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
 
   export let urls = [];
   export let autoCycle = false;
@@ -158,7 +159,44 @@
     filters.update((f) => ({ ...f, showOnlyLatest: val }));
   }
 
-  let tickHandle;
+  let tickHandle = null;
+
+  function startAutoCycle() {
+    stopAutoCycle();
+    if (!autoCycleEnabled) return;
+    let index = 0;
+    tickHandle = setInterval(() => {
+      const idleFor = Date.now() - lastActivity;
+      if (
+        !cycling &&
+        !hasCycledSinceIdle &&
+        idleFor >= idleDelayMs &&
+        $availableKeywordsLabeled.length > 0
+      ) {
+        cycling = true;
+        cycles = 0;
+      }
+      if (cycling && $availableKeywordsLabeled.length > 0) {
+        index = (index + 1) % $availableKeywordsLabeled.length;
+        filters.update((f) => ({
+          ...f,
+          keyword: $availableKeywordsLabeled[index].value,
+        }));
+        cycles++;
+        if (cycles >= maxCycles) {
+          cycling = false;
+          hasCycledSinceIdle = true;
+        }
+      }
+    }, tickEveryMs);
+  }
+
+  function stopAutoCycle() {
+    if (tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+  }
 
   onMount(() => {
     const activityEvents = [
@@ -173,78 +211,25 @@
     activityEvents.forEach((ev) =>
       window.addEventListener(ev, markActivity, { passive: true })
     );
-
-    const setupTimer = () => {
-      if (tickHandle) clearInterval(tickHandle);
-      if (!autoCycleEnabled) return;
-      let index = 0;
-      tickHandle = setInterval(() => {
-        const idleFor = Date.now() - lastActivity;
-        if (
-          !cycling &&
-          !hasCycledSinceIdle &&
-          idleFor >= idleDelayMs &&
-          $availableKeywordsLabeled.length > 0
-        ) {
-          cycling = true;
-          cycles = 0;
-        }
-        if (cycling && $availableKeywordsLabeled.length > 0) {
-          index = (index + 1) % $availableKeywordsLabeled.length;
-          filters.update((f) => ({
-            ...f,
-            keyword: $availableKeywordsLabeled[index].value,
-          }));
-          cycles++;
-          if (cycles >= maxCycles) {
-            cycling = false;
-            hasCycledSinceIdle = true;
-          }
-        }
-      }, tickEveryMs);
-    };
-
-    setupTimer();
-
+    startAutoCycle();
+    const onVis = () => (document.hidden ? stopAutoCycle() : startAutoCycle());
+    document.addEventListener("visibilitychange", onVis, { passive: true });
     return () => {
-      if (tickHandle) clearInterval(tickHandle);
+      stopAutoCycle();
       activityEvents.forEach((ev) =>
         window.removeEventListener(ev, markActivity)
       );
+      document.removeEventListener("visibilitychange", onVis);
     };
   });
 
-  $: if (tickHandle !== undefined) {
-    if (tickHandle) clearInterval(tickHandle);
-    if (typeof window !== "undefined") {
-      if (autoCycleEnabled) {
-        let index = 0;
-        tickHandle = setInterval(() => {
-          const idleFor = Date.now() - lastActivity;
-          if (
-            !cycling &&
-            !hasCycledSinceIdle &&
-            idleFor >= idleDelayMs &&
-            $availableKeywordsLabeled.length > 0
-          ) {
-            cycling = true;
-            cycles = 0;
-          }
-          if (cycling && $availableKeywordsLabeled.length > 0) {
-            index = (index + 1) % $availableKeywordsLabeled.length;
-            filters.update((f) => ({
-              ...f,
-              keyword: $availableKeywordsLabeled[index].value,
-            }));
-            cycles++;
-            if (cycles >= maxCycles) {
-              cycling = false;
-              hasCycledSinceIdle = true;
-            }
-          }
-        }, tickEveryMs);
-      }
-    }
+  let timerResetId;
+  $: {
+    clearTimeout(timerResetId);
+    timerResetId = setTimeout(() => {
+      stopAutoCycle();
+      startAutoCycle();
+    }, 150);
   }
 
   const growthParams = {
@@ -266,7 +251,6 @@
       branchAngle: Math.PI / 1.4,
       downwardBias: 0.01,
     },
-
     tendrils: {
       branchingChance: 0.18,
       directionRandomness: 1.2,
@@ -284,253 +268,6 @@
       directionRandomness: 1.6,
       branchAngle: Math.PI / 1.2,
       downwardBias: 0.008,
-    },
-    fern: {
-      branchingChance: 0.35,
-      directionRandomness: 0.9,
-      branchAngle: Math.PI / 3.0,
-      downwardBias: 0.004,
-    },
-    lightning: {
-      branchingChance: 0.1,
-      directionRandomness: 9.0,
-      branchAngle: Math.PI / 1.8,
-      downwardBias: 0.0,
-    },
-    constellation: {
-      branchingChance: 0.04,
-      directionRandomness: 0.4,
-      branchAngle: Math.PI / 1.3,
-      downwardBias: 0.0,
-    },
-    vortex: {
-      branchingChance: 0.28,
-      directionRandomness: 3.0,
-      branchAngle: Math.PI / 1.1,
-      downwardBias: 0.006,
-    },
-    meadow: {
-      branchingChance: 0.42,
-      directionRandomness: 2.4,
-      branchAngle: Math.PI / 2.2,
-      downwardBias: -0.002,
-    },
-    roots: {
-      branchingChance: 0.33,
-      directionRandomness: 1.4,
-      branchAngle: Math.PI / 2.8,
-      downwardBias: 0.012,
-    },
-    zigzag: {
-      branchingChance: 0.2,
-      directionRandomness: 0.8,
-      branchAngle: Math.PI / 2.2,
-      downwardBias: 0.004,
-    },
-    square: {
-      branchingChance: 0.08,
-      directionRandomness: 0.3,
-      branchAngle: Math.PI / 2.0,
-      downwardBias: 0.0,
-    },
-    orbit: {
-      branchingChance: 0.15,
-      directionRandomness: 1.0,
-      branchAngle: Math.PI / 1.6,
-      downwardBias: 0.002,
-    },
-    wave: {
-      branchingChance: 0.2,
-      directionRandomness: 0.7,
-      branchAngle: Math.PI / 2.4,
-      downwardBias: 0.003,
-    },
-    drunk: {
-      branchingChance: 0.12,
-      directionRandomness: 3.6,
-      branchAngle: Math.PI / 2.0,
-      downwardBias: 0.006,
-    },
-
-    spiral_in: {
-      branchingChance: 0.25,
-      directionRandomness: 1.1,
-      branchAngle: Math.PI / 1.5,
-      downwardBias: 0.005,
-    },
-    spiral_out: {
-      branchingChance: 0.25,
-      directionRandomness: 1.9,
-      branchAngle: Math.PI / 1.5,
-      downwardBias: -0.003,
-    },
-    zigzag_hard: {
-      branchingChance: 0.28,
-      directionRandomness: 0.35,
-      branchAngle: Math.PI / 1.9,
-      downwardBias: 0.002,
-    },
-    zigzag_soft: {
-      branchingChance: 0.18,
-      directionRandomness: 0.6,
-      branchAngle: Math.PI / 2.5,
-      downwardBias: 0.001,
-    },
-    lissajous: {
-      branchingChance: 0.24,
-      directionRandomness: 1.3,
-      branchAngle: Math.PI / 1.7,
-      downwardBias: 0.007,
-    },
-    helix: {
-      branchingChance: 0.21,
-      directionRandomness: 0.9,
-      branchAngle: Math.PI / 1.3,
-      downwardBias: -0.004,
-    },
-    swirl: {
-      branchingChance: 0.32,
-      directionRandomness: 2.2,
-      branchAngle: Math.PI / 1.2,
-      downwardBias: 0.005,
-    },
-    tumbleweed: {
-      branchingChance: 0.27,
-      directionRandomness: 4.5,
-      branchAngle: Math.PI / 1.6,
-      downwardBias: -0.006,
-    },
-    gust: {
-      branchingChance: 0.14,
-      directionRandomness: 5.2,
-      branchAngle: Math.PI / 2.3,
-      downwardBias: 0.0,
-    },
-    lattice: {
-      branchingChance: 0.05,
-      directionRandomness: 0.25,
-      branchAngle: Math.PI / 2.0,
-      downwardBias: 0.0,
-    },
-    starburst: {
-      branchingChance: 0.4,
-      directionRandomness: 3.4,
-      branchAngle: Math.PI / 3.2,
-      downwardBias: -0.001,
-    },
-    petal: {
-      branchingChance: 0.3,
-      directionRandomness: 1.1,
-      branchAngle: Math.PI / 2.6,
-      downwardBias: 0.004,
-    },
-    braid: {
-      branchingChance: 0.22,
-      directionRandomness: 1.8,
-      branchAngle: Math.PI / 1.9,
-      downwardBias: 0.003,
-    },
-    corkscrew: {
-      branchingChance: 0.2,
-      directionRandomness: 2.8,
-      branchAngle: Math.PI / 1.25,
-      downwardBias: 0.005,
-    },
-    meander: {
-      branchingChance: 0.09,
-      directionRandomness: 0.95,
-      branchAngle: Math.PI / 2.9,
-      downwardBias: 0.0,
-    },
-    dunes: {
-      branchingChance: 0.16,
-      directionRandomness: 0.55,
-      branchAngle: Math.PI / 2.7,
-      downwardBias: -0.003,
-    },
-    eddies: {
-      branchingChance: 0.26,
-      directionRandomness: 2.6,
-      branchAngle: Math.PI / 1.6,
-      downwardBias: 0.002,
-    },
-    pulse: {
-      branchingChance: 0.31,
-      directionRandomness: 1.5,
-      branchAngle: Math.PI / 2.1,
-      downwardBias: 0.006,
-    },
-    jitter: {
-      branchingChance: 0.13,
-      directionRandomness: 6.5,
-      branchAngle: Math.PI / 2.4,
-      downwardBias: 0.0,
-    },
-    sawtooth: {
-      branchingChance: 0.19,
-      directionRandomness: 0.7,
-      branchAngle: Math.PI / 1.8,
-      downwardBias: 0.003,
-    },
-    diamond: {
-      branchingChance: 0.07,
-      directionRandomness: 0.35,
-      branchAngle: Math.PI / 4.0,
-      downwardBias: 0.0,
-    },
-    attractor: {
-      branchingChance: 0.23,
-      directionRandomness: 2.1,
-      branchAngle: Math.PI / 1.7,
-      downwardBias: -0.005,
-    },
-    repel: {
-      branchingChance: 0.23,
-      directionRandomness: 2.1,
-      branchAngle: Math.PI / 1.7,
-      downwardBias: 0.009,
-    },
-    perlin_flow: {
-      branchingChance: 0.11,
-      directionRandomness: 1.4,
-      branchAngle: Math.PI / 2.8,
-      downwardBias: 0.0,
-    },
-    curl: {
-      branchingChance: 0.29,
-      directionRandomness: 2.9,
-      branchAngle: Math.PI / 1.3,
-      downwardBias: 0.004,
-    },
-    checker: {
-      branchingChance: 0.04,
-      directionRandomness: 0.2,
-      branchAngle: Math.PI / 2.0,
-      downwardBias: 0.0,
-    },
-    metro: {
-      branchingChance: 0.08,
-      directionRandomness: 0.45,
-      branchAngle: Math.PI / 1.1,
-      downwardBias: 0.0,
-    },
-    stairs: {
-      branchingChance: 0.17,
-      directionRandomness: 0.5,
-      branchAngle: Math.PI / 2.1,
-      downwardBias: 0.002,
-    },
-    arcs: {
-      branchingChance: 0.2,
-      directionRandomness: 1.0,
-      branchAngle: Math.PI / 2.8,
-      downwardBias: 0.001,
-    },
-    petals: {
-      branchingChance: 0.34,
-      directionRandomness: 1.3,
-      branchAngle: Math.PI / 2.3,
-      downwardBias: 0.003,
     },
   };
 
@@ -632,10 +369,10 @@
     const params = () => growthParams[growthMode] || growthParams.fungal;
     const scale = 0.75,
       segmentLength = 8 * scale,
-      repulsionRadius = 12 * scale,
       widthBucket = 100 * scale,
       ltrSpacing = 8 * scale;
     const charCache = new Map();
+    const maxCache = 500;
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
@@ -650,23 +387,38 @@
     let globalBuckets = new Map();
     let letterHitboxes = [];
     let firstDraw = true;
+    const repulsionRadius = (isMobile ? 9 : 12) * scale;
 
     function getCachedLetter(kw, letter, textSize) {
-      const key = `${kw}_${letter}_${textSize}`;
-      if (charCache.has(key)) return charCache.get(key);
+      const key = `${kw}_${letter}_${Math.round(textSize)}`;
+      if (charCache.has(key)) {
+        const val = charCache.get(key);
+        charCache.delete(key);
+        charCache.set(key, val);
+        return val;
+      }
+      const ts = Math.max(8, Math.min(28, Math.round(textSize)));
       const pg = p.createGraphics(40 * scale, 40 * scale);
+      // pg.pixelDensity(1);
+      // if (isMobile) {
+      //   pg.pixelDensity(1);
+      // }
       pg.colorMode(p.HSB);
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
-      pg.textSize(textSize);
+      pg.textSize(ts);
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
       pg.fill(keywordColors[kw] || p.color(0, 0, 75));
       pg.rectMode(p.CENTER);
-      pg.rect(pg.width / 2, pg.height / 2, w + 4, textSize + 4);
+      pg.rect(pg.width / 2, pg.height / 2, w + 4, ts + 4);
       pg.fill(0, 0, 0);
       pg.text(letter, pg.width / 2, pg.height / 2);
       charCache.set(key, pg);
+      if (charCache.size > maxCache) {
+        const oldestKey = charCache.keys().next().value;
+        charCache.delete(oldestKey);
+      }
       return pg;
     }
 
@@ -675,7 +427,6 @@
       let dir = br.dir0.copy();
       dir.y += gp.downwardBias;
       dir.normalize();
-
       const nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
@@ -684,7 +435,6 @@
       dir.rotate(
         p.map(nv, 0, 1, -gp.directionRandomness, gp.directionRandomness)
       );
-
       switch (growthMode) {
         case "tendrils": {
           const osc = 0.25 * Math.sin(br.phase + simFrame * 0.08);
@@ -707,58 +457,12 @@
           }
           break;
         }
-        case "fern": {
-          const beat =
-            br.grown % 10 === 0
-              ? (Math.random() < 0.5 ? -1 : 1) * (gp.branchAngle * 0.45)
-              : 0;
-          if (beat) dir.rotate(beat);
-          break;
-        }
-        case "lightning": {
-          const jitter = (Math.random() - 0.5) * 0.9;
-          dir.rotate(jitter);
-          if (Math.random() < 0.08)
-            dir.rotate(((Math.random() < 0.5 ? -1 : 1) * Math.PI) / 2.2);
-          break;
-        }
-        case "constellation": {
-          const snap = Math.PI / 8;
-          const a = Math.atan2(dir.y, dir.x);
-          const snapped = Math.round(a / snap) * snap;
-          const jitter = (Math.random() - 0.5) * 0.05;
-          dir = p.createVector(
-            Math.cos(snapped + jitter),
-            Math.sin(snapped + jitter)
-          );
-          break;
-        }
-        case "vortex": {
-          const toC = p.createVector(tip.x - br.center.x, tip.y - br.center.y);
-          if (toC.mag() > 0.001) {
-            const tang = p.createVector(-toC.y, toC.x).normalize();
-            const swirl = 0.9;
-            dir.add(tang.mult(swirl)).normalize();
-          }
-          dir.rotate((Math.random() - 0.5) * 0.2);
-          break;
-        }
-        case "meadow": {
-          const breeze = 0.35 * Math.sin(br.phase + simFrame * 0.03);
-          dir.rotate(breeze);
-          break;
-        }
-        case "roots": {
-          dir.y += 0.05;
-          dir.normalize();
-          const creep = (Math.random() - 0.5) * 0.15;
-          dir.rotate(creep);
-          break;
-        }
+        case "fungal":
+        case "chaos":
+        case "covid":
         default:
           break;
       }
-
       return dir.normalize();
     }
 
@@ -779,15 +483,12 @@
           55 + (i * 120) / Math.max(allKws.length - 1, 1)
         );
       });
-
       const result = [];
       if (!data.length) return result;
-
       const kw0 = data[0]?.KeywordMatch?.[0] || "";
       const text0 = data[0]?.Text ?? data[0]?.sentence ?? "";
       const focus0 = currentFocusFor(text0, kw0);
       const trunkText = shortenAroundKeyword(text0, focus0);
-
       result.push({
         kw: kw0,
         nodes: [p.createVector(cx, cy)],
@@ -809,7 +510,6 @@
         turnDir: Math.random() < 0.5 ? -1 : 1,
         center: { x: cx, y: cy },
       });
-
       for (let i = 1; i < data.length; i++) {
         let parentIndex = Math.floor(Math.random() * Math.max(1, i));
         let parentBranch = result[parentIndex];
@@ -824,7 +524,6 @@
         const attachPoint =
           parentBranch.nodes[parentAttachIdx] ||
           parentBranch.nodes[parentBranch.nodes.length - 1];
-
         let direction = parentBranch.nodes[parentAttachIdx + 1]
           ? p
               .createVector(
@@ -835,14 +534,11 @@
               )
               .normalize()
           : p.createVector(0, -1);
-
         direction.rotate(((Math.random() - 0.5) * Math.PI) / 1.2);
-
         const kw = data[i]?.KeywordMatch?.[0] || "";
         const txtFull = data[i]?.Text ?? data[i]?.sentence ?? "";
         const focus = currentFocusFor(txtFull, kw);
         const txt = shortenAroundKeyword(txtFull, focus);
-
         result.push({
           kw,
           nodes: [attachPoint.copy()],
@@ -883,34 +579,46 @@
 
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight);
+      // if (isMobile) {
+      //   p.pixelDensity(1);
+      // }
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
       p.frameRate(30);
-
       if (!data || !data.length) {
         worldBuffer = null;
         letterHitboxes = [];
         return;
       }
+      const base = Math.max(window.innerWidth, window.innerHeight);
+      const grewByData = Math.min(1.6, 1 + data.length / 40);
+      const maxBuffer = isMobile ? 2048 : 4200;
+      const w = Math.min(maxBuffer, Math.floor(base * grewByData));
+      const h = w;
 
-      const w = 4200 * scale,
-        h = 4200 * scale;
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
-
       worldBuffer = p.createGraphics(w, h);
+      // if (isMobile) {
+      //   worldBuffer.pixelDensity(1);
+      // }
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
       worldBuffer.textSize(13 * scale);
-
       branches = setupBranches(data, w, h);
-
       pan = { x: 0, y: 0 };
       simFrame = 0;
       letterHitboxes = [];
       firstDraw = true;
+      const visHandler = () => {
+        if (document.hidden) p.noLoop();
+        else p.loop();
+      };
+      document.addEventListener("visibilitychange", visHandler, {
+        passive: true,
+      });
     };
 
     p.draw = () => {
@@ -918,7 +626,6 @@
         p.background(0);
         return;
       }
-
       globalBuckets = new Map();
       branches.forEach((br) =>
         br.nodes.forEach((n) => {
@@ -928,17 +635,13 @@
           globalBuckets.get(key).push(n);
         })
       );
-
       branches.forEach((br) => {
         if (br.finished) return;
         br.frameCount++;
         if (br.frameCount % 1 !== 0 || br.grown >= br.maxSteps) return;
-
         const tip = br.nodes && br.nodes[br.nodes.length - 1];
         if (!tip) return;
-
         let dir = growBranch(br, tip);
-
         const [bx, by] = [
           Math.floor(tip.x / widthBucket),
           Math.floor(tip.y / widthBucket),
@@ -957,7 +660,6 @@
                 );
               }
             });
-
         dir.normalize();
         const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
         next.x = p.constrain(
@@ -971,12 +673,10 @@
           bufferBounds.bottom - 10 * scale
         );
         br.nodes.push(next);
-
         br.grown++;
         const segLen = tip.dist(next);
         br.pathLength += segLen;
         br.distArr.push(br.pathLength);
-
         let ci = br.lastPlacedCharIndex + 1;
         while (
           ci < br.sentence.length &&
@@ -989,12 +689,10 @@
             const v0 = br.nodes[si - 1],
               v1 = br.nodes[si];
             if (!v0 || !v1) break;
-
             const tnorm = (target - d0) / v1.dist(v0);
             const px = p.lerp(v0.x, v1.x, tnorm),
               py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
-
             const letter = br.sentence[ci];
             const textSize = repulsionRadius / 1.2;
             const cached = getCachedLetter(br.kw, letter, textSize);
@@ -1006,8 +704,7 @@
               worldBuffer.image(cached, 0, -segmentLength);
               worldBuffer.pop();
             }
-
-            if (br.lastPlacedCharIndex < ci) {
+            if (ci % 3 === 0) {
               letterHitboxes.push({
                 worldX: px,
                 worldY: py,
@@ -1019,17 +716,13 @@
                 title: br.title,
               });
             }
-
             br.lastPlacedCharIndex = ci;
             ci++;
           } else break;
         }
-
         if (br.grown >= br.maxSteps) br.finished = true;
       });
-
       simFrame++;
-
       p.background(0);
       p.push();
       p.translate(p.width / 2, p.height / 2);
@@ -1037,23 +730,19 @@
       p.translate(pan.x, pan.y);
       p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
       p.pop();
-
       if (firstDraw && letterHitboxes.length > 0) {
         firstDraw = false;
         setTimeout(() => {
           if (typeof p.mouseMoved === "function") p.mouseMoved();
         }, 0);
       }
-
-      if (isRecording) {
-        p.frameRate(6);
-        if (savedFrames < framesToSave) {
-          p.saveCanvas("frame-" + p.nf(savedFrames, 4), "png");
-          savedFrames++;
-        }
+      if (isRecording && isMobile) {
+        isRecording = false;
+      }
+      if (branches.length && branches.every((b) => b.finished)) {
+        p.noLoop();
       } else {
-        p.frameRate(30);
-        savedFrames = 0;
+        p.loop();
       }
     };
 
@@ -1081,8 +770,9 @@
       lastY = p.mouseY;
     };
     p.mouseWheel = (e) => {
-      const f = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-      zoom = p.constrain(zoom * f, 0.2, 2);
+      const f = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      const newZoom = p.constrain(zoom * f, 0.25, 1.5);
+      if (Math.abs(newZoom - zoom) > 0.01) zoom = newZoom;
     };
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
@@ -1092,14 +782,6 @@
     };
     p.mouseMoved = () => {
       if (isPinned) return;
-      const screenToWorld = (sx, sy) => ({
-        x: (sx - p.width / 2) / zoom - pan.x + bufferCenter.x,
-        y: (sy - p.height / 2) / zoom - pan.y + bufferCenter.y,
-      });
-      const worldToScreen = (wx, wy) => ({
-        x: (wx - bufferCenter.x + pan.x) * zoom + p.width / 2,
-        y: (wy - bufferCenter.y + pan.y) * zoom + p.height / 2,
-      });
       const { x: wx, y: wy } = screenToWorld(p.mouseX, p.mouseY);
       hoveredHitbox = null;
       for (let hit of letterHitboxes) {

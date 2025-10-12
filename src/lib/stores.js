@@ -25,7 +25,7 @@ export const keywordsGroup = {
   nationalsozialismus: "rechtsextremismus",
   nationalsozialistisch: "rechtsextremismus",
   nationalsozialistische: "rechtsextremismus",
-  
+
   verfassungswidrig: "rechtsextremismus",
   "mit politischem hintergrund": "rechtsextremismus",
 
@@ -276,7 +276,14 @@ export const availableKeywords = derived(
   }
 );
 
-const N = 350;
+export const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+let N = 350;
+
+if (isMobile) {
+  console.log("Mobile device detected");
+  N = 50;
+}
 
 export const recent = derived(articles, ($articles) => {
   const list = Array.isArray($articles) ? $articles : [];
