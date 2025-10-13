@@ -31,7 +31,7 @@
   }
 
   onMount(async () => {
-    const raw = await d3.csv("all_merged.csv");
+    const raw = await d3.csv("/all_merged.csv");
     const data = raw.map((d) => {
       const km = parseList(d.KeywordMatch);
       const ke = parseList(d.KeywordExtracted);
