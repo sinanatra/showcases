@@ -182,9 +182,6 @@
                     sveltekit:prefetch
                     class:disabled={link.visible === false}
                     aria-disabled={link.visible === false}
-                    tabindex={link.visible === false ? -1 : 0}
-                    inert={link.visible === false}
-                    on:click|preventDefault={link.visible === false}
                   >
                     <span class="line-bg">{link._label}</span>
                   </a>
@@ -307,10 +304,12 @@
     color: #000;
   }
 
+  a.disabled,
   a.disabled span {
     background-color: #444;
     color: darkgray;
     cursor: not-allowed;
+    pointer-events: none;
     text-decoration: none;
   }
 </style>
