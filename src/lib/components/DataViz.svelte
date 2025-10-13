@@ -17,6 +17,8 @@
 
   export let urls = [];
   export let autoCycle = false;
+  export let noZoom = false;
+
   export let idleDelay = 10000;
   export let tickMs = 5000;
   export let maxCyclesProp = 2;
@@ -376,7 +378,7 @@
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
-    let zoom = 0.5;
+    let zoom = noZoom ? 1 : 0.5;
     let dragging = false;
     let lastX = 0,
       lastY = 0,
@@ -660,8 +662,11 @@
                 );
               }
             });
+        // dir.normalize();
+        // const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
         dir.normalize();
-        const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
+        const next = tip.copy().add(dir.copy().mult(segmentLength));
+
         next.x = p.constrain(
           next.x,
           bufferBounds.left + 10 * scale,
@@ -739,11 +744,11 @@
       if (isRecording && isMobile) {
         isRecording = false;
       }
-      if (branches.length && branches.every((b) => b.finished)) {
-        p.noLoop();
-      } else {
-        p.loop();
-      }
+      // if (branches.length && branches.every((b) => b.finished)) {
+      //   p.noLoop();
+      // } else {
+      //   p.loop();
+      // }
     };
 
     p.remove = () => {
@@ -761,6 +766,7 @@
       dragging = false;
     };
     p.mouseDragged = () => {
+      if (noZoom) return;
       if (!dragging) return;
       const dx = (p.mouseX - lastX) / zoom,
         dy = (p.mouseY - lastY) / zoom;
@@ -770,6 +776,7 @@
       lastY = p.mouseY;
     };
     p.mouseWheel = (e) => {
+      if (noZoom) return;
       const f = e.deltaY < 0 ? 1.08 : 1 / 1.08;
       const newZoom = p.constrain(zoom * f, 0.25, 1.5);
       if (Math.abs(newZoom - zoom) > 0.01) zoom = newZoom;
@@ -867,7 +874,7 @@
   .outside-overlay {
     position: fixed;
     inset: 0;
-    z-index: 9998;
+    z-index: 2;
     background: transparent;
   }
 </style>
