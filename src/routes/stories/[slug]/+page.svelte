@@ -21,23 +21,33 @@
 </script>
 
 {#if datum}
-  <div class="viz">
+  <section class="viz">
     <DataViz {urls} noZoom />
-  </div>
-  <article class="story">{@html datum.text}</article>
+  </section>
+
+  <article class="story">
+    {@html datum.text}
+  </article>
 {/if}
 
 <style>
-  .story {
-    font-family: Arial, Helvetica, sans-serif;
-    text-rendering: geometricPrecision;
-    margin: 2rem auto;
-    max-width: 70ch;
-    color: #fff;
+  .viz {
+    position: sticky;
+    top: 0;
+    height: 80vh;
+    width: 100%;
+    z-index: 0;
   }
 
-  .viz {
-    height: 80dvh;
-    overflow: hidden;
+  .story {
+    position: relative;
+    z-index: 1;
+    margin: 0 auto;
+    max-width: 70ch;
+    padding: 1rem;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    text-rendering: geometricPrecision;
+    background-color: black;
   }
 </style>
