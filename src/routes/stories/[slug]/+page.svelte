@@ -13,7 +13,7 @@
   $: datum = data?.posts?.find((d) => d.path?.includes(slug)) ?? null;
   $: urls = datum?.meta?.urls ?? [];
 
-//   console.log(datum);
+  //   console.log(datum);
   onMount(async () => {
     const raw = await d3.csv("/all_merged.csv");
     articles.set(raw);
@@ -21,7 +21,9 @@
 </script>
 
 {#if datum}
-  <DataViz {urls} noZoom />
+  <div class="viz">
+    <DataViz {urls} noZoom />
+  </div>
   <article class="story">{@html datum.text}</article>
 {/if}
 
@@ -32,5 +34,10 @@
     margin: 2rem auto;
     max-width: 70ch;
     color: #fff;
+  }
+
+  .viz {
+    height: 80dvh;
+    overflow: hidden;
   }
 </style>
