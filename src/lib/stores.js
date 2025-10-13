@@ -276,12 +276,13 @@ export const availableKeywords = derived(
   }
 );
 
-export const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+export const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(
+  navigator.userAgent
+);
 
 let N = 350;
 
 if (isMobile) {
-  console.log("Mobile device detected");
   N = 50;
 }
 

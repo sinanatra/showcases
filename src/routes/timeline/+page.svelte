@@ -99,6 +99,17 @@
   $: list = Array.isArray($filtered) ? $filtered : [];
   $: count = list.length;
   $: span = spanFor(list);
+
+  $: urls = Array.from(
+    new Set((list || []).map((d) => String(d.URL || "").trim()).filter(Boolean))
+  );
+
+  function copy() {
+    const text = JSON.stringify(urls, null, 2);
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+  }
 </script>
 
 <article>
@@ -140,6 +151,8 @@
 <main>
   <Timeline />
 </main>
+
+<button type="button" on:click={copy}>Copy URLs</button>
 
 <style>
   article {

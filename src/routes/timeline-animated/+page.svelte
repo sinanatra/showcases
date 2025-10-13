@@ -146,7 +146,7 @@
       const w = Math.max(p.width * multi, 1400);
       const h = Math.max(p.height * multi, 1800);
 
-      console.log(w, h);
+      // console.log(w, h);
 
       const marginY = (h / 2.4) * scale;
       const rightDataMargin = 800 * scale;
@@ -300,7 +300,9 @@
 
         dir.rotate(p.map(nv, 0, 1, -p.QUARTER_PI * 0.6, p.QUARTER_PI * 0.6));
 
-        const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
+        // const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
+        const next = tip.copy().add(dir.copy().mult(segmentLength));
+
         next.x = p.constrain(
           next.x,
           bufferBounds.left + 10 * scale,

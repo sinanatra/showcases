@@ -48,8 +48,8 @@
     },
 
     "subtitle": {
-      "en": "Browse the latest entries or the full timeline.",
-      "de": "Stöbere in den neuesten Einträgen oder die gesamte Zeitleiste."
+      "en": "Browse the latest entries or the curated stories.",
+      "de": "Stöbere in den neuesten Einträgen oder den kuratierten Geschichten."
     },
     "cta": [
       {
@@ -57,8 +57,9 @@
         "label": { "en": "Latest incidents", "de": "Neueste Meldungen" }
       },
       {
-        "href": "/timeline",
-        "label": { "en": "Full timeline", "de": "Gesamte Zeitleiste" }
+        "href": "/stories",
+        "label": { "en": "Curated stories", "de": "Kuratierten Geschichten" },
+        "visible": false
       }
     ]
   }

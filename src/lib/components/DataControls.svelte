@@ -175,7 +175,8 @@
     </p>
     <br />
     <p>
-      {$t("summary_l2_see")} <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
+      {$t("summary_l2_see")}
+      <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
       {$t("summary_l2_for")}
     </p>
   </div>
@@ -218,7 +219,7 @@
   .controls {
     font-family: Arial, Helvetica, sans-serif;
     position: absolute;
-    z-index: 10;
+    z-index: 1000;
     color: white;
     background: #000;
     padding: 5px 10px;

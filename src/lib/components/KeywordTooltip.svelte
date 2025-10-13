@@ -42,7 +42,7 @@
     background: rgba(0, 0, 0, 1);
     color: #cccccc;
     padding: 5px 10px;
-    z-index: 10000;
+    z-index: 10;
     /* pointer-events: none; */
     box-shadow: 0 2px 24px #0008;
     max-width: 450px;

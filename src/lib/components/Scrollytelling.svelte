@@ -177,9 +177,17 @@
             {#if s._cta?.length}
               <div class="links">
                 {#each s._cta as link}
-                  <a href={link.href} sveltekit:prefetch
-                    ><span class="line-bg">{link._label}</span></a
+                  <a
+                    href={link.href}
+                    sveltekit:prefetch
+                    class:disabled={link.visible === false}
+                    aria-disabled={link.visible === false}
+                    tabindex={link.visible === false ? -1 : 0}
+                    inert={link.visible === false}
+                    on:click|preventDefault={link.visible === false}
                   >
+                    <span class="line-bg">{link._label}</span>
+                  </a>
                 {/each}
               </div>
             {/if}
@@ -297,5 +305,12 @@
   .links a span:hover {
     background: var(--color-1);
     color: #000;
+  }
+
+  a.disabled span {
+    background-color: #444;
+    color: darkgray;
+    cursor: not-allowed;
+    text-decoration: none;
   }
 </style>
