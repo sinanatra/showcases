@@ -12,6 +12,13 @@ body {
   text-rendering: optimizeSpeed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  background: black;
+  color: white;
+}
+
+a {
+  cursor: pointer;
 }
 
 button {
