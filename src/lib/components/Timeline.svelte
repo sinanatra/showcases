@@ -1,10 +1,23 @@
 <script>
   import { filtered } from "$lib/stores";
+  import { onMount, onDestroy } from "svelte";
+  import { browser } from "$app/environment";
 
   const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
-  const timelineWidth = 4000;
   const yOffset = 40;
+
+  let sectionEl;
+  let timelineContainer;
+  let datesBar;
+
+  let sectionTop = 0;
+  let rafId = null;
+
+  function measureSectionTop() {
+    if (!sectionEl) return;
+    sectionTop = sectionEl.getBoundingClientRect().top + window.scrollY;
+  }
 
   function parseDate(dStr, tStr = "00:00") {
     if (!dStr) return null;
@@ -14,159 +27,26 @@
     return isNaN(+dt) ? null : dt;
   }
 
-  const ABBREVS = ["Nr", "Dr", "z.B", "etc", "u.a"];
-  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const isAbbrevBoundary = (txt, i) =>
-    ABBREVS.some((ab) => txt.slice(i - ab.length, i) === ab);
-
-  function findPrevBoundary(text, pos) {
-    let cand = Math.max(
-      text.lastIndexOf(".", pos - 1),
-      text.lastIndexOf("!", pos - 1),
-      text.lastIndexOf("?", pos - 1)
-    );
-    while (cand > -1 && text[cand] === "." && isAbbrevBoundary(text, cand)) {
-      cand = Math.max(
-        text.lastIndexOf(".", cand - 1),
-        text.lastIndexOf("!", cand - 1),
-        text.lastIndexOf("?", cand - 1)
-      );
-    }
-    return cand;
-  }
-  function findNextBoundary(text, pos) {
-    let dots = [
-      text.indexOf(".", pos),
-      text.indexOf("!", pos),
-      text.indexOf("?", pos),
-    ].filter((i) => i >= 0);
-    let cand = dots.length ? Math.min(...dots) : -1;
-    while (cand > -1 && text[cand] === "." && isAbbrevBoundary(text, cand)) {
-      dots = [
-        text.indexOf(".", cand + 1),
-        text.indexOf("!", cand + 1),
-        text.indexOf("?", cand + 1),
-      ].filter((i) => i >= 0);
-      cand = dots.length ? Math.min(...dots) : -1;
-    }
-    return cand;
-  }
   function extractSnippet(text = "", terms = []) {
-    if (!terms.length) {
-      const snippet = text.slice(0, 200);
-      return { before: snippet, match: "", after: "" };
-    }
-    let match = null,
-      term = "";
-    for (const t of terms) {
-      const m = new RegExp(`\\b${escapeRegExp(String(t))}\\b`, "i").exec(text);
-      if (m) {
-        match = m;
-        term = m[0];
-        break;
-      }
-    }
-    if (!match) {
-      const snippet = text.slice(0, 200);
-      return { before: snippet, match: "", after: "" };
-    }
-    const idx = match.index,
-      len = term.length;
-    const start = findPrevBoundary(text, idx);
-    const endRaw = findNextBoundary(text, idx + len);
-    const end = endRaw > -1 ? endRaw : text.length - 1;
-    const snippet = text.slice(start + 1, end + 1);
-    const rel = idx - (start + 1);
+    const snippet = text.slice(0, 200);
+    if (!terms.length) return { before: snippet, match: "", after: "" };
+    const rx = new RegExp(
+      `\\b${String(terms[0]).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      "i"
+    );
+    const m = rx.exec(text);
+    if (!m) return { before: snippet, match: "", after: "" };
+    const idx = m.index,
+      len = m[0].length;
+    const start = Math.max(0, idx - 80);
+    const end = Math.min(text.length, idx + len + 80);
+    const s = text.slice(start, end);
+    const rel = idx - start;
     return {
-      before: snippet.slice(0, rel),
-      match: snippet.slice(rel, rel + len),
-      after: snippet.slice(rel + len),
+      before: s.slice(0, rel),
+      match: s.slice(rel, rel + len),
+      after: s.slice(rel + len),
     };
-  }
-
-  const MS = {
-    day: 24 * 60 * 60 * 1000,
-    week: 7 * 24 * 60 * 60 * 1000,
-    month: 30 * 24 * 60 * 60 * 1000,
-    quarter: 91 * 24 * 60 * 60 * 1000,
-    year: 365 * 24 * 60 * 60 * 1000,
-  };
-
-  function chooseStep(start, end, maxTicks = 8) {
-    const span = +end - +start;
-    if (span <= 45 * MS.day) return { unit: "day", step: 1 };
-    if (span <= 6 * MS.month) return { unit: "week", step: 1 };
-    if (span <= 18 * MS.month) return { unit: "month", step: 1 };
-    if (span <= 4 * MS.year) return { unit: "quarter", step: 1 };
-
-    const years = span / MS.year;
-    const approx = Math.ceil(years / maxTicks);
-    const nice = [1, 2, 5, 10].find((n) => n >= approx) || approx;
-    return { unit: "year", step: nice };
-  }
-
-  function floorToUnit(d, unit) {
-    const x = new Date(d);
-    if (unit === "day") x.setHours(0, 0, 0, 0);
-    if (unit === "week") {
-      const day = x.getDay();
-      const diff = (day + 6) % 7;
-      x.setDate(x.getDate() - diff);
-      x.setHours(0, 0, 0, 0);
-    }
-    if (unit === "month") {
-      x.setDate(1);
-      x.setHours(0, 0, 0, 0);
-    }
-    if (unit === "quarter") {
-      const qStart = Math.floor(x.getMonth() / 3) * 3;
-      x.setMonth(qStart, 1);
-      x.setHours(0, 0, 0, 0);
-    }
-    if (unit === "year") {
-      x.setMonth(0, 1);
-      x.setHours(0, 0, 0, 0);
-    }
-    return x;
-  }
-
-  function addUnit(d, unit, step) {
-    const x = new Date(d);
-    if (unit === "day") x.setDate(x.getDate() + step);
-    if (unit === "week") x.setDate(x.getDate() + 7 * step);
-    if (unit === "month") x.setMonth(x.getMonth() + step);
-    if (unit === "quarter") x.setMonth(x.getMonth() + 3 * step);
-    if (unit === "year") x.setFullYear(x.getFullYear() + step);
-    return x;
-  }
-
-  function formatTick(d, unit) {
-    const locale = "de-DE";
-    if (unit === "year")
-      return d.toLocaleDateString(locale, { year: "numeric" });
-    if (unit === "quarter") {
-      const q = Math.floor(d.getMonth() / 3) + 1;
-      return `Q${q} ${d.getFullYear()}`;
-    }
-    if (unit === "month")
-      return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
-    return d.toLocaleDateString(locale, {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function makeTicks(start, end, maxTicks = 8) {
-    if (!start || !end || +end <= +start) return [];
-    const { unit, step } = chooseStep(start, end, maxTicks);
-    let t = floorToUnit(start, unit);
-    const out = [];
-    while (+t <= +end) {
-      out.push({ d: new Date(t), unit });
-      t = addUnit(t, unit, step);
-    }
-    return out;
   }
 
   const fmtDate = (d) =>
@@ -180,6 +60,7 @@
   let start = null,
     end = null;
   let ticks = [];
+  let timelineWidth = 1200;
   let timelineHeight = 0;
 
   $: {
@@ -202,47 +83,174 @@
       .sort((a, b) => b.date - a.date);
 
     rows = mapped;
-    const dates = mapped.map((r) => r.date);
-    start = dates.length ? new Date(Math.min(...dates)) : null;
-    end = dates.length ? new Date(Math.max(...dates)) : null;
 
-    ticks = makeTicks(start, end, 8);
-    timelineHeight = yOffset + rows.length * lineHeight + 40;
+    if (rows.length) {
+      const dates = rows.map((r) => +r.date);
+      const minDate = new Date(Math.min(...dates));
+      const maxDate = new Date(Math.max(...dates));
+
+      start = minDate;
+      end = maxDate;
+
+      const msWeek = 7 * 24 * 60 * 60 * 1000;
+      const spanWeeks = Math.max(1, Math.round((+end - +start) / msWeek));
+
+      const viewportW =
+        timelineContainer?.clientWidth ||
+        sectionEl?.clientWidth ||
+        (browser ? window.innerWidth : 1200);
+
+      const density = rows.length / spanWeeks;
+      const pxPerWeek = Math.min(
+        40,
+        Math.max(8, 20 / Math.max(0.5, Math.log10(density + 1)))
+      );
+
+      const byTime = spanWeeks * pxPerWeek;
+      const byCount = rows.length * 80;
+      const targetWidth = Math.max(viewportW, Math.min(byTime, byCount));
+      timelineWidth = Math.min(20000, Math.round(targetWidth));
+
+      timelineHeight = yOffset + rows.length * lineHeight + 40;
+
+      const targetTicks = 30;
+      const approxStep = spanWeeks / targetTicks;
+      const candidates = [1, 2, 4, 8, 13, 26, 52, 104];
+      const stepWeeks =
+        candidates.reduce((best, c) =>
+          Math.abs(c - approxStep) < Math.abs(best - approxStep) ? c : best
+        ) || 4;
+
+      const stepMs = stepWeeks * msWeek;
+      ticks = [];
+      for (let t = +start; t <= +end; t += stepMs) {
+        ticks.push(new Date(t));
+      }
+    }
   }
 
   function normPos(date) {
     if (!start || !end || +end - +start === 0) return 0;
     return ((+end - +date) / (+end - +start)) * timelineWidth;
   }
+
+  function scrollToCenterForIndex(i) {
+    if (!timelineContainer || !rows[i]) return;
+    const x = normPos(rows[i].date);
+
+    const target = Math.max(0, x - 20);
+    timelineContainer.scrollTo({ left: target, behavior: "instant" });
+  }
+
+  let syncing = false;
+  function syncFromTimeline() {
+    if (!datesBar || !timelineContainer || syncing) return;
+    syncing = true;
+    datesBar.scrollLeft = timelineContainer.scrollLeft;
+    syncing = false;
+  }
+  function syncFromBar() {
+    if (!datesBar || !timelineContainer || syncing) return;
+    syncing = true;
+    timelineContainer.scrollLeft = datesBar.scrollLeft;
+    syncing = false;
+  }
+
+  function activeIndexFromScrollY() {
+    if (!rows.length) return 0;
+    const cursorY = window.scrollY + window.innerHeight / 2;
+    const rowsStartY = sectionTop + yOffset;
+    const rel = cursorY - rowsStartY;
+    const idx = Math.floor(rel / lineHeight);
+    return Math.max(0, Math.min(rows.length - 1, idx));
+  }
+
+  function rafSync() {
+    rafId = null;
+    if (!timelineContainer) return;
+    const idx = activeIndexFromScrollY();
+    scrollToCenterForIndex(idx);
+    if (datesBar) datesBar.scrollLeft = timelineContainer.scrollLeft;
+  }
+
+  function onWinScroll() {
+    if (rafId === null) rafId = requestAnimationFrame(rafSync);
+  }
+
+  function onWinResize() {
+    measureSectionTop();
+    onWinScroll();
+  }
+
+  let ro;
+  onMount(() => {
+    if (!browser) return;
+
+    measureSectionTop();
+
+    if ("ResizeObserver" in window) {
+      ro = new ResizeObserver(onWinResize);
+      ro.observe(document.documentElement);
+    } else {
+      window.addEventListener("resize", onWinResize);
+    }
+
+    timelineContainer?.addEventListener("scroll", syncFromTimeline, {
+      passive: true,
+    });
+    datesBar?.addEventListener("scroll", syncFromBar, { passive: true });
+    window.addEventListener("scroll", onWinScroll, { passive: true });
+
+    onWinScroll();
+  });
+
+  onDestroy(() => {
+    if (!browser) return;
+    timelineContainer?.removeEventListener("scroll", syncFromTimeline);
+    datesBar?.removeEventListener("scroll", syncFromBar);
+    window.removeEventListener("scroll", onWinScroll);
+    window.removeEventListener("resize", onWinResize);
+    if (ro) ro.disconnect();
+    if (rafId !== null) cancelAnimationFrame(rafId);
+  });
 </script>
 
-<section>
+<section bind:this={sectionEl}>
   {#if rows.length === 0}
     <p></p>
   {:else}
-    <div class="timeline-container">
-      <svg width={timelineWidth + 250} height={timelineHeight}>
-        <!-- ticks dinamici -->
+    <div class="dates-bar" bind:this={datesBar} aria-hidden="false">
+      <svg width={timelineWidth + 250} height="36" class="dates-svg">
         <g class="dates">
-          {#each ticks as t}
+          {#each ticks as d}
             <text
               class="date"
-              x={normPos(t.d)}
-              y={yOffset - lineHeight / 2}
+              x={normPos(d)}
+              y={18}
               font-size={fontSize}
               dominant-baseline="middle"
-              text-anchor="start">{formatTick(t.d, t.unit)}</text
+              text-anchor="start">{fmtDate(d)}</text
             >
+          {/each}
+        </g>
+      </svg>
+    </div>
+
+    <div class="timeline-container" bind:this={timelineContainer}>
+      <svg
+        width={timelineWidth + 250}
+        height={yOffset + rows.length * lineHeight + 40}
+      >
+        <g class="dates">
+          {#each ticks as d}
             <line
-              x1={normPos(t.d)}
+              x1={normPos(d)}
               y1={yOffset - 0.5 * lineHeight}
-              x2={normPos(t.d)}
-              y2={timelineHeight}
+              x2={normPos(d)}
+              y2={yOffset + rows.length * lineHeight + 40}
             />
           {/each}
         </g>
-
-        <!-- righe -->
         <g>
           {#each rows as item, i}
             <a href={item.url} target="_blank" rel="noopener">
@@ -269,16 +277,36 @@
   section {
     display: flex;
     flex-direction: column;
-    padding: 10px;
     color: white;
     background-color: black;
     min-height: 100vh;
     text-rendering: geometricPrecision;
   }
 
+  .dates-bar {
+    position: sticky;
+    top: 0;
+    background-color: black;
+    fill: white;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 35px;
+    will-change: scroll-position;
+  }
+  .dates-bar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+  .dates-bar svg {
+    display: block;
+  }
+
   .timeline-container {
     overflow: auto;
     flex-grow: 1;
+    scroll-behavior: smooth;
+    will-change: scroll-position;
   }
 
   .timeline-container text,
@@ -294,6 +322,7 @@
   .text {
     font-style: italic;
   }
+
   .highlight {
     font-weight: 400;
     fill: var(--color-1);
@@ -304,6 +333,7 @@
     font-size: 0.8em;
     fill: gainsboro;
   }
+
   .date {
     fill: #444;
   }
