@@ -58,7 +58,7 @@
       },
       {
         "href": "/stories",
-        "label": { "en": "Curated stories", "de": "Kuratierten Geschichten" },
+        "label": { "en": "Curated stories (soon)", "de": "Kuratierten Geschichten (bald)" },
         "visible": false
       }
     ]

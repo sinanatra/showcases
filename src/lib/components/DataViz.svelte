@@ -271,6 +271,31 @@
       branchAngle: Math.PI / 1.2,
       downwardBias: 0.008,
     },
+    psychedelic: {
+      branchingChance: 0.8,
+      directionRandomness: 12.0,
+      branchAngle: Math.PI * 1.25,
+      downwardBias: 0.02,
+    },
+    vortex: {
+      branchingChance: 0.12,
+      directionRandomness: 4.0,
+      branchAngle: Math.PI / 6,
+      downwardBias: -0.02,
+    },
+    staccato: {
+      branchingChance: 6.0,
+      directionRandomness: 60.0,
+      branchAngle: Math.PI / 4,
+      downwardBias: 0.0,
+    },
+    plasma: {
+      branchingChance: 1.8,
+      directionRandomness: 30.0,
+      branchAngle: Math.PI / 3,
+      downwardBias: 0.005,
+    },
+   
   };
 
   const growthModes = Object.keys(growthParams);
@@ -401,10 +426,7 @@
       }
       const ts = Math.max(8, Math.min(28, Math.round(textSize)));
       const pg = p.createGraphics(40 * scale, 40 * scale);
-      // pg.pixelDensity(1);
-      // if (isMobile) {
-      //   pg.pixelDensity(1);
-      // }
+
       pg.colorMode(p.HSB);
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
@@ -427,44 +449,91 @@
     function growBranch(br, tip) {
       const gp = params();
       let dir = br.dir0.copy();
-      dir.y += gp.downwardBias;
+
+      if (br.__rand == null) br.__rand = Math.random();
+      const localChaos = (br.__rand - 0.5) * 2;
+
+      dir.y += (gp.downwardBias || 0) + localChaos * 0.08;
       dir.normalize();
+
       const nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
-        simFrame * 0.05
+        simFrame * 0.03
       );
-      dir.rotate(
-        p.map(nv, 0, 1, -gp.directionRandomness, gp.directionRandomness)
+      const rotAmt = p.map(
+        nv,
+        0,
+        1,
+        -gp.directionRandomness,
+        gp.directionRandomness
       );
-      switch (growthMode) {
-        case "tendrils": {
-          const osc = 0.25 * Math.sin(br.phase + simFrame * 0.08);
-          dir.rotate(osc);
-          break;
+      dir.rotate(rotAmt * (0.5 + Math.abs(localChaos)));
+
+      if ( growthMode === "staccato") {
+        if (Math.random() < 0.25) {
+          dir.rotate((Math.random() - 0.5) * gp.directionRandomness * 3);
         }
-        case "river": {
-          const s = 0.0025,
-            t = simFrame * 0.015;
-          const a = p.noise(tip.x * s, tip.y * s, t) * Math.PI * 2;
-          const flow = p.createVector(Math.cos(a), Math.sin(a));
-          dir.add(flow.mult(0.6)).normalize();
-          break;
-        }
-        case "spiral": {
-          const toC = p.createVector(tip.x - br.center.x, tip.y - br.center.y);
-          if (toC.mag() > 0.001) {
-            const tang = p.createVector(-toC.y, toC.x).normalize();
-            dir.add(tang.mult(0.45)).normalize();
-          }
-          break;
-        }
-        case "fungal":
-        case "chaos":
-        case "covid":
-        default:
-          break;
+
+        dir.add(
+          p.createVector(
+            (Math.random() - 0.5) * 0.6 * gp.directionRandomness,
+            (Math.random() - 0.5) * 0.6 * gp.directionRandomness
+          )
+        );
       }
+
+      if (growthMode === "psychedelic") {
+        const phase = (br.phase || 0) + simFrame * (0.08 + br.__rand * 0.3);
+        const swirl = p
+          .createVector(Math.cos(phase), Math.sin(phase))
+          .mult(0.9 + br.__rand);
+        dir.add(swirl).normalize();
+      }
+
+      if (growthMode === "vortex") {
+        const toCenter = p.createVector(
+          tip.x - (br.center?.x || 0),
+          tip.y - (br.center?.y || 0)
+        );
+        if (toCenter.mag() > 0.001) {
+          const tang = p.createVector(-toCenter.y, toCenter.x).normalize();
+          dir.add(tang.mult(1.2 + br.__rand * 2));
+          dir.add(toCenter.normalize().mult(-0.6 * (1 + br.__rand)));
+        }
+      }
+
+      if (growthMode === "river") {
+        const s = 0.0025,
+          t = simFrame * 0.015;
+        const a = p.noise(tip.x * s, tip.y * s, t) * Math.PI * 2;
+        const flow = p.createVector(Math.cos(a), Math.sin(a));
+        dir.add(flow.mult(0.6 + Math.random() * 1.4)).normalize();
+      }
+
+      if (growthMode === "tendrils") {
+        const osc = 0.25 * Math.sin((br.phase || 0) + simFrame * 0.08);
+        dir.rotate(osc * (1 + Math.random() * 1.5));
+      }
+
+      if (growthMode === "plasma") {
+        if (Math.random() < 0.08) {
+          dir.add(
+            p.createVector((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3)
+          );
+        }
+      }
+
+      if (Math.random() < 0.007 + Math.abs(localChaos) * 0.02) {
+        dir.y *= -1;
+      }
+
+      dir.add(
+        p.createVector(
+          (Math.random() - 0.5) * 0.02,
+          (Math.random() - 0.5) * 0.02
+        )
+      );
       return dir.normalize();
     }
 
@@ -581,9 +650,7 @@
 
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight);
-      // if (isMobile) {
-      //   p.pixelDensity(1);
-      // }
+
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
@@ -602,9 +669,7 @@
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
       worldBuffer = p.createGraphics(w, h);
-      // if (isMobile) {
-      //   worldBuffer.pixelDensity(1);
-      // }
+
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
@@ -662,8 +727,7 @@
                 );
               }
             });
-        // dir.normalize();
-        // const next = p.Vector.add(tip, p.Vector.mult(dir, segmentLength));
+
         dir.normalize();
         const next = tip.copy().add(dir.copy().mult(segmentLength));
 
@@ -744,11 +808,6 @@
       if (isRecording && isMobile) {
         isRecording = false;
       }
-      // if (branches.length && branches.every((b) => b.finished)) {
-      //   p.noLoop();
-      // } else {
-      //   p.loop();
-      // }
     };
 
     p.remove = () => {
@@ -814,6 +873,10 @@
     };
   };
 </script>
+
+<!-- <p style="position: fixed;bottom: 10px;left: 10px;z-index: 100000">
+  {growthMode}
+</p> -->
 
 <div class="viz-container">
   {#if vizData.length}
