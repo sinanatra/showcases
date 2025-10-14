@@ -1,5 +1,5 @@
 html {
-  --color-1: rgb(255, 0, 0);
+  --color-1: rgb(254, 216, 0);
   overscroll-behavior: none;
 }
 
@@ -15,6 +15,17 @@ body {
 
   background: black;
   color: white;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+p {
+  font-weight: 400;
+  margin: 0;
+  padding: 0;
 }
 
 a {

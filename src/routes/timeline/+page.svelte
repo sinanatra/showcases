@@ -170,6 +170,8 @@
     row-gap: 5px;
     align-items: start;
     padding: 10px;
+    height: 100px;
+    z-index: 10;
   }
 
   h2 {
