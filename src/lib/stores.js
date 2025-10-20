@@ -1,5 +1,6 @@
-import { writable, derived } from "svelte/store";
+import { readable, writable, derived } from "svelte/store";
 import { lang } from "$lib/i18n";
+import { browser } from "$app/environment";
 
 export const keywordsGroup = {
   antisem: "antisemitismus",
@@ -276,17 +277,16 @@ export const availableKeywords = derived(
   }
 );
 
-export const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(
-  navigator.userAgent
+export const isMobile = readable(false, (set) => {
+  if (!browser) return;
+  set(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+});
+
+export const recentCount = derived(isMobile, ($isMobile) =>
+  $isMobile ? 50 : 350
 );
 
-let N = 350;
-
-if (isMobile) {
-  N = 50;
-}
-
-export const recent = derived(articles, ($articles) => {
+export const recent = derived([articles, recentCount], ([$articles, n]) => {
   const list = Array.isArray($articles) ? $articles : [];
   const sorted = [...list].sort((a, b) => {
     const da = parseDateLoose(a.ExtractedDate || a.Date);
@@ -296,7 +296,7 @@ export const recent = derived(articles, ($articles) => {
     if (da) return -1;
     return 0;
   });
-  return sorted.slice(0, N);
+  return sorted.slice(0, n);
 });
 
 export const filtered = derived([articles, filters], ([$articles, $filters]) =>
