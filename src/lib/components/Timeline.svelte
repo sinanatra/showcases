@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from "svelte";
   import { browser } from "$app/environment";
 
-  const lineHeight = 16;
+  const lineHeight = 10;
   const fontSize = Math.round(lineHeight * 0.9);
   const yOffset = 0;
 
@@ -60,7 +60,7 @@
   let start = null,
     end = null;
   let ticks = [];
-  let timelineWidth = 1200;
+  let timelineWidth = 2400;
   let timelineHeight = 0;
 
   $: {
@@ -109,7 +109,7 @@
       const byTime = spanWeeks * pxPerWeek;
       const byCount = rows.length * 80;
       const targetWidth = Math.max(viewportW, Math.min(byTime, byCount));
-      timelineWidth = Math.min(20000, Math.round(targetWidth));
+      timelineWidth = Math.min(10000, Math.round(targetWidth));
 
       timelineHeight = yOffset + rows.length * lineHeight + 40;
 
@@ -138,7 +138,7 @@
     if (!timelineContainer || !rows[i]) return;
     const x = normPos(rows[i].date);
 
-    const target = Math.max(0, x - 20);
+    const target = Math.max(0, x - 400);
     timelineContainer.scrollTo({ left: target, behavior: "instant" });
   }
 
@@ -238,7 +238,7 @@
 
     <div class="timeline-container" bind:this={timelineContainer}>
       <svg
-        width={timelineWidth + 250}
+        width={timelineWidth}
         height={yOffset + rows.length * lineHeight + 40}
       >
         <g class="dates">
@@ -309,10 +309,10 @@
     will-change: scroll-position;
   }
 
-  .timeline-container text,
+  /* .timeline-container text,
   .timeline-container tspan {
     font-size: 13px;
-  }
+  } */
 
   a:hover {
     fill: var(--color-1);
