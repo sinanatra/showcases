@@ -20,7 +20,7 @@
               .split(/[,;]/)
               .map((s) => s.trim())
               .filter(Boolean),
-        ExtractedTime: Array.isArray(d.ExtractedTime)
+        ExtractedTime: Array.isArray(d?.ExtractedTime)
           ? d.ExtractedTime
           : (d.ExtractedTime || "")
               .replace(/[\[\]'"]/g, "")

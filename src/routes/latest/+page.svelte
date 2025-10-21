@@ -25,10 +25,10 @@
           : d.ExtractedGender
             ? [d.ExtractedGender]
             : [],
-        ExtractedTime: Array.isArray(d.ExtractedTime)
-          ? d.ExtractedTime
-          : d.ExtractedTime
-            ? [d.ExtractedTime]
+        ExtractedTime: Array.isArray(d?.ExtractedTime)
+          ? d?.ExtractedTime
+          : d?.ExtractedTime
+            ? [d?.ExtractedTime]
             : [],
       }))
     );
