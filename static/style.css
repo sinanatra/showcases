@@ -37,7 +37,7 @@ button {
 }
 
 ::selection {
-  background-color: white;
+  /* background-color: white; */
   color: var(--color-1);
 }
 

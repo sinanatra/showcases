@@ -1,6 +1,6 @@
 <script>
   export let data;
-//   console.log(data);
+  //   console.log(data);
 </script>
 
 <main>
@@ -19,24 +19,24 @@
   main {
     font-family: Arial, Helvetica, sans-serif;
     max-width: 600px;
-    margin: auto;
+    /* margin: auto; */
     display: flex;
     flex-direction: column;
     gap: 1em;
-    padding: 100px 1em;
-    text-align: center;
+    padding: 1em;
+    /* text-align: center; */
   }
 
   a {
-    font-size: 3rem;
-    margin-bottom: 2rem;
+    font-size: 2rem;
+    margin-bottom: 1rem;
     color: white;
     text-decoration: none;
   }
 
   .story {
     font-size: 3rem;
-    margin-bottom: 2rem;
+    /* margin-bottom: 2rem; */
     color: white;
     text-decoration: none;
   }
