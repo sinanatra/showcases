@@ -295,7 +295,6 @@
       branchAngle: Math.PI / 3,
       downwardBias: 0.005,
     },
-   
   };
 
   const growthModes = Object.keys(growthParams);
@@ -415,6 +414,8 @@
     let letterHitboxes = [];
     let firstDraw = true;
     const repulsionRadius = (isMobile ? 9 : 12) * scale;
+    const bucketRebuildStride = 3;
+    const branchUpdateStride = 2;
 
     function getCachedLetter(kw, letter, textSize) {
       const key = `${kw}_${letter}_${Math.round(textSize)}`;
@@ -426,7 +427,6 @@
       }
       const ts = Math.max(8, Math.min(28, Math.round(textSize)));
       const pg = p.createGraphics(40 * scale, 40 * scale);
-
       pg.colorMode(p.HSB);
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
@@ -449,13 +449,10 @@
     function growBranch(br, tip) {
       const gp = params();
       let dir = br.dir0.copy();
-
       if (br.__rand == null) br.__rand = Math.random();
       const localChaos = (br.__rand - 0.5) * 2;
-
       dir.y += (gp.downwardBias || 0) + localChaos * 0.08;
       dir.normalize();
-
       const nv = p.noise(
         tip.x * 0.01 * scale,
         tip.y * 0.01 * scale,
@@ -469,12 +466,10 @@
         gp.directionRandomness
       );
       dir.rotate(rotAmt * (0.5 + Math.abs(localChaos)));
-
-      if ( growthMode === "staccato") {
+      if (growthMode === "staccato") {
         if (Math.random() < 0.25) {
           dir.rotate((Math.random() - 0.5) * gp.directionRandomness * 3);
         }
-
         dir.add(
           p.createVector(
             (Math.random() - 0.5) * 0.6 * gp.directionRandomness,
@@ -482,7 +477,6 @@
           )
         );
       }
-
       if (growthMode === "psychedelic") {
         const phase = (br.phase || 0) + simFrame * (0.08 + br.__rand * 0.3);
         const swirl = p
@@ -490,7 +484,6 @@
           .mult(0.9 + br.__rand);
         dir.add(swirl).normalize();
       }
-
       if (growthMode === "vortex") {
         const toCenter = p.createVector(
           tip.x - (br.center?.x || 0),
@@ -502,7 +495,6 @@
           dir.add(toCenter.normalize().mult(-0.6 * (1 + br.__rand)));
         }
       }
-
       if (growthMode === "river") {
         const s = 0.0025,
           t = simFrame * 0.015;
@@ -510,12 +502,10 @@
         const flow = p.createVector(Math.cos(a), Math.sin(a));
         dir.add(flow.mult(0.6 + Math.random() * 1.4)).normalize();
       }
-
       if (growthMode === "tendrils") {
         const osc = 0.25 * Math.sin((br.phase || 0) + simFrame * 0.08);
         dir.rotate(osc * (1 + Math.random() * 1.5));
       }
-
       if (growthMode === "plasma") {
         if (Math.random() < 0.08) {
           dir.add(
@@ -523,11 +513,9 @@
           );
         }
       }
-
       if (Math.random() < 0.007 + Math.abs(localChaos) * 0.02) {
         dir.y *= -1;
       }
-
       dir.add(
         p.createVector(
           (Math.random() - 0.5) * 0.02,
@@ -650,7 +638,7 @@
 
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight);
-
+      // p.pixelDensity();
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
@@ -665,11 +653,9 @@
       const maxBuffer = isMobile ? 2048 : 4200;
       const w = Math.min(maxBuffer, Math.floor(base * grewByData));
       const h = w;
-
       bufferCenter = { x: w / 2, y: h / 2 };
       bufferBounds = { left: 0, right: w, top: 0, bottom: h };
       worldBuffer = p.createGraphics(w, h);
-
       worldBuffer.colorMode(p.HSB);
       worldBuffer.textAlign(p.CENTER, p.CENTER);
       worldBuffer.textFont("courier");
@@ -693,44 +679,44 @@
         p.background(0);
         return;
       }
-      globalBuckets = new Map();
-      branches.forEach((br) =>
-        br.nodes.forEach((n) => {
-          if (!n) return;
-          const key = `${Math.floor(n.x / widthBucket)},${Math.floor(n.y / widthBucket)}`;
-          if (!globalBuckets.has(key)) globalBuckets.set(key, []);
-          globalBuckets.get(key).push(n);
-        })
-      );
-      branches.forEach((br) => {
+      if (simFrame % bucketRebuildStride === 0) {
+        globalBuckets = new Map();
+        branches.forEach((br) =>
+          br.nodes.forEach((n) => {
+            if (!n) return;
+            const key = `${Math.floor(n.x / widthBucket)},${Math.floor(n.y / widthBucket)}`;
+            if (!globalBuckets.has(key)) globalBuckets.set(key, []);
+            globalBuckets.get(key).push(n);
+          })
+        );
+      }
+      branches.forEach((br, idx) => {
+        if ((simFrame + idx) % branchUpdateStride !== 0) return;
         if (br.finished) return;
         br.frameCount++;
-        if (br.frameCount % 1 !== 0 || br.grown >= br.maxSteps) return;
+        if (br.grown >= br.maxSteps) return;
         const tip = br.nodes && br.nodes[br.nodes.length - 1];
         if (!tip) return;
         let dir = growBranch(br, tip);
-        const [bx, by] = [
-          Math.floor(tip.x / widthBucket),
-          Math.floor(tip.y / widthBucket),
-        ];
-        for (let dx = -1; dx <= 1; dx++)
-          for (let dy = -1; dy <= 1; dy++)
-            (globalBuckets.get(`${bx + dx},${by + dy}`) || []).forEach((n2) => {
-              if (!n2) return;
-              const d = tip.dist(n2);
+        const bx = Math.floor(tip.x / widthBucket);
+        const by = Math.floor(tip.y / widthBucket);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const arr = globalBuckets.get(`${bx + dx},${by + dy}`) || [];
+            for (let j = 0; j < arr.length; j++) {
+              const n2 = arr[j];
+              const dx2 = tip.x - n2.x;
+              const dy2 = tip.y - n2.y;
+              const d = Math.hypot(dx2, dy2);
               if (d > 0 && d < repulsionRadius) {
-                dir.add(
-                  p
-                    .createVector(tip.x - n2.x, tip.y - n2.y)
-                    .normalize()
-                    .mult(0.6 * scale)
-                );
+                const inv = 1 / d;
+                dir.add(p.createVector(dx2 * inv, dy2 * inv).mult(0.6 * scale));
               }
-            });
-
+            }
+          }
+        }
         dir.normalize();
         const next = tip.copy().add(dir.copy().mult(segmentLength));
-
         next.x = p.constrain(
           next.x,
           bufferBounds.left + 10 * scale,
@@ -755,12 +741,12 @@
           const si = br.distArr.findIndex((d) => d >= target);
           if (si > 0) {
             const d0 = br.distArr[si - 1];
-            const v0 = br.nodes[si - 1],
-              v1 = br.nodes[si];
+            const v0 = br.nodes[si - 1];
+            const v1 = br.nodes[si];
             if (!v0 || !v1) break;
             const tnorm = (target - d0) / v1.dist(v0);
-            const px = p.lerp(v0.x, v1.x, tnorm),
-              py = p.lerp(v0.y, v1.y, tnorm);
+            const px = p.lerp(v0.x, v1.x, tnorm);
+            const py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
             const letter = br.sentence[ci];
             const textSize = repulsionRadius / 1.2;
@@ -784,6 +770,7 @@
                 date: br.date,
                 title: br.title,
               });
+              if (letterHitboxes.length > 4000) letterHitboxes.splice(0, 1000);
             }
             br.lastPlacedCharIndex = ci;
             ci++;
@@ -874,14 +861,10 @@
   };
 </script>
 
-<!-- <p style="position: fixed;bottom: 10px;left: 10px;z-index: 100000">
-  {growthMode}
-</p> -->
-
 <div class="viz-container">
   {#if vizData.length}
     {#key sketchKey}
-      <P5 {sketch} style="position:absolute; top:0; left:0;" />
+      <P5 {sketch} />
     {/key}
   {:else}
     <div class="empty-state">...</div>
