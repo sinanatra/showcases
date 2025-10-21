@@ -335,11 +335,11 @@
   }
 
   .date {
-    fill: #444;
+    fill: var(--color-1);
   }
 
   line {
-    stroke: #444;
+    stroke: var(--color-1);
     stroke-dasharray: 4 4;
   }
 </style>
