@@ -6,7 +6,7 @@
   const lineHeight = 12;
   const fontSize = Math.round(lineHeight * 0.9);
   const yOffset = 0;
-  const leftPad = 640;
+  const leftPad = 120;
   const rightPad = 1500;
 
   let sectionEl;
@@ -82,7 +82,7 @@
         return { date: d, before, match, after, url: a.URL };
       })
       .filter(Boolean)
-      .sort((a, b) => a.date - b.date);
+      .sort((a, b) => b.date - a.date);
 
     rows = mapped;
 
@@ -114,7 +114,7 @@
       timelineWidth = Math.min(10000, Math.round(targetWidth));
       totalWidth = leftPad + timelineWidth + rightPad;
 
-      const targetTicks = 30;
+      const targetTicks = 15;
       const approxStep = spanWeeks / targetTicks;
       const candidates = [1, 2, 4, 8, 13, 26, 52, 104];
       const stepWeeks = candidates.reduce(
@@ -135,7 +135,7 @@
 
   function normPos(date) {
     if (!start || !end || +end - +start === 0) return leftPad;
-    return leftPad + ((+date - +start) / (+end - +start)) * timelineWidth;
+    return leftPad + ((+end - +date) / (+end - +start)) * timelineWidth;
   }
 
   function scrollToCenterForIndex(i) {
