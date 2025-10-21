@@ -3,9 +3,11 @@
   import { onMount, onDestroy } from "svelte";
   import { browser } from "$app/environment";
 
-  const lineHeight = 10;
+  const lineHeight = 12;
   const fontSize = Math.round(lineHeight * 0.9);
   const yOffset = 0;
+  const leftPad = 640;
+  const rightPad = 1500;
 
   let sectionEl;
   let timelineContainer;
@@ -61,7 +63,7 @@
     end = null;
   let ticks = [];
   let timelineWidth = 2400;
-  let timelineHeight = 0;
+  let totalWidth = 2400 + leftPad + rightPad;
 
   $: {
     const src = Array.isArray($filtered) ? $filtered : [];
@@ -80,7 +82,7 @@
         return { date: d, before, match, after, url: a.URL };
       })
       .filter(Boolean)
-      .sort((a, b) => b.date - a.date);
+      .sort((a, b) => a.date - b.date);
 
     rows = mapped;
 
@@ -110,34 +112,35 @@
       const byCount = rows.length * 80;
       const targetWidth = Math.max(viewportW, Math.min(byTime, byCount));
       timelineWidth = Math.min(10000, Math.round(targetWidth));
-
-      timelineHeight = yOffset + rows.length * lineHeight + 40;
+      totalWidth = leftPad + timelineWidth + rightPad;
 
       const targetTicks = 30;
       const approxStep = spanWeeks / targetTicks;
       const candidates = [1, 2, 4, 8, 13, 26, 52, 104];
-      const stepWeeks =
-        candidates.reduce((best, c) =>
-          Math.abs(c - approxStep) < Math.abs(best - approxStep) ? c : best
-        ) || 4;
+      const stepWeeks = candidates.reduce(
+        (best, c) =>
+          Math.abs(c - approxStep) < Math.abs(best - approxStep) ? c : best,
+        candidates[0]
+      );
 
       const stepMs = stepWeeks * msWeek;
       ticks = [];
       for (let t = +start; t <= +end; t += stepMs) {
         ticks.push(new Date(t));
       }
+      if (ticks.length === 0 || +ticks[ticks.length - 1] < +end)
+        ticks.push(new Date(+end));
     }
   }
 
   function normPos(date) {
-    if (!start || !end || +end - +start === 0) return 0;
-    return ((+end - +date) / (+end - +start)) * timelineWidth;
+    if (!start || !end || +end - +start === 0) return leftPad;
+    return leftPad + ((+date - +start) / (+end - +start)) * timelineWidth;
   }
 
   function scrollToCenterForIndex(i) {
     if (!timelineContainer || !rows[i]) return;
     const x = normPos(rows[i].date);
-
     const target = Math.max(0, x - 400);
     timelineContainer.scrollTo({ left: target, behavior: "instant" });
   }
@@ -220,7 +223,7 @@
     <p></p>
   {:else}
     <div class="dates-bar" bind:this={datesBar} aria-hidden="false">
-      <svg width={timelineWidth + 250} height="36" class="dates-svg">
+      <svg width={totalWidth} height="36" class="dates-svg">
         <g class="dates">
           {#each ticks as d}
             <text
@@ -237,10 +240,7 @@
     </div>
 
     <div class="timeline-container" bind:this={timelineContainer}>
-      <svg
-        width={timelineWidth}
-        height={yOffset + rows.length * lineHeight + 40}
-      >
+      <svg width={totalWidth} height={yOffset + rows.length * lineHeight + 40}>
         <g class="dates">
           {#each ticks as d}
             <line
@@ -259,6 +259,7 @@
                 y={yOffset + i * lineHeight + lineHeight / 2}
                 font-size={fontSize}
                 dominant-baseline="middle"
+                text-anchor="start"
               >
                 <tspan class="text">{item.before}</tspan>
                 <tspan class="highlight">{item.match}</tspan>
@@ -282,7 +283,6 @@
     min-height: 100vh;
     text-rendering: geometricPrecision;
   }
-
   .dates-bar {
     position: sticky;
     top: 0;
@@ -301,43 +301,31 @@
   .dates-bar svg {
     display: block;
   }
-
   .timeline-container {
     overflow: auto;
     flex-grow: 1;
     scroll-behavior: smooth;
     will-change: scroll-position;
   }
-
-  /* .timeline-container text,
-  .timeline-container tspan {
-    font-size: 13px;
-  } */
-
   a:hover {
     fill: var(--color-1);
     text-decoration: underline;
   }
-
   .text {
     font-style: italic;
   }
-
   .highlight {
     font-weight: 400;
     fill: var(--color-1);
   }
-
   .date,
   a {
     font-size: 0.8em;
     fill: gainsboro;
   }
-
   .date {
     fill: var(--color-1);
   }
-
   line {
     stroke: var(--color-1);
     stroke-dasharray: 4 4;
