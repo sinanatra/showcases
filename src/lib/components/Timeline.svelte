@@ -5,7 +5,7 @@
 
   const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
-  const yOffset = 40;
+  const yOffset = 0;
 
   let sectionEl;
   let timelineContainer;
