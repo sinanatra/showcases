@@ -1,16 +1,23 @@
 <script>
   export let data;
-  //   console.log(data);
+  const toSlug = (d) => (d?.path || "").replace(/^\/?texts\//, "");
+  const isPublic = (d) => d?.meta?.isPublic !== false;
+  const titleOf = (d) => d?.meta?.title || "";
+  const excerptOf = (d) => d?.meta?.excerpt || "";
 </script>
 
 <main>
-  {#each data.posts as d}
-    {#if d?.meta?.isPublic == false}
-      <span class="story disabled" aria-disabled="true">{d.meta.title}</span>
+  {#each data?.posts ?? [] as d}
+    {#if isPublic(d)}
+      <a class="card" href={`/stories/${toSlug(d)}`}>
+        <h2 class="title">{titleOf(d)}</h2>
+        {#if excerptOf(d)}<p class="excerpt">{excerptOf(d)}</p>{/if}
+      </a>
     {:else}
-      <a class="story" href={`/stories/${d.path.replace(/^\/?texts\//, "")}`}
-        >{d.meta.title}</a
-      >
+      <div class="card disabled" aria-disabled="true">
+        <h2 class="title">{titleOf(d)}</h2>
+        {#if excerptOf(d)}<p class="excerpt">{excerptOf(d)}</p>{/if}
+      </div>
     {/if}
   {/each}
 </main>
@@ -18,41 +25,39 @@
 <style>
   main {
     font-family: Arial, Helvetica, sans-serif;
-    max-width: 600px;
-    /* margin: auto; */
+    max-width: 720px;
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  .card {
     display: flex;
     flex-direction: column;
-    gap: 1em;
-    padding: 1em;
-    /* text-align: center; */
-  }
-
-  a {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: white;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
     text-decoration: none;
   }
-
-  .story {
-    font-size: 3rem;
-    /* margin-bottom: 2rem; */
-    color: white;
-    text-decoration: none;
+  .card:hover {
+    /* background: var(--color-1); */
+    color: var(--color-1);
   }
-
-  .story:not(.disabled):hover {
-    text-decoration: underline;
-  }
-
-  .story.disabled {
-    color: #7a7a7a;
-    pointer-events: none;
+  .card.disabled {
+    opacity: 0.6;
     cursor: not-allowed;
-    text-decoration: none;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.05);
   }
-
-  a:hover {
-    text-decoration: underline;
+  .title {
+    font-size: 1.8rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .excerpt {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.4;
+    max-width: 60ch;
   }
 </style>

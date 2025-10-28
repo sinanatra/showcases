@@ -271,30 +271,30 @@
       branchAngle: Math.PI / 1.2,
       downwardBias: 0.008,
     },
-    psychedelic: {
-      branchingChance: 0.8,
-      directionRandomness: 12.0,
-      branchAngle: Math.PI * 1.25,
-      downwardBias: 0.02,
-    },
-    vortex: {
-      branchingChance: 0.12,
-      directionRandomness: 4.0,
-      branchAngle: Math.PI / 6,
-      downwardBias: -0.02,
-    },
-    staccato: {
-      branchingChance: 6.0,
-      directionRandomness: 60.0,
-      branchAngle: Math.PI / 4,
-      downwardBias: 0.0,
-    },
-    plasma: {
-      branchingChance: 1.8,
-      directionRandomness: 30.0,
-      branchAngle: Math.PI / 3,
-      downwardBias: 0.005,
-    },
+    // psychedelic: {
+    //   branchingChance: 0.8,
+    //   directionRandomness: 12.0,
+    //   branchAngle: Math.PI * 1.25,
+    //   downwardBias: 0.02,
+    // },
+    // vortex: {
+    //   branchingChance: 0.12,
+    //   directionRandomness: 4.0,
+    //   branchAngle: Math.PI / 6,
+    //   downwardBias: -0.02,
+    // },
+    // staccato: {
+    //   branchingChance: 6.0,
+    //   directionRandomness: 60.0,
+    //   branchAngle: Math.PI / 4,
+    //   downwardBias: 0.0,
+    // },
+    // plasma: {
+    //   branchingChance: 1.8,
+    //   directionRandomness: 30.0,
+    //   branchAngle: Math.PI / 3,
+    //   downwardBias: 0.005,
+    // },
   };
 
   const growthModes = Object.keys(growthParams);
