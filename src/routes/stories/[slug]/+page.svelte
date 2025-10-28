@@ -12,12 +12,36 @@
   $: slug = $page.params.slug;
   $: datum = data?.posts?.find((d) => d.path?.includes(slug)) ?? null;
   $: urls = datum?.meta?.urls ?? [];
-  $: excerpt = datum?.meta?.excerpt ?? "";
+  $: caption = datum?.meta?.caption ?? "";
 
-  //   console.log(datum);
   onMount(async () => {
     const raw = await d3.csv("/all_merged.csv");
-    articles.set(raw);
+    const normalized = raw.map((d) => ({
+      ...d,
+      KeywordMatch:
+        typeof d.KeywordMatch === "string"
+          ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
+              .split(/[,;]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : Array.isArray(d.KeywordMatch)
+            ? d.KeywordMatch
+            : [],
+      Text: d.Text || "",
+      URL: d.URL || "",
+      Title: d.Title || "",
+      ExtractedGender: Array.isArray(d.ExtractedGender)
+        ? d.ExtractedGender
+        : d.ExtractedGender
+          ? [d.ExtractedGender]
+          : [],
+      ExtractedTime: Array.isArray(d.ExtractedTime)
+        ? d.ExtractedTime
+        : d.ExtractedTime
+          ? [d.ExtractedTime]
+          : [],
+    }));
+    articles.set(normalized);
   });
 </script>
 
@@ -27,10 +51,10 @@
   </section>
 
   <article class="story">
-    {#if excerpt.length > 0}
-      <div class="excerpt">
+    {#if caption.length > 0}
+      <div class="caption">
         <p>
-          {excerpt}
+          {caption}
         </p>
       </div>
     {/if}
@@ -70,7 +94,7 @@
     margin-bottom: 1rem;
   }
 
-  .excerpt {
+  .caption {
     display: flex;
     justify-content: flex-end;
     color: #aaa;
@@ -79,7 +103,7 @@
     text-align: right;
   }
 
-  .excerpt p {
+  .caption p {
     font-family: "Courier New", Courier, monospace;
     max-width: 400px;
   }

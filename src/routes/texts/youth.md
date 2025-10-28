@@ -1,9 +1,11 @@
 ---
 title: "Youth Crimes"
 date: "2025-09-29"
-excerpt: "The visualisation shows all police reports mentioning the term: youth, from 2019 to October 2025"
+excerpt: "Lorem ipsum dolor sit amet"
+caption: "The visualisation shows all police reports mentioning the term: youth, from 2019 to October 2025"
+
 cover: "/images/berlin-2024.jpg"
-isPublic: false
+isPublic: true
 urls:
   [
     "https://polizei.brandenburg.de/pressemeldung/angriff-auf-polizeibeamte/2621476",

@@ -2,8 +2,9 @@
 title: "Graffiti"
 date: "2025-09-29"
 excerpt: "Lorem ipsum dolor sit amet"
+caption: "Lorem ipsum dolor sit amet"
 cover: "/images/berlin-2024.jpg"
-isPublic: false
+isPublic: true
 urls:
   - "https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1604726.php"
   - "https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1604492.php"
