@@ -66,7 +66,7 @@
   .viz {
     position: sticky;
     top: 0;
-    height: 80vh;
+    height: 50vh;
     width: 100%;
     z-index: 0;
   }
