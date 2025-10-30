@@ -219,9 +219,13 @@ export const availableDistricts = derived(
   [articles, filters],
   ([$articles, $filters]) => {
     const base = applyFilters($articles, { ...$filters, district: "" });
-    return Array.from(
-      new Set(base.map((a) => a.ExtractedDistrict).filter(Boolean))
-    ).sort();
+    const set = new Set();
+    for (const a of base) {
+      const r = detectRegion(a);
+      const d = normalizeDistrict(a.ExtractedDistrict, r);
+      if (d) set.add(d);
+    }
+    return Array.from(set).sort();
   }
 );
 
@@ -456,7 +460,12 @@ function applyFilters(list, f) {
 
   if (region) out = out.filter((a) => detectRegion(a) === region);
 
-  if (district) out = out.filter((a) => a.ExtractedDistrict === district);
+  if (district) {
+    out = out.filter(
+      (a) =>
+        normalizeDistrict(a.ExtractedDistrict, detectRegion(a)) === district
+    );
+  }
 
   if (keyword) {
     const variants = getKeywordVariants(keyword).map((s) =>
@@ -543,4 +552,76 @@ function detectRegion(a) {
   if (src.includes("brandenburg") || url.includes("brandenburg.de"))
     return "Brandenburg";
   return "";
+}
+
+const berlinDistricts = [
+  "Mitte",
+  "Friedrichshain-Kreuzberg",
+  "Pankow",
+  "Charlottenburg-Wilmersdorf",
+  "Spandau",
+  "Steglitz-Zehlendorf",
+  "Tempelhof-Schöneberg",
+  "Neukölln",
+  "Treptow-Köpenick",
+  "Marzahn-Hellersdorf",
+  "Lichtenberg",
+  "Reinickendorf",
+];
+const brandenburgCounties = [
+  "Barnim",
+  "Dahme-Spreewald",
+  "Elbe-Elster",
+  "Havelland",
+  "Märkisch-Oderland",
+  "Oberhavel",
+  "Oberspreewald-Lausitz",
+  "Oder-Spree",
+  "Ostprignitz-Ruppin",
+  "Potsdam-Mittelmark",
+  "Prignitz",
+  "Spree-Neiße",
+  "Uckermark",
+];
+const brandenburgCities = [
+  "Potsdam",
+  "Brandenburg an der Havel",
+  "Cottbus",
+  "Frankfurt (Oder)",
+];
+
+function normalizeDistrict(value, region) {
+  if (!value) return "";
+  const s = String(value).replace(/\s+/g, " ").trim();
+  const parts = s
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const all = parts.length ? parts : [s];
+  const last = all[all.length - 1];
+  const matchOne = (list) => {
+    for (const name of list) {
+      if (
+        all.some(
+          (t) =>
+            t === name || t.replace(/\s+/g, "") === name.replace(/\s+/g, "")
+        )
+      )
+        return name;
+      if (s.includes(name)) return name;
+    }
+    return null;
+  };
+  if (region === "Berlin") {
+    const m = matchOne(berlinDistricts);
+    return m || last;
+  }
+  if (region === "Brandenburg") {
+    const c = matchOne(brandenburgCities);
+    if (c) return c;
+    const k = matchOne(brandenburgCounties);
+    if (k) return k;
+    return last;
+  }
+  return last;
 }
