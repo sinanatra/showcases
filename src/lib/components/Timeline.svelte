@@ -1,6 +1,6 @@
 <script>
-  import { filtered } from "$lib/stores";
-  import { onMount, onDestroy } from "svelte";
+  import { filtered, isMobile } from "$lib/stores";
+  import { onMount, onDestroy, tick } from "svelte";
   import { browser } from "$app/environment";
 
   const lineHeight = 12;
@@ -8,11 +8,12 @@
   const yOffset = 0;
   const leftPad = 120;
   const rightPad = 1500;
+  const tickPx = 500;
+  const bufferRows = 30;
 
   let sectionEl;
   let timelineContainer;
   let datesBar;
-
   let sectionTop = 0;
   let rafId = null;
 
@@ -59,11 +60,101 @@
     });
 
   let rows = [];
-  let start = null,
-    end = null;
+  let start = null;
+  let end = null;
   let ticks = [];
   let timelineWidth = 2400;
   let totalWidth = 2400 + leftPad + rightPad;
+
+  function makeRowsSig(arr) {
+    if (!Array.isArray(arr) || !arr.length) return "0";
+    const first = arr[0]?.date ? +arr[0].date : 0;
+    const last = arr[arr.length - 1]?.date ? +arr[arr.length - 1].date : 0;
+    return `${arr.length}|${first}|${last}`;
+  }
+
+  let lastRowsSig = "";
+  let visibleStart = 0;
+  let visibleEnd = 0;
+  let visible = [];
+  let syncing = false;
+  let lastActiveIndex = -1;
+  let hScrollActive = false;
+  let hScrollSettleFrames = 0;
+  let hScrollLast = 0;
+  let hScrollRaf = 0;
+  let scheduleResetX = false;
+  let filteredUnsub;
+
+  function beginHScrollMonitor() {
+    if (hScrollActive) return;
+    hScrollActive = true;
+    hScrollSettleFrames = 0;
+    hScrollLast = timelineContainer ? timelineContainer.scrollLeft : 0;
+    hScrollRaf = requestAnimationFrame(hScrollTick);
+  }
+
+  function hScrollTick() {
+    const cur = timelineContainer ? timelineContainer.scrollLeft : 0;
+    if (Math.abs(cur - hScrollLast) < 0.25) {
+      hScrollSettleFrames += 1;
+    } else {
+      hScrollSettleFrames = 0;
+      hScrollLast = cur;
+    }
+    if (hScrollSettleFrames >= 3) {
+      hScrollActive = false;
+      hScrollRaf = 0;
+      return;
+    }
+    hScrollRaf = requestAnimationFrame(hScrollTick);
+  }
+
+  function updateVisible() {
+    const cursorY = window.scrollY + window.innerHeight / 2;
+    const rowsStartY = sectionTop + yOffset;
+    const rel = cursorY - rowsStartY;
+    const idx = Math.max(
+      0,
+      Math.min(rows.length - 1, Math.floor(rel / lineHeight))
+    );
+    const first = Math.max(
+      0,
+      Math.floor((window.scrollY - rowsStartY) / lineHeight) - bufferRows
+    );
+    const last = Math.min(
+      rows.length,
+      Math.ceil(
+        (window.scrollY + window.innerHeight - rowsStartY) / lineHeight
+      ) + bufferRows
+    );
+    visibleStart = first;
+    visibleEnd = last;
+    visible = rows.slice(visibleStart, visibleEnd);
+    if (!hScrollActive && idx !== lastActiveIndex) {
+      scrollToCenterForIndex(idx);
+      lastActiveIndex = idx;
+    }
+  }
+
+  async function resetX() {
+    if (!browser) return;
+    await tick();
+    const prev = timelineContainer
+      ? timelineContainer.style.scrollBehavior
+      : "";
+    if (timelineContainer) timelineContainer.style.scrollBehavior = "auto";
+    datesBar && (datesBar.scrollLeft = 0);
+    timelineContainer &&
+      timelineContainer.scrollTo({ left: 0, behavior: "auto" });
+    if (timelineContainer) timelineContainer.style.scrollBehavior = prev || "";
+    lastActiveIndex = -1;
+  }
+
+  $: if (scheduleResetX) {
+    scheduleResetX = false;
+    resetX();
+  }
 
   $: {
     const src = Array.isArray($filtered) ? $filtered : [];
@@ -90,46 +181,46 @@
       const dates = rows.map((r) => +r.date);
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
-
       start = minDate;
       end = maxDate;
-
-      const msWeek = 7 * 24 * 60 * 60 * 1000;
-      const spanWeeks = Math.max(1, Math.round((+end - +start) / msWeek));
-
       const viewportW =
         timelineContainer?.clientWidth ||
         sectionEl?.clientWidth ||
         (browser ? window.innerWidth : 1200);
-
+      const msWeek = 7 * 24 * 60 * 60 * 1000;
+      const spanWeeks = Math.max(1, Math.round((+end - +start) / msWeek));
       const density = rows.length / spanWeeks;
       const pxPerWeek = Math.min(
         40,
         Math.max(8, 20 / Math.max(0.5, Math.log10(density + 1)))
       );
-
       const byTime = spanWeeks * pxPerWeek;
       const byCount = rows.length * 80;
       const targetWidth = Math.max(viewportW, Math.min(byTime, byCount));
       timelineWidth = Math.min(10000, Math.round(targetWidth));
       totalWidth = leftPad + timelineWidth + rightPad;
-
-      const targetTicks = 15;
-      const approxStep = spanWeeks / targetTicks;
-      const candidates = [1, 2, 4, 8, 13, 26, 52, 104];
-      const stepWeeks = candidates.reduce(
-        (best, c) =>
-          Math.abs(c - approxStep) < Math.abs(best - approxStep) ? c : best,
-        candidates[0]
-      );
-
-      const stepMs = stepWeeks * msWeek;
       ticks = [];
-      for (let t = +start; t <= +end; t += stepMs) {
-        ticks.push(new Date(t));
+      const nTicks = Math.max(1, Math.floor(timelineWidth / tickPx));
+      for (let i = 0; i <= nTicks; i++) {
+        const x = leftPad + i * tickPx;
+        const frac = Math.min(1, Math.max(0, (x - leftPad) / timelineWidth));
+        const t = +end - frac * (+end - +start);
+        ticks.push({ x, d: new Date(t) });
       }
-      if (ticks.length === 0 || +ticks[ticks.length - 1] < +end)
-        ticks.push(new Date(+end));
+      const sig = makeRowsSig(rows);
+      if (browser && sig !== lastRowsSig) {
+        lastRowsSig = sig;
+        lastActiveIndex = -1;
+        updateVisible();
+      }
+    } else {
+      start = null;
+      end = null;
+      ticks = [];
+      lastRowsSig = "0";
+      visible = [];
+      visibleStart = 0;
+      visibleEnd = 0;
     }
   }
 
@@ -141,39 +232,40 @@
   function scrollToCenterForIndex(i) {
     if (!timelineContainer || !rows[i]) return;
     const x = normPos(rows[i].date);
-    const target = Math.max(0, x - 400);
-    timelineContainer.scrollTo({ left: target, behavior: "instant" });
+    const padd = $isMobile ? 10 : 400;
+    const target = Math.max(0, x - padd);
+    timelineContainer.scrollTo({ left: target, behavior: "auto" });
   }
 
-  let syncing = false;
   function syncFromTimeline() {
     if (!datesBar || !timelineContainer || syncing) return;
     syncing = true;
-    datesBar.scrollLeft = timelineContainer.scrollLeft;
+    const want = timelineContainer.scrollLeft;
+    if (Math.abs(datesBar.scrollLeft - want) > 1) datesBar.scrollLeft = want;
     syncing = false;
+    beginHScrollMonitor();
   }
+
   function syncFromBar() {
     if (!datesBar || !timelineContainer || syncing) return;
     syncing = true;
-    timelineContainer.scrollLeft = datesBar.scrollLeft;
+    const want = datesBar.scrollLeft;
+    if (Math.abs(timelineContainer.scrollLeft - want) > 1)
+      timelineContainer.scrollLeft = want;
     syncing = false;
-  }
-
-  function activeIndexFromScrollY() {
-    if (!rows.length) return 0;
-    const cursorY = window.scrollY + window.innerHeight / 2;
-    const rowsStartY = sectionTop + yOffset;
-    const rel = cursorY - rowsStartY;
-    const idx = Math.floor(rel / lineHeight);
-    return Math.max(0, Math.min(rows.length - 1, idx));
+    beginHScrollMonitor();
   }
 
   function rafSync() {
     rafId = null;
     if (!timelineContainer) return;
-    const idx = activeIndexFromScrollY();
-    scrollToCenterForIndex(idx);
-    if (datesBar) datesBar.scrollLeft = timelineContainer.scrollLeft;
+    updateVisible();
+    if (
+      datesBar &&
+      Math.abs(datesBar.scrollLeft - timelineContainer.scrollLeft) > 1
+    ) {
+      datesBar.scrollLeft = timelineContainer.scrollLeft;
+    }
   }
 
   function onWinScroll() {
@@ -185,25 +277,18 @@
     onWinScroll();
   }
 
-  let ro;
   onMount(() => {
     if (!browser) return;
-
     measureSectionTop();
-
-    if ("ResizeObserver" in window) {
-      ro = new ResizeObserver(onWinResize);
-      ro.observe(document.documentElement);
-    } else {
-      window.addEventListener("resize", onWinResize);
-    }
-
     timelineContainer?.addEventListener("scroll", syncFromTimeline, {
       passive: true,
     });
     datesBar?.addEventListener("scroll", syncFromBar, { passive: true });
     window.addEventListener("scroll", onWinScroll, { passive: true });
-
+    window.addEventListener("resize", onWinResize, { passive: true });
+    filteredUnsub = filtered.subscribe(async () => {
+      scheduleResetX = true;
+    });
     onWinScroll();
   });
 
@@ -213,8 +298,9 @@
     datesBar?.removeEventListener("scroll", syncFromBar);
     window.removeEventListener("scroll", onWinScroll);
     window.removeEventListener("resize", onWinResize);
-    if (ro) ro.disconnect();
     if (rafId !== null) cancelAnimationFrame(rafId);
+    if (hScrollRaf) cancelAnimationFrame(hScrollRaf);
+    if (filteredUnsub) filteredUnsub();
   });
 </script>
 
@@ -222,41 +308,41 @@
   {#if rows.length === 0}
     <p></p>
   {:else}
-    <div class="dates-bar" bind:this={datesBar} aria-hidden="false">
-      <svg width={totalWidth} height="36" class="dates-svg">
+    <div class="datesBar" bind:this={datesBar} aria-hidden="false">
+      <svg width={totalWidth} height="36" class="datesSvg">
         <g class="dates">
-          {#each ticks as d}
+          {#each ticks as t}
             <text
               class="date"
-              x={normPos(d)}
+              x={t.x}
               y={18}
               font-size={fontSize}
               dominant-baseline="middle"
-              text-anchor="start">{fmtDate(d)}</text
+              text-anchor="start">{fmtDate(t.d)}</text
             >
           {/each}
         </g>
       </svg>
     </div>
 
-    <div class="timeline-container" bind:this={timelineContainer}>
+    <div class="timelineContainer" bind:this={timelineContainer}>
       <svg width={totalWidth} height={yOffset + rows.length * lineHeight + 40}>
         <g class="dates">
-          {#each ticks as d}
+          {#each ticks as t}
             <line
-              x1={normPos(d)}
+              x1={t.x}
               y1={yOffset - 0.5 * lineHeight}
-              x2={normPos(d)}
+              x2={t.x}
               y2={yOffset + rows.length * lineHeight + 40}
             />
           {/each}
         </g>
         <g>
-          {#each rows as item, i}
+          {#each visible as item, i}
             <a href={item.url} target="_blank" rel="noopener">
               <text
                 x={normPos(item.date)}
-                y={yOffset + i * lineHeight + lineHeight / 2}
+                y={yOffset + (visibleStart + i) * lineHeight + lineHeight / 2}
                 font-size={fontSize}
                 dominant-baseline="middle"
                 text-anchor="start"
@@ -283,7 +369,7 @@
     min-height: 100vh;
     text-rendering: geometricPrecision;
   }
-  .dates-bar {
+  .datesBar {
     position: sticky;
     top: 0;
     background-color: black;
@@ -293,18 +379,17 @@
     height: 35px;
     will-change: scroll-position;
   }
-  .dates-bar::-webkit-scrollbar {
+  .datesBar::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
   }
-  .dates-bar svg {
+  .datesSvg {
     display: block;
   }
-  .timeline-container {
+  .timelineContainer {
     overflow: auto;
     flex-grow: 1;
-    scroll-behavior: smooth;
     will-change: scroll-position;
   }
   a:hover {
@@ -329,5 +414,6 @@
   line {
     stroke: var(--color-1);
     stroke-dasharray: 4 4;
+    shape-rendering: crispEdges;
   }
 </style>
