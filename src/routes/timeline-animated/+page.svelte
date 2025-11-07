@@ -388,7 +388,7 @@
         timelineLayer.textSize(18 * scale);
         timelineLayer.text(year, x, labelY);
 
-        const tickStartY = labelY + 22 * scale;
+        const tickStartY = labelY + 32 * scale;
         timelineLayer.push();
         timelineLayer.stroke(0, 0, 255);
         timelineLayer.strokeWeight(2 * scale);
@@ -495,7 +495,7 @@
   };
 </script>
 
-<Record />
+<!-- <Record /> -->
 <div class="viz-container">
   <P5 {sketch} style="position:absolute; top:0; left:0;" />
 </div>
