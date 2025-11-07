@@ -220,6 +220,7 @@
     position: relative;
     min-height: 100vh;
   }
+
   .bg {
     position: fixed;
     inset: 0;
@@ -243,6 +244,11 @@
     place-items: center;
     padding: 6vh 2vw;
   }
+  
+  .step:last-of-type {
+    min-height: 30vh;
+  }
+
   .step article {
     max-width: 70ch;
     margin: 0 auto;
