@@ -32,7 +32,7 @@
     "id": "patterns-glance",
     "media": {
       "type": "video",
-      "sources": [{ "src": "/scrolly/1.mp4", "type": "video/mp4" }],
+      "sources": [{ "src": "/scrolly/meldungen.mp4", "type": "video/mp4" }],
       "alt": "Overview of patterns"
     },
     "subtitle": {
@@ -55,11 +55,6 @@
       {
         "href": "/latest",
         "label": { "en": "Latest incidents", "de": "Neueste Meldungen" }
-      },
-      {
-        "href": "/stories",
-        "label": { "en": "Curated stories (soon)", "de": "Kuratierten Geschichten (bald)" },
-        "visible": false
       }
     ]
   }
