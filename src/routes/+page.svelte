@@ -1,9 +1,11 @@
 <script>
   import Scrollytelling from "$lib/components/Scrollytelling.svelte";
+  import Stories from "$lib/components/Stories.svelte";
   import { onMount } from "svelte";
   import * as d3 from "d3";
   import { articles, parseDateLoose, keywordsGroup } from "$lib/stores";
   import { lang } from "$lib/i18n";
+  export let data;
 
   onMount(async () => {
     if (Array.isArray($articles) && $articles.length) return;
@@ -196,3 +198,4 @@
 </script>
 
 <Scrollytelling src="/scenes.json" data={scrollyData} />
+<Stories {data} />
