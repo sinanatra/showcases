@@ -1,120 +1,112 @@
 <script>
-  import { onMount, onDestroy, tick } from "svelte";
-  import { fade } from "svelte/transition";
-  import { lang, setLang, availableLangs } from "$lib/i18n";
+  import { onMount, onDestroy, tick } from "svelte"
+  import { fade } from "svelte/transition"
+  import { lang, setLang, availableLangs } from "$lib/i18n"
+  import Stories from "$lib/components/Stories.svelte"
 
-  export let scenes = null;
-  export let src = null;
-  export let threshold = 0.6;
-  export let data = {};
+  export let scenes = null
+  export let src = null
+  export let threshold = 0.6
+  export let data = {}
+  export let storiesData = null
 
-  let active = 0;
-  let videoRef;
-  let status = "loading";
-  let errorMsg = "";
-  let observer;
-  let root;
+  let active = 0
+  let videoRef
+  let status = "loading"
+  let errorMsg = ""
+  let observer
+  let root
 
-  $: currentLang = $lang;
+  $: currentLang = $lang
 
-  function L(v, langCode) {
-    if (!v) return "";
-    if (typeof v === "string") return v;
-    return v?.[langCode] ?? v?.en ?? v?.de ?? "";
+  function l(v, langCode) {
+    if (!v) return ""
+    if (typeof v === "string") return v
+    return v?.[langCode] ?? v?.en ?? v?.de ?? ""
   }
 
   function fill(str, map) {
-    if (!str || typeof str !== "string") return str;
+    if (!str || typeof str !== "string") return str
     return str.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k) => {
-      const v = map?.[k];
-      return v === 0 || v ? String(v) : "—";
-    });
+      const v = map?.[k]
+      return v === 0 || v ? String(v) : "—"
+    })
   }
 
   $: localizedScenes = (scenes || []).map((s) => {
-    const _heading = fill(L(s.heading, currentLang), data);
-    const _subtitle = fill(L(s.subtitle, currentLang), data);
-    const _body = fill(L(s.body, currentLang), data);
-    const _cta = (s.cta || []).map((c) => ({
-      ...c,
-      _label: fill(L(c.label, currentLang), data),
-    }));
-    return { ...s, _heading, _subtitle, _body, _cta };
-  });
+    const _heading = fill(l(s.heading, currentLang), data)
+    const _subtitle = fill(l(s.subtitle, currentLang), data)
+    const _body = fill(l(s.body, currentLang), data)
+    const _cta = (s.cta || []).map((c) => ({ ...c, _label: fill(l(c.label, currentLang), data) }))
+    return { ...s, _heading, _subtitle, _body, _cta }
+  })
 
-  $: current = localizedScenes?.[active] ?? null;
-  $: isVideo = current?.media?.type === "video";
+  $: current = localizedScenes?.[active] ?? null
+  $: isVideo = current?.media?.type === "video"
 
   function handleEnded() {
-    if (!videoRef) return;
-    videoRef.pause();
+    if (!videoRef) return
+    videoRef.pause()
     setTimeout(() => {
       try {
-        videoRef.currentTime = 0;
-        videoRef.play();
+        videoRef.currentTime = 0
+        videoRef.play()
       } catch {}
-    }, 5000);
+    }, 5000)
   }
 
   function preloadImages(list) {
-    (list || []).forEach((s) => {
+    ;(list || []).forEach((s) => {
       if (s?.media?.type === "image" && s.media.src) {
-        const img = new Image();
-        img.src = s.media.src;
+        const img = new Image()
+        img.src = s.media.src
       }
-    });
+    })
   }
 
   async function initObserver() {
-    await tick();
-    const steps = Array.from(root.querySelectorAll(".step"));
-    observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            const idx = Number(e.target.dataset.index);
-            if (!Number.isNaN(idx)) active = idx;
-          }
-        });
-      },
-      { root: null, threshold }
-    );
+    await tick()
+    const steps = Array.from(root.querySelectorAll(".step"))
+    observer = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const idx = Number(e.target.dataset.index)
+          if (!Number.isNaN(idx)) active = idx
+        }
+      })
+    }, { root: null, threshold })
     steps.forEach((el, i) => {
-      el.dataset.index = String(i);
-      observer.observe(el);
-    });
+      el.dataset.index = String(i)
+      observer.observe(el)
+    })
   }
 
   onMount(async () => {
     try {
       if (!(Array.isArray(scenes) && scenes.length)) {
-        if (!src) throw new Error("No scenes provided");
-        const res = await fetch(src, { credentials: "same-origin" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        scenes = await res.json();
+        if (!src) throw new Error("No scenes provided")
+        const res = await fetch(src, { credentials: "same-origin" })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        scenes = await res.json()
       }
-      status = "ready";
-      active = 0;
-      preloadImages(scenes);
-      await initObserver();
-      await tick();
-      videoRef?.play?.().catch(() => {});
+      status = "ready"
+      active = 0
+      preloadImages(scenes)
+      await initObserver()
+      await tick()
+      videoRef?.play?.().catch(() => {})
     } catch (e) {
-      status = "error";
-      errorMsg = e?.message || String(e);
+      status = "error"
+      errorMsg = e?.message || String(e)
     }
-  });
+  })
 
-  onDestroy(() => observer?.disconnect());
+  onDestroy(() => observer?.disconnect())
 </script>
 
 <div class="lang-switch" aria-label="Language switcher">
   {#each availableLangs as l}
-    <button
-      class:active={$lang === l}
-      on:click={() => setLang(l)}
-      aria-pressed={$lang === l}
-    >
+    <button class:active={$lang === l} on:click={() => setLang(l)} aria-pressed={$lang === l}>
       {l.toUpperCase()}
     </button>
   {/each}
@@ -145,12 +137,7 @@
             {/if}
           </video>
         {:else if current?.media?.type === "image"}
-          <img
-            class="bg-media"
-            src={current.media?.src}
-            alt={current.media?.alt || ""}
-            transition:fade
-          />
+          <img class="bg-media" src={current.media?.src} alt={current.media?.alt || ""} transition:fade />
         {/if}
       {/key}
     {:else if status === "loading"}
@@ -166,29 +153,25 @@
     {:else}
       {#each localizedScenes as s, i}
         <section class="step" aria-label={"section-" + i}>
-          <article>
-            {#if s._heading}<h1>
-                <span class="line-bg">{s._heading}</span>
-              </h1>{/if}
-            {#if s._subtitle}<h2>
-                <span class="line-bg">{s._subtitle}</span>
-              </h2>{/if}
+          <article class:with-aside={s.embed === "stories"}>
+            {#if s._heading}<h1><span class="line-bg">{s._heading}</span></h1>{/if}
+            {#if s._subtitle}<h2><span class="line-bg">{s._subtitle}</span></h2>{/if}
             {#if s._body}<p><span class="line-bg">{s._body}</span></p>{/if}
             {#if s._cta?.length}
               <div class="links">
                 {#each s._cta as link}
-                  <a
-                    href={link.href}
-                    sveltekit:prefetch
-                    class:disabled={link.visible === false}
-                    aria-disabled={link.visible === false}
-                  >
+                  <a href={link.href} sveltekit:prefetch class:disabled={link.visible === false} aria-disabled={link.visible === false}>
                     <span class="line-bg">{link._label}</span>
                   </a>
                 {/each}
               </div>
             {/if}
           </article>
+          {#if s.embed === "stories"}
+            <aside class="aside">
+              <Stories data={storiesData} />
+            </aside>
+          {/if}
         </section>
       {/each}
     {/if}
@@ -220,7 +203,6 @@
     position: relative;
     min-height: 100vh;
   }
-
   .bg {
     position: fixed;
     inset: 0;
@@ -244,11 +226,6 @@
     place-items: center;
     padding: 6vh 2vw;
   }
-  
-  .step:last-of-type {
-    min-height: 30vh;
-  }
-
   .step article {
     max-width: 70ch;
     margin: 0 auto;
@@ -309,13 +286,31 @@
     background: var(--color-1);
     color: #000;
   }
-
-  a.disabled,
-  a.disabled span {
-    background-color: #444;
-    color: darkgray;
-    cursor: not-allowed;
-    pointer-events: none;
-    text-decoration: none;
+  .step.with-aside {
+    min-height: 60vh;
+  }
+  .step.with-aside article {
+    max-width: 48ch;
+  }
+  .step.with-aside {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .aside {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  @media (min-width: 960px) {
+    .step.with-aside {
+      grid-template-columns: 1fr 1fr;
+    }
+    .step.with-aside article {
+      align-items: flex-start;
+      text-align: left;
+    }
   }
 </style>
