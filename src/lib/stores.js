@@ -377,7 +377,7 @@ export const filteredData = derived(
 
 export const record = writable(false);
 
-const GENDER_LABELS = {
+export const GENDER_LABELS = {
   en: {
     "Adult Female": "Adult Female",
     "Adult Male": "Adult Male",
@@ -392,7 +392,7 @@ const GENDER_LABELS = {
   },
 };
 
-const TIME_LABELS = {
+export const TIME_LABELS = {
   en: {
     Morning: "Morning",
     Afternoon: "Afternoon",

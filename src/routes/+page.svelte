@@ -1,41 +1,38 @@
 <script>
+  import {
+    GENDER_LABELS,
+    TIME_LABELS,
+    articles,
+    parseDateLoose,
+    keywordsGroup,
+  } from "$lib/stores";
   import Scrollytelling from "$lib/components/Scrollytelling.svelte";
-  import Stories from "$lib/components/Stories.svelte";
   import { onMount } from "svelte";
   import * as d3 from "d3";
-  import { articles, parseDateLoose, keywordsGroup } from "$lib/stores";
   import { lang } from "$lib/i18n";
   export let data;
 
   onMount(async () => {
     if (Array.isArray($articles) && $articles.length) return;
-
     const raw = await d3.csv("/all_merged.csv");
     articles.set(
       raw.map((d) => ({
         ...d,
-
-        ExtractedGender: Array.isArray(d.ExtractedGender)
-          ? d.ExtractedGender
-          : (d.ExtractedGender || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
-        ExtractedTime: Array.isArray(d?.ExtractedTime)
-          ? d.ExtractedTime
-          : (d.ExtractedTime || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
-        KeywordMatch: Array.isArray(d.KeywordMatch)
-          ? d.KeywordMatch
-          : (d.KeywordMatch || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
+        ExtractedGender: (d.ExtractedGender || "")
+          .replace(/[\[\]'"]/g, "")
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+        ExtractedTime: (d.ExtractedTime || "")
+          .replace(/[\[\]'"]/g, "")
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+        KeywordMatch: (d.KeywordMatch || "")
+          .replace(/[\[\]'"]/g, "")
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
         Text: d.Text || "",
         URL: d.URL || "",
         Title: d.Title || "",
@@ -60,19 +57,14 @@
       return "Brandenburg";
     return "";
   }
+
   function timeCluster(h) {
-    if (h >= 6 && h < 12) return "morning";
-    if (h >= 12 && h < 18) return "afternoon";
-    if (h >= 18 && h < 24) return "evening";
-    return "night";
+    if (h >= 6 && h < 12) return "Morning";
+    if (h >= 12 && h < 18) return "Afternoon";
+    if (h >= 18 && h < 24) return "Evening";
+    return "Night";
   }
-  const genderMap = {
-    frau: "adult female",
-    mann: "adult male",
-    junge: "youth",
-    mädchen: "youth",
-    jugendliche: "youth",
-  };
+
   const canonicalKeyword = (k) =>
     keywordsGroup[String(k || "").toLowerCase()] || String(k || "");
 
@@ -119,8 +111,12 @@
           ? [a.ExtractedGender]
           : [];
       for (const g of gs) {
-        const label = genderMap[String(g).toLowerCase()] || "Other";
-        m.set(label, (m.get(label) || 0) + 1);
+        // store already defines canonical mapping through GENDER_LABELS
+        const key =
+          Object.keys(GENDER_LABELS.en).find((k) =>
+            k.toLowerCase().includes(String(g).toLowerCase())
+          ) || "Other";
+        m.set(key, (m.get(key) || 0) + 1);
       }
     }
     return m;
@@ -164,6 +160,9 @@
   $: topYear = topOf(yearCounts, "—");
   $: topKeyword = topOf(keywordCounts);
 
+  $: topTimeLabel = TIME_LABELS[$lang]?.[topTime.key] ?? topTime.key;
+  $: topGenderLabel = GENDER_LABELS[$lang]?.[topGender.key] ?? topGender.key;
+
   $: scrollyData = withDates.length
     ? {
         firstDate: fmtDate(firstDate),
@@ -171,9 +170,9 @@
         totalAll: fmtNum(withDates.length),
         berlinCount: fmtNum(berlinCount),
         brandenburgCount: fmtNum(brandenburgCount),
-        topTimeLabel: topTime.key,
+        topTimeLabel,
         topTimeCount: fmtNum(topTime.value),
-        topGenderLabel: topGender.key,
+        topGenderLabel,
         topGenderCount: fmtNum(topGender.value),
         topYear: topYear.key,
         topYearCount: fmtNum(topYear.value),
@@ -197,5 +196,4 @@
       };
 </script>
 
-<Scrollytelling src="/scenes.json" data={scrollyData} />
-<Stories {data} />
+<Scrollytelling src="/scenes.json" data={scrollyData} storiesData={data} />
