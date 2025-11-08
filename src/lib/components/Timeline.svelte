@@ -2,6 +2,7 @@
   import { filtered, isMobile } from "$lib/stores";
   import { onMount, onDestroy, tick } from "svelte";
   import { browser } from "$app/environment";
+  import { lang, setLang, availableLangs } from "$lib/i18n";
 
   const lineHeight = 12;
   const fontSize = Math.round(lineHeight * 0.9);
@@ -52,12 +53,16 @@
     };
   }
 
-  const fmtDate = (d) =>
-    d.toLocaleDateString("de-DE", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+  let fmtDate;
+  $: {
+    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    fmtDate = (d) =>
+      d.toLocaleDateString(locale, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+  }
 
   let rows = [];
   let start = null;
