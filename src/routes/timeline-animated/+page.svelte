@@ -69,7 +69,7 @@
     }
 
     p.preload = () => {
-      p.dataTable = p.loadTable("all_merged.csv", "csv", "header");
+      p.dataTable = p.loadTable("/all_merged.csv", "csv", "header");
     };
 
     function shorten(text, maxLen = 300) {
