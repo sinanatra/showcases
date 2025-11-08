@@ -11,7 +11,7 @@
       "de": "Rekodierung des Rechtsextremismus"
     },
     "body": {
-      "en": "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of xenophobic, transphobic and homophobic violence, as well as right-wing extremism in Germany.",
+      "en": "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of xenophobic, transphobic, and homophobic violence, as well as right-wing extremism in Germany.",
       "de": "Showcases ist eine datengetriebene Recherche, die Polizeimeldungen zu politisch motivierter Kriminalität visualisiert und die zunehmende Normalisierung von fremdenfeindlicher, trans- und homofeindlicher Gewalt sowie von Rechtsextremismus in Deutschland sichtbar macht."
     }
   },
@@ -23,7 +23,7 @@
       "sources": [{ "src": "/scrolly/timeline.mp4", "type": "video/mp4" }]
     },
     "subtitle": {
-      "en": "From {{firstDate}} to {{lastDate}} we logged {{totalAll}} police reports: {{berlinCount}} in Berlin and {{brandenburgCount}} in Brandenburg.",
+      "en": "From {{firstDate}} to {{lastDate}} we recorded {{totalAll}} police reports: {{berlinCount}} in Berlin and {{brandenburgCount}} in Brandenburg.",
       "de": "Von {{firstDate}} bis {{lastDate}} haben wir {{totalAll}} Polizeimeldungen erfasst: {{berlinCount}} in Berlin und {{brandenburgCount}} in Brandenburg."
     }
   },
@@ -35,7 +35,12 @@
       "sources": [{ "src": "/scrolly/meldungen.mp4", "type": "video/mp4" }],
       "alt": "Overview of patterns"
     },
+
     "subtitle": {
+      "en": "The material traces recurring scenes: swastikas on walls of mosques, synagogues and schools; a 14-year-old girl having her hijab torn off; cashiers confronted with Hitler salutes. Far from isolated events, these incidents expose the normalization of hatred and the erosion of democratic norms.",
+      "de": "Das Material zeichnet sich wiederholende Szenen ab: Hakenkreuze an den Wänden von Moscheen, Synagogen und Schulen, einem 14-jährigen Mädchen wird das Kopftuch heruntergerissen, Kassierer*innen werden mit Hitlergrüßen konfrontiert. Weit entfernt von Einzelfällen zeigen diese Vorfälle die Normalisierung von Hass und die Erosion demokratischer Normen."
+    },
+    "body": {
       "en": "Most entries occur at {{topTimeLabel}} ({{topTimeCount}}); the most-cited mention category is {{topGenderLabel}} ({{topGenderCount}}); and {{topYear}} currently has the highest count ({{topYearCount}}).",
       "de": "Die meisten Einträge fallen in {{topTimeLabel}} ({{topTimeCount}}); am häufigsten erwähnt wird {{topGenderLabel}} ({{topGenderCount}}); und {{topYear}} verzeichnet derzeit die höchste Anzahl ({{topYearCount}})."
     }
@@ -58,8 +63,8 @@
       "sources": [{ "src": "/scrolly/2.mp4", "type": "video/mp4" }]
     },
     "subtitle": {
-      "en": "Browse the latest entries or explore the full data.",
-      "de": "Stöbere in den neuesten Einträgen oder erkunde alle Daten."
+      "en": "Browse the latest entries or explore the full dataset to trace patterns of hate and exclusion over time.",
+      "de": "Stöbere in den neuesten Einträgen oder erkunde den gesamten Datensatz, um Muster von Hass und Ausgrenzung im Laufe der Zeit nachzuverfolgen."
     },
     "cta": [
       {
@@ -68,7 +73,7 @@
       },
       {
         "href": "/timeline",
-        "label": { "en": "Full data", "de": "Alle Daten" }
+        "label": { "en": "Full data", "de": "Gesamter Datensatz" }
       }
     ]
   }
