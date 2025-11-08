@@ -25,6 +25,10 @@
     "subtitle": {
       "en": "From {{firstDate}} to {{lastDate}} we recorded {{totalAll}} police reports: {{berlinCount}} in Berlin and {{brandenburgCount}} in Brandenburg.",
       "de": "Von {{firstDate}} bis {{lastDate}} haben wir {{totalAll}} Polizeimeldungen erfasst: {{berlinCount}} in Berlin und {{brandenburgCount}} in Brandenburg."
+    },
+    "body": {
+      "en": "Far from isolated events, these incidents expose the normalization of hatred and the erosion of democratic norms.",
+      "de": "Weit entfernt von Einzelfällen zeigen diese Vorfälle die Normalisierung von Hass und die Erosion demokratischer Normen."
     }
   },
 
@@ -37,8 +41,8 @@
     },
 
     "subtitle": {
-      "en": "The material traces recurring scenes: swastikas on walls of mosques, synagogues and schools; a 14-year-old girl having her hijab torn off; cashiers confronted with Hitler salutes. Far from isolated events, these incidents expose the normalization of hatred and the erosion of democratic norms.",
-      "de": "Das Material zeichnet sich wiederholende Szenen ab: Hakenkreuze an den Wänden von Moscheen, Synagogen und Schulen, einem 14-jährigen Mädchen wird das Kopftuch heruntergerissen, Kassierer*innen werden mit Hitlergrüßen konfrontiert. Weit entfernt von Einzelfällen zeigen diese Vorfälle die Normalisierung von Hass und die Erosion demokratischer Normen."
+      "en": "The material traces recurring scenes: swastikas on walls of mosques, synagogues and schools; a 14-year-old girl having her hijab torn off; cashiers confronted with Hitler salutes.",
+      "de": "Das Material zeichnet sich wiederholende Szenen ab: Hakenkreuze an den Wänden von Moscheen, Synagogen und Schulen, einem 14-jährigen Mädchen wird das Kopftuch heruntergerissen, Kassierer*innen werden mit Hitlergrüßen konfrontiert."
     },
     "body": {
       "en": "Most entries occur at {{topTimeLabel}} ({{topTimeCount}}); the most-cited mention category is {{topGenderLabel}} ({{topGenderCount}}); and {{topYear}} currently has the highest count ({{topYearCount}}).",
@@ -48,10 +52,14 @@
 
   {
     "id": "source-context",
-    "media": null,
+    "media": {
+      "type": "image",
+      "src": "/scrolly/bias.png",
+      "alt": "Source limitations and bias"
+    },
     "subtitle": {
-      "en": "The data is drawn from official police reports, showing what is recorded, and what is left out. Because the source has its own perspective, we offer curated views that add context and recurring narratives.",
-      "de": "Die Daten stammen aus offiziellen Polizeimeldungen und zeigen, was dokumentiert wird, und was nicht. Da die Quelle eine eigene Perspektive hat, bieten wir kuratierte Ansichten an, die Kontext und wiederkehrende Narrative sichtbar machen."
+      "en": "The data is drawn from official police reports, showing what is recorded, and what is left out. Because the source has its own perspective, we offer curated views that add context.",
+      "de": "Die Daten stammen aus offiziellen Polizeimeldungen und zeigen, was dokumentiert wird, und was nicht. Da die Quelle eine eigene Perspektive hat, bieten wir kuratierte Ansichten an, die Kontext sichtbar machen."
     },
     "embed": "stories"
   },
