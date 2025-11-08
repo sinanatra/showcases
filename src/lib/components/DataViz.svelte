@@ -102,18 +102,7 @@
       day: "numeric",
     }).format(d);
   }
-  function spanFor(list) {
-    if (!Array.isArray(list) || !list.length) return null;
-    let start = null,
-      end = null;
-    for (const a of list) {
-      const d = parseDateLoose(a?.ExtractedDate || a?.Date);
-      if (!d || isNaN(+d)) continue;
-      if (!start || d < start) start = d;
-      if (!end || d > end) end = d;
-    }
-    return start && end ? { start, end } : null;
-  }
+ 
   function sameDay(a, b) {
     if (!a || !b) return false;
     return (
@@ -129,13 +118,6 @@
     return `${fmtDate(start)} ${t(toKeyStr)} ${fmtDate(end)}`;
   }
 
-  $: totalFiltered = vizData.length;
-  $: totalRecent = $recent.length;
-  $: totalAll = $articles.length;
-
-  $: spanFiltered = spanFor(vizData);
-  $: spanTotal = spanFor($articles);
-
   let lastActivity = Date.now();
   let cycling = false;
   let cycles = 0;
@@ -150,15 +132,6 @@
   function setKeywordFilter(val) {
     markActivity();
     filters.update((f) => ({ ...f, keyword: val }));
-  }
-  function setTextFilter(val) {
-    markActivity();
-    const q = String(val || "").trim();
-    filters.update((f) => ({ ...f, text: q.length >= 3 ? q : "" }));
-  }
-  function setShowOnlyLatest(val) {
-    markActivity();
-    filters.update((f) => ({ ...f, showOnlyLatest: val }));
   }
 
   let tickHandle = null;
@@ -321,6 +294,7 @@
     tooltipX = 0,
     tooltipY = 0,
     hoveredHitbox = null;
+
   function setTooltip(text, url, x, y, keywords = [], date = "", title = "") {
     hoveredText = text || "";
     hoveredUrl = url || "";
@@ -329,6 +303,7 @@
     tooltipY = y || 0;
     hoveredHitbox = { keywords: keywords || [], date };
   }
+  
   function shorten(text, maxLen = 300) {
     if (!text) return "";
     if (text.length <= maxLen) return text;
@@ -336,7 +311,7 @@
     if (cut === -1) cut = maxLen;
     return text.slice(0, cut) + "…";
   }
-  function shortenAroundKeyword(text, keyword, maxLen = 200) {
+  function shortenAroundKeyword(text, keyword, maxLen = 120) {
     if (!text) return "";
     const k = String(keyword || "").trim();
     if (!k) return shorten(text, maxLen);
@@ -394,11 +369,11 @@
     const data = vizData;
     const params = () => growthParams[growthMode] || growthParams.fungal;
     const scale = 0.75,
-      segmentLength = 8 * scale,
+      segmentLength = 10 * scale,
       widthBucket = 100 * scale,
-      ltrSpacing = 8 * scale;
+      ltrSpacing = 10 * scale;
     const charCache = new Map();
-    const maxCache = 500;
+    const maxCache = 1000;
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
