@@ -40,21 +40,35 @@
       "de": "Die meisten Einträge fallen in {{topTimeLabel}} ({{topTimeCount}}); am häufigsten erwähnt wird {{topGenderLabel}} ({{topGenderCount}}); und {{topYear}} verzeichnet derzeit die höchste Anzahl ({{topYearCount}})."
     }
   },
+
+  {
+    "id": "source-context",
+    "media": null,
+    "subtitle": {
+      "en": "The data is drawn from official police reports, showing what is recorded, and what is left out. Because the source has its own perspective, we offer curated views that add context and recurring narratives.",
+      "de": "Die Daten stammen aus offiziellen Polizeimeldungen und zeigen, was dokumentiert wird, und was nicht. Da die Quelle eine eigene Perspektive hat, bieten wir kuratierte Ansichten an, die Kontext und wiederkehrende Narrative sichtbar machen."
+    },
+    "embed": "stories"
+  },
+
   {
     "id": "explore-data",
     "media": {
       "type": "video",
       "sources": [{ "src": "/scrolly/2.mp4", "type": "video/mp4" }]
     },
-
     "subtitle": {
-      "en": "Browse the latest entries or the curated stories.",
-      "de": "Stöbere in den neuesten Einträgen oder den kuratierten Geschichten."
+      "en": "Browse the latest entries or explore the full data.",
+      "de": "Stöbere in den neuesten Einträgen oder erkunde alle Daten."
     },
     "cta": [
       {
         "href": "/latest",
         "label": { "en": "Latest incidents", "de": "Neueste Meldungen" }
+      },
+      {
+        "href": "/timeline",
+        "label": { "en": "Full data", "de": "Alle Daten" }
       }
     ]
   }
