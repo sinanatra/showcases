@@ -55,7 +55,7 @@ export const canonicalKeywords = [
   "queerfeindlichkeit",
 ];
 
-const genderMap = {
+export const genderMap = {
   frau: "Adult Female",
   mann: "Adult Male",
   junge: "Youth",
