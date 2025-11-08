@@ -2,6 +2,7 @@
   import {
     GENDER_LABELS,
     TIME_LABELS,
+    genderMap,
     articles,
     parseDateLoose,
     keywordsGroup,
@@ -111,12 +112,8 @@
           ? [a.ExtractedGender]
           : [];
       for (const g of gs) {
-        // store already defines canonical mapping through GENDER_LABELS
-        const key =
-          Object.keys(GENDER_LABELS.en).find((k) =>
-            k.toLowerCase().includes(String(g).toLowerCase())
-          ) || "Other";
-        m.set(key, (m.get(key) || 0) + 1);
+        const normalized = genderMap[String(g).toLowerCase()] || "Other";
+        m.set(normalized, (m.get(normalized) || 0) + 1);
       }
     }
     return m;
