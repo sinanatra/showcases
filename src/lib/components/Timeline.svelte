@@ -102,7 +102,7 @@
       hScrollSettleFrames = 0;
       hScrollLast = cur;
     }
-    if (hScrollSettleFrames >= 3) {
+    if (hScrollSettleFrames >= 1) {
       hScrollActive = false;
       hScrollRaf = 0;
       return;
