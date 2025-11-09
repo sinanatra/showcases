@@ -55,7 +55,7 @@
         videoRef.currentTime = 0;
         videoRef.play();
       } catch {}
-    }, 5000);
+    }, 50);
   }
 
   function preloadImages(list) {
