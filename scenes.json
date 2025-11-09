@@ -68,7 +68,7 @@
     "id": "explore-data",
     "media": {
       "type": "video",
-      "sources": [{ "src": "/scrolly/2.mp4", "type": "video/mp4" }]
+      "sources": [{ "src": "/scrolly/all.mp4", "type": "video/mp4" }]
     },
     "subtitle": {
       "en": "Browse the latest entries or explore the full dataset to trace patterns of hate and exclusion over time.",
