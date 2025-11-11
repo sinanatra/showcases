@@ -326,7 +326,6 @@
   }
   .aside {
     width: 100%;
-    max-width: 720px;
     margin: 0 auto;
   }
   @media (min-width: 960px) {

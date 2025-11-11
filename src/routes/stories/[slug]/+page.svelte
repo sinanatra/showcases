@@ -92,15 +92,28 @@
   :global(.story h5),
   :global(.story p) {
     margin-bottom: 1rem;
+    font-weight: 400;
+  }
+  :global(.story p)  {
+    text-indent: 2em;
   }
 
+  :global(.story h1) {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+  }
+
+  :global(.story a) {
+    color: var(--color-1);
+  }
   .caption {
     display: flex;
     justify-content: flex-end;
     color: #aaa;
-    font-size: 0.75rem;
-    line-height: 0.75rem;
+    font-size: 0.8rem;
+    line-height: 0.8rem;
     text-align: right;
+    font-style: italic;
   }
 
   .caption p {
