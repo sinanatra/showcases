@@ -41,7 +41,8 @@
         <a class="slide" href={`/stories/${toSlug(d)}`}>
           <div class="content">
             <h2 class="title">{titleOf(d)}</h2>
-            {#if excerptOf(d)}<p class="excerpt">{excerptOf(d)}</p>{/if}
+            {#if excerptOf(d)}
+              <p class="excerpt">{excerptOf(d)}</p>{/if}
           </div>
         </a>
       {/each}
@@ -105,8 +106,8 @@
     font-family: "Courier New", Courier, monospace;
 
     margin: 0;
-    font-size: 1rem;
-    line-height: 1.4;
+    font-size: .8rem;
+    line-height: .9rem;
   }
   .nav {
     position: absolute;
