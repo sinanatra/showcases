@@ -58,9 +58,8 @@
     font-family: Arial, Helvetica, sans-serif;
     position: relative;
     width: 100%;
-    max-width: 640px;
     margin: 0 auto;
-    padding: 0 2rem;
+    /* padding: 0 2rem; */
     z-index: 1000;
     margin-bottom: 100px;
   }
@@ -78,8 +77,12 @@
   .slide {
     scroll-snap-align: start;
     display: flex;
+    margin: 5px;
+    /* max-width: 340px; */
+    /* width: 100%; */
     /* align-items: center; */
     /* justify-content: center; */
+
     background: black;
 
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -95,7 +98,7 @@
     display: flex;
     flex-direction: column;
     /* justify-content: center; */
-    max-width: 60ch;
+    /* max-width: 60ch; */
   }
   .title {
     font-size: 1.4rem;
@@ -106,8 +109,8 @@
     font-family: "Courier New", Courier, monospace;
 
     margin: 0;
-    font-size: .8rem;
-    line-height: .9rem;
+    font-size: 0.8rem;
+    line-height: 0.9rem;
   }
   .nav {
     position: absolute;
