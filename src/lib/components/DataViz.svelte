@@ -23,6 +23,7 @@
   export let tickMs = 5000;
   export let maxCyclesProp = 2;
   export let growthMode = "chaos";
+  export let growthModeFixed = false;
 
   function normalizeUrl(u) {
     let s = String(u || "").trim();
@@ -282,7 +283,7 @@
     ...($filters.text ? [$filters.text] : []),
   ].filter(Boolean);
 
-  $: if (dataSig) {
+  $: if (dataSig && growthModeFixed == false) {
     growthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
   }
 

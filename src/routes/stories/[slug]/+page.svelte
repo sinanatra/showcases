@@ -50,7 +50,13 @@
 {#if datum}
   <section class="viz">
     {#if viz}
-      <DataViz {urls} growthMode={viz} noZoom autoCycle={loop} />
+      <DataViz
+        {urls}
+        growthMode={viz}
+        noZoom
+        autoCycle={loop}
+        growthModeFixed="true"
+      />
     {/if}
   </section>
 
