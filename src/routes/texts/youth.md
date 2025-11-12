@@ -5,6 +5,7 @@ excerpt: "In 339 of 2.111 police reports, persons aged 18 or younger are involve
 In this deep dive, we trace the realities of minors in times of rising extremism— highlighting their role as objects of violence as well as the growing momentum of their radicalization."
 caption: "The visualisation shows all reports that mention the involvement of people aged 18 or below, from 2019 to October 2025"
 viz: fungal
+loop: true
 isPublic: true
 urls: 
     - https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1588704.php
