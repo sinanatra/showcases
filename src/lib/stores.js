@@ -65,7 +65,7 @@ export const genderMap = {
 
 export const articles = writable([]);
 
-export const filters = writable({
+const filterDefaults = {
   district: "",
   keyword: "",
   gender: "",
@@ -75,7 +75,13 @@ export const filters = writable({
   region: "",
   yearMin: null,
   yearMax: null,
-});
+};
+
+export function createFilterState(overrides = {}) {
+  return { ...filterDefaults, ...overrides };
+}
+
+export const filters = writable(createFilterState());
 
 export const yearsExtent = derived(articles, ($articles) => {
   let min = Infinity,
