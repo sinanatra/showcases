@@ -285,10 +285,6 @@
   onMount(() => {
     if (!browser) return;
     measureSectionTop();
-    timelineContainer?.addEventListener("scroll", syncFromTimeline, {
-      passive: true,
-    });
-    datesBar?.addEventListener("scroll", syncFromBar, { passive: true });
     window.addEventListener("scroll", onWinScroll, { passive: true });
     window.addEventListener("resize", onWinResize, { passive: true });
     filteredUnsub = filtered.subscribe(async () => {
@@ -299,8 +295,6 @@
 
   onDestroy(() => {
     if (!browser) return;
-    timelineContainer?.removeEventListener("scroll", syncFromTimeline);
-    datesBar?.removeEventListener("scroll", syncFromBar);
     window.removeEventListener("scroll", onWinScroll);
     window.removeEventListener("resize", onWinResize);
     if (rafId !== null) cancelAnimationFrame(rafId);
@@ -313,7 +307,12 @@
   {#if rows.length === 0}
     <p></p>
   {:else}
-    <div class="datesBar" bind:this={datesBar} aria-hidden="false">
+    <div
+      class="datesBar"
+      bind:this={datesBar}
+      aria-hidden="false"
+      on:scroll|passive={syncFromBar}
+    >
       <svg width={totalWidth} height="36" class="datesSvg">
         <g class="dates">
           {#each ticks as t}
@@ -330,7 +329,11 @@
       </svg>
     </div>
 
-    <div class="timelineContainer" bind:this={timelineContainer}>
+    <div
+      class="timelineContainer"
+      bind:this={timelineContainer}
+      on:scroll|passive={syncFromTimeline}
+    >
       <svg width={totalWidth} height={yOffset + rows.length * lineHeight + 40}>
         <g class="dates">
           {#each ticks as t}
