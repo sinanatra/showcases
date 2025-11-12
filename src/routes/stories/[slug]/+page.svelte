@@ -14,6 +14,7 @@
   $: urls = datum?.meta?.urls ?? [];
   $: caption = datum?.meta?.caption ?? "";
   $: viz = datum?.meta?.viz ?? "";
+  $: loop = datum?.meta?.loop ?? false;
 
   onMount(async () => {
     const raw = await d3.csv("/all_merged.csv");
@@ -49,7 +50,7 @@
 {#if datum}
   <section class="viz">
     {#if viz}
-      <DataViz {urls} growthMode={viz} noZoom />
+      <DataViz {urls} growthMode={viz} noZoom autoCycle={loop} />
     {/if}
   </section>
 
