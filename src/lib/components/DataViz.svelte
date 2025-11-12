@@ -374,7 +374,7 @@
       widthBucket = 100 * scale,
       ltrSpacing = 10 * scale;
     const charCache = new Map();
-    const maxCache = 10000;
+    const maxCache = 5000;
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
@@ -746,7 +746,8 @@
                 date: br.date,
                 title: br.title,
               });
-              if (letterHitboxes.length > 4000) letterHitboxes.splice(0, 1000);
+              // cap here
+              if (letterHitboxes.length > 20000) letterHitboxes.splice(0, 20000);
             }
             br.lastPlacedCharIndex = ci;
             ci++;
