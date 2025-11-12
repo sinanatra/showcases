@@ -374,7 +374,7 @@
       widthBucket = 100 * scale,
       ltrSpacing = 10 * scale;
     const charCache = new Map();
-    const maxCache = 1000;
+    const maxCache = 10000;
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
