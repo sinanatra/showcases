@@ -3,7 +3,7 @@ title: "Youth Cases"
 date: "2025-10-10"
 excerpt: "In 339 of 2.111 police reports persons aged 18 or younger are involved – either as offenders or as victims. They operate in groups, and are individually targeted by aggression. They share right-extremist and racist claims, and are devalued by them."
 caption: "The visualisation shows all reports that mention the involvement of people aged 18 or below, from 2019 to October 2025"
-
+viz: fungal
 isPublic: true
 urls:
   [
@@ -196,7 +196,7 @@ Beyond these numbers, the reports provide insights into how youth are portrayed 
 
 In Berlin, for example, teenage girls wearing headscarves are targeted by racist attacks. The garment becomes a visual anchor for the projection of aggression and social tension. Violent attempts are made to tear it off from the girls’ heads. Attacked by adults, male and female, the religious symbol is utilized for hate. A case involving two girls aged 14 and 16 illustrates the dangers that teenagers wearing headscarves face:  
 
->“*According to current findings, two unknown individuals approached them from behind and pulled on their headscarves. This tore the 14-year-old's headscarf. In the ensuing scuffle, the attackers allegedly struck both girls in the face. Furthermore, one of the men pulled out a pocket knife and inflicted a superficial cut on the 16-year-old's arm.*” (Police Berlin 2025; Translated from German)
+> “According to current findings, two unknown individuals approached them from behind and pulled on their headscarves. This tore the 14-year-old's headscarf. In the ensuing scuffle, the attackers allegedly struck both girls in the face. Furthermore, one of the men pulled out a pocket knife and inflicted a superficial cut on the 16-year-old's arm.” (Police Berlin 2025; Translated from German)
 
 Similarly, children are often verbally abused, spat on, pushed or hit. These incidents occur in Berlin and Brandenburg alike, on playgrounds and in public transportation. The offenders are not always adults; minors, too, often seize opportunities to harass those perceived as weaker. They mostly act in group constellations. At a bus stop in Bad Saarow, Brandenburg, for example, a 10-year-old Namibian boy was enveloped in cigarette smoke, racially abused and physically attacked by two teenage girls of around 17 years. The following day, the minors met again and a 10-year-old German girl and peer of the victim was physically punished, too, presumably for being with the boy (Police Brandenburg 2025). 
 
@@ -204,7 +204,7 @@ When minors of color become targets, even places of leisure activities can becom
 
 In Berlin, Lichtenberg, a 9-year-old boy was racially insulted, spat on, punched and kicked by two other boys. They pushed the boy against a fence and kicked a football into his face (Police Berlin 2025). Another violent conflict between same aged actors is portrayed in this example from Strausberg, Brandenburg:
 
->“*In the evening hours of 5 October 2024, two apparent youths insulted a young footballer who was accompanied by two teammates in the sports and recreation park and repeatedly threw pyrotechnics in the direction of the footballers. [...] Police officers launched investigations into attempted grievous bodily harm, insult and incitement to hatred, which will be handled by the police state security department.*” (Police Brandenburg 2024; Translated from German)
+> “In the evening hours of 5 October 2024, two apparent youths insulted a young footballer who was accompanied by two teammates in the sports and recreation park and repeatedly threw pyrotechnics in the direction of the footballers. [...] Police officers launched investigations into attempted grievous bodily harm, insult and incitement to hatred, which will be handled by the police state security department.” (Police Brandenburg 2024; Translated from German)
 
 This example from the Brandenburg police is written in a somewhat standardized language, which emphasizes the investigation by the police state security – something that is usually documented in the Berlin police reports, but an exception for reports from Brandenburg. 
 The regional comparison of both state police departments reveals a clear difference in how minors appear in police reports. In Berlin, they are predominantly positioned in the role of victims (56 percent), whereas in Brandenburg the majority of youth is described as perpetrators (63 percent). This contrast does not necessarily align with the actual amount of youth involvement in politically motivated crimes in these two federal states (the criminal statistics of Brandenburg do not indicate the number of youth offenses), but could give a glimpse into the distinct public relations cultures of German state police departments.
@@ -212,7 +212,7 @@ The regional comparison of both state police departments reveals a clear differe
 For example, of all reported incidents with youth involvement, 29 cases refer to the painting of a swastika (“Hakenkreuz”). The majority (28) of these crimes are reported in Brandenburg, while only one case is documented in Berlin police reports. On the other hand, of the 24 reports that address antisemitism, the majority (23) is reported in Berlin, and only once in Brandenburg. This suggests reporting priorities rather than actual incident rates. 
 One could assume that antisemitic cases may be more visible in Berlin due to its larger Muslim community and the renewed escalation of the Israel-Palestine conflict since the Hamas attack of 7 October 2023, which led to Israeli bombardments of Gaza and the killing of tens of thousands of Palestinians. Since autumn 2023, a rise in antisemitic crimes has been recorded, accompanied by increased policing of pro-palestinian supporters – even peaceful ones. While there certainly are incidents of islamic antisemitism, right-wing extremists still play a crucial role in threatening jews in Germany, as this report from Berlin shows: 
 
->“*The unknown man ordered the teenager to look at the ground and threatened to hit him if he looked up. The man then said that he was a National Socialist and made antisemitic insults towards the teenager.*” (Police Berlin 2020; Translated from German)
+> “The unknown man ordered the teenager to look at the ground and threatened to hit him if he looked up. The man then said that he was a National Socialist and made antisemitic insults towards the teenager.” (Police Berlin 2020; Translated from German)
 
 The way hate-motivated offenses are portrayed in relation to Jewish life in Berlin is similar to the presence of LGBTQ people in police reports involving youth. The minors in these cases take both roles, of the victims and the perpetrators (against jews or queers). All of the 58 homo-, trans- and queerphobic cases are documented in Berlin. While the reports almost never indicate a political or religious background, the reports significantly show that young male adolescents are the primary perpetrators. This points more to issues with patriarchal structures and wounded masculinity than to a distinct political or religious ideology. 
 
