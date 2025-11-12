@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import {
     filters,
+    createFilterState,
     articles,
     availableKeywordsLabeled,
     recent,
@@ -39,7 +40,11 @@
   }
   function setShowOnlyLatest(val) {
     markActivity();
-    filters.update((f) => ({ ...f, showOnlyLatest: val }));
+    if (val) {
+      filters.set(createFilterState({ showOnlyLatest: true }));
+    } else {
+      filters.update((f) => ({ ...f, showOnlyLatest: false }));
+    }
   }
 
   onMount(() => {
