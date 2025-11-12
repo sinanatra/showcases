@@ -48,7 +48,9 @@
 
 {#if datum}
   <section class="viz">
-    <DataViz {urls} growthMode={viz} noZoom />
+    {#if viz}
+      <DataViz {urls} growthMode={viz} noZoom />
+    {/if}
   </section>
 
   <article class="story">
