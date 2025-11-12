@@ -22,6 +22,7 @@
   export let idleDelay = 10000;
   export let tickMs = 5000;
   export let maxCyclesProp = 2;
+  export let growthMode = "chaos";
 
   function normalizeUrl(u) {
     let s = String(u || "").trim();
@@ -102,7 +103,7 @@
       day: "numeric",
     }).format(d);
   }
- 
+
   function sameDay(a, b) {
     if (!a || !b) return false;
     return (
@@ -271,7 +272,6 @@
   };
 
   const growthModes = Object.keys(growthParams);
-  let growthMode = "chaos";
 
   $: dataSig = vizData
     .map((d) => `${d.URL || ""}|${d.ExtractedDate || d.Date || ""}`)
@@ -303,7 +303,7 @@
     tooltipY = y || 0;
     hoveredHitbox = { keywords: keywords || [], date };
   }
-  
+
   function shorten(text, maxLen = 300) {
     if (!text) return "";
     if (text.length <= maxLen) return text;

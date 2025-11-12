@@ -13,6 +13,7 @@
   $: datum = data?.posts?.find((d) => d.path?.includes(slug)) ?? null;
   $: urls = datum?.meta?.urls ?? [];
   $: caption = datum?.meta?.caption ?? "";
+  $: viz = datum?.meta?.viz ?? "";
 
   onMount(async () => {
     const raw = await d3.csv("/all_merged.csv");
@@ -47,7 +48,7 @@
 
 {#if datum}
   <section class="viz">
-    <DataViz {urls} noZoom />
+    <DataViz {urls} growthMode={viz} noZoom />
   </section>
 
   <article class="story">
@@ -94,7 +95,7 @@
     margin-bottom: 1rem;
     font-weight: 400;
   }
-  :global(.story p)  {
+  :global(.story p) {
     text-indent: 2em;
   }
 
@@ -106,6 +107,11 @@
   :global(.story a) {
     color: var(--color-1);
   }
+
+  :global(.story blockquote) {
+    font-family: "Courier New", Courier, monospace;
+  }
+
   .caption {
     display: flex;
     justify-content: flex-end;
