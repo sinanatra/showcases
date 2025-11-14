@@ -1,8 +1,7 @@
 ---
 title: "Youth Cases"
 date: "2025-10-10"
-excerpt: "In 339 of 2.111 police reports, persons aged 18 or younger are involved – either as offenders or as victims. They act in groups and are individually targeted by aggression. They share right-extremist and racist beliefs, and they are devalued by them. They beat, and are beaten. 
-In this deep dive, we trace the realities of minors in times of rising extremism— highlighting their role as objects of violence as well as the growing momentum of their radicalization."
+excerpt: "In 339 of 2.111 police reports, persons aged 18 or younger are involved – either as offenders or as victims. They act in groups and are individually targeted by aggression. They share right-extremist and racist beliefs, and they are devalued by them. They beat, and are beaten."
 caption: "The visualisation shows all reports that mention the involvement of people aged 18 or below, from 2019 to October 2025"
 viz: fungal
 loop: false
