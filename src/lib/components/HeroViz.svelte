@@ -8,9 +8,14 @@
   export let scrollHintLabel = "Scroll to explore";
   export let autoCycle = false;
   export let noZoom = false;
-  export let startZoom = .8;
+  export let startZoom = 0.8;
   export let showScrollHint = true;
   export let showText = true;
+  export let textFaded = 0;
+  export let showControls = 0;
+
+  $: textOpacity = Math.max(0, Math.min(1, 1 - textFaded));
+  $: controlsOpacity = Math.max(0, Math.min(1, showControls));
 
   const dispatch = createEventDispatcher();
   let vizRef;
@@ -56,33 +61,37 @@
     <div class="hero-controls-slot">
       <slot name="controls" />
     </div>
-    <article class="hero-info" class:controls-mode={!showText}>
-      {#if showText}
-        {#if heading}<h1>
-            <span class="line-bg">{heading}</span>
-          </h1>{/if}
-        {#if subtitle}<h2>
-            <span class="line-bg">{subtitle}</span>
-          </h2>{/if}
-        {#if body}<p><span class="line-bg">{body}</span></p>{/if}
-        {#if links.length}
-          <div class="links">
-            {#each links as link}
-              <a
-                href={link.href}
-                sveltekit:prefetch
-                class:disabled={link.visible === false}
-                aria-disabled={link.visible === false}
-              >
-                <span class="line-bg">{link._label}</span>
-              </a>
-            {/each}
-          </div>
-        {/if}
-      {:else}
-        <slot name="controls-inline" />
+    <article class="hero-info" style={`opacity:${textOpacity}`}>
+      {#if heading}<h1>
+          <span class="line-bg">{heading}</span>
+        </h1>{/if}
+      {#if subtitle}<h2>
+          <span class="line-bg">{subtitle}</span>
+        </h2>{/if}
+      {#if body}<p><span class="line-bg">{body}</span></p>{/if}
+      {#if links.length}
+        <div class="links">
+          {#each links as link}
+            <a
+              href={link.href}
+              sveltekit:prefetch
+              class:disabled={link.visible === false}
+              aria-disabled={link.visible === false}
+            >
+              <span class="line-bg">{link._label}</span>
+            </a>
+          {/each}
+        </div>
       {/if}
     </article>
+    <div
+      class="hero-inline-controls"
+      style={`opacity:${controlsOpacity};transform:translate(-50%, ${
+        20 - 16 * controlsOpacity
+      }rem);pointer-events:${controlsOpacity > 0.9 ? "auto" : "none"};`}
+    >
+      <slot name="controls-inline" />
+    </div>
     <div class="hero-zoom-controls" aria-label="Zoom controls">
       <button
         type="button"
@@ -207,12 +216,15 @@
     padding: 10px;
     max-width: min(100vw, 720px);
   }
-  .hero-info.controls-mode {
-    bottom: 0;
-    top: unset;
-    transform: translate(-50%, -50%);
-    text-align: center;
+  .hero-inline-controls {
+    position: absolute;
+    bottom: 5rem;
+    left: 50%;
+    transform: translate(-50%, 20rem);
     width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 2;
   }
 
   .scroll-hint {
