@@ -5,7 +5,7 @@ export function createSketch({
   growthMode,
   growthParams,
   noZoom,
-  startGap = 55,
+  startGap = 105,
   startZoom = 0.5,
   disableScrollZoom = false,
   activeHighlightTerms,
@@ -207,16 +207,12 @@ export function createSketch({
       const trunkText = shortenAroundKeyword(text0, focus0, 120);
       const trunkDir = p.createVector(0, -1);
       const trunkNodes = [p.createVector(cx, cy)];
-      let trunkPathLength = 0;
-      let trunkDistArr = [0];
-      if (startMargin > 0) {
-        const offsetNode = trunkNodes[0]
-          .copy()
-          .add(trunkDir.copy().mult(startMargin));
-        trunkNodes.push(offsetNode);
-        trunkPathLength = startMargin;
-        trunkDistArr = [0, startMargin];
-      }
+      const trunkOffset = trunkDir
+        .copy()
+        .mult(startMargin * (0.85 + Math.random() * 0.1));
+      trunkNodes.push(trunkNodes[0].copy().add(trunkOffset));
+      const trunkPathLength = trunkNodes[0].dist(trunkNodes[1]);
+      const trunkDistArr = [0, trunkPathLength];
       result.push({
         kw: kw0,
         text: trunkText,
@@ -237,30 +233,17 @@ export function createSketch({
         renderOffset: startMargin,
       });
       for (let i = 1; i < data.length; i++) {
-        const parentIndex = Math.floor(Math.random() * Math.max(1, i));
-        const parentBranch = result[parentIndex];
-        const attachMax = Math.max(3, parentBranch.nodes.length - 3);
-        const parentAttachIdx = Math.max(
-          1,
-          Math.min(
-            Math.floor(2 + Math.random() * Math.max(1, attachMax - 2)),
-            Math.max(1, attachMax - 1)
-          )
+        const angle = p.random(-Math.PI * 0.85, -Math.PI * 0.05);
+        const radius =
+          (startMargin || segmentLength) * (0.95 + Math.random() * 0.6);
+        const attachPoint = p.createVector(
+          cx + Math.cos(angle) * radius,
+          cy + Math.sin(angle) * radius
         );
-        const attachPoint =
-          parentBranch.nodes[parentAttachIdx] ||
-          parentBranch.nodes[parentBranch.nodes.length - 1];
-        const dirSeed = parentBranch.nodes[parentAttachIdx + 1]
-          ? p
-              .createVector(
-                parentBranch.nodes[parentAttachIdx + 1].x -
-                  parentBranch.nodes[parentAttachIdx].x,
-                parentBranch.nodes[parentAttachIdx + 1].y -
-                  parentBranch.nodes[parentAttachIdx].y
-              )
-              .normalize()
-          : p.createVector(0, -1);
-        dirSeed.rotate(((Math.random() - 0.5) * Math.PI) / 1.2);
+        const dirSeed = p
+          .createVector(Math.cos(angle), Math.sin(angle))
+          .rotate((Math.random() - 0.5) * 0.3)
+          .normalize();
         const kw = data[i]?.KeywordMatch?.[0] || "";
         const txtFull = data[i]?.Text ?? data[i]?.sentence ?? "";
         const focus = currentFocusFor(txtFull, kw);
