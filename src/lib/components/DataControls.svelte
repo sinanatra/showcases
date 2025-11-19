@@ -12,6 +12,8 @@
   import Record from "$lib/components/Record.svelte";
   import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
 
+  export let floating = true;
+
   let lastActivity = Date.now();
   let cycling = false;
   let cycles = 0;
@@ -149,7 +151,7 @@
   $: spanTotal = spanFor($articles);
 </script>
 
-<div class="lang-switch">
+<!-- <div class="lang-switch">
   {#each availableLangs as l}
     <button
       class:active={$lang === l}
@@ -159,36 +161,46 @@
       {l.toUpperCase()}
     </button>
   {/each}
-</div>
+</div> -->
 
-<div class="controls">
-  <h2>
-    {fmtNum(totalFiltered)}
-    {$t("summary_l1_mid")}
-    {fmtRange(spanFiltered, "summary_l1_to")}.
-  </h2>
+<div class="controls" class:floating>
   <div>
-    <p>
-      {$t("summary_l2_prefix")}
-      {fmtNum(totalRecent)}
-      {$t("summary_l2_incidents")}
-      {$t("summary_l2_within")}
-      {fmtNum(totalAll)}
-      {$t("summary_l2_cases")}
-      {$t("summary_l2_span_open")}
-      {fmtRange(spanTotal, "summary_l2_to")}{$t("summary_l2_span_close")}.
-    </p>
+    <h2>
+      <span class="line-bg">
+        {fmtNum(totalFiltered)}
+        {$t("summary_l1_mid")}
+        {fmtRange(spanFiltered, "summary_l1_to")}.
+      </span>
+    </h2>
+    <div>
+      <p>
+        <span class="line-bg">
+          {$t("summary_l2_prefix")}
+          {fmtNum(totalRecent)}
+          {$t("summary_l2_incidents")}
+          {$t("summary_l2_within")}
+          {fmtNum(totalAll)}
+          {$t("summary_l2_cases")}
+          {$t("summary_l2_span_open")}
+          {fmtRange(spanTotal, "summary_l2_to")}{$t("summary_l2_span_close")}.
+        </span>
+      </p>
+    </div>
     <br />
-    <p>
-      {$t("summary_l2_see")}
-      <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
-      {$t("summary_l2_for")}
-    </p>
+    <!-- <p>
+      <span class="line-bg">
+        {$t("summary_l2_see")}
+        <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
+        {$t("summary_l2_for")}
+      </span>
+    </p> -->
   </div>
   <div>
     {#if $availableKeywordsLabeled.length}
       <p>
-        {$t("controls_filter")}
+        <span>
+          {$t("controls_filter")}
+        </span>
       </p>
       <select
         value={$filters.keyword}
@@ -223,46 +235,57 @@
 <style>
   .controls {
     font-family: Arial, Helvetica, sans-serif;
-    position: absolute;
-    z-index: 1000;
+    text-align: left;
     color: white;
-    background: #000;
     padding: 5px 10px;
-    font-size: 1.2rem;
-    line-height: 1.4rem;
-    align-items: center;
-
+    font-size: 0.9rem;
+    line-height: 1rem;
     display: grid;
-    grid-template-columns: minmax(320px, 640px) repeat(
-        auto-fit,
-        minmax(240px, 1fr)
-      );
+    grid-template-columns: 3fr 1fr;
     column-gap: 5px;
     row-gap: 5px;
-    align-items: start;
+    align-items: center;
+    border-radius: 10px;
+    position: relative;
+    width: 100%;
+    max-width: 1400px;
+    z-index: 1;
+    background: transparent;
+  }
+
+  .controls span {
+    padding: 2px 4px;
+    background-color: black;
+  }
+
+  .controls.floating {
+    position: absolute;
+    z-index: 1000;
+    margin-top: 10px;
   }
 
   h2,
   p {
     margin: 0;
+    margin-bottom: .2ch;
   }
 
   h2 {
     font-weight: 400;
-    font-size: 2rem;
-    line-height: 2.2rem;
+    font-size: 1.6em;
+    line-height: 1.2em;
   }
 
   p {
-    font-size: 1rem;
-    line-height: 1.2rem;
+    font-size: 1.2em;
+    line-height: 1.2em;
   }
 
   a {
     color: var(--color-2);
   }
 
-  .lang-switch {
+  /* .lang-switch {
     position: fixed;
     bottom: 1rem;
     right: 1rem;
@@ -283,15 +306,14 @@
     color: #000;
     background: #fff;
     opacity: 1;
-  }
+  } */
 
   .controls select,
   .controls .inline-input {
-    display: inline-block;
-    margin: 2px 0;
-    font-size: 0.8em;
+    display: block;
+    margin: 0;
+    margin-bottom: 10px;
     width: 220px;
-    vertical-align: middle;
     font-family: Arial, Helvetica, sans-serif;
   }
 
