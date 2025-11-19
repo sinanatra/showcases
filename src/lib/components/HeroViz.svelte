@@ -1,0 +1,230 @@
+<script>
+  import { createEventDispatcher } from "svelte";
+  import DataViz from "$lib/components/DataViz.svelte";
+
+  export let scene = {};
+  export let index = 0;
+  export let infoInteractive = true;
+  export let scrollHintLabel = "Scroll to explore";
+  export let autoCycle = false;
+  export let noZoom = false;
+  export let startZoom = .8;
+  export let showScrollHint = true;
+  export let showText = true;
+
+  const dispatch = createEventDispatcher();
+  let vizRef;
+
+  let heading = "";
+  let subtitle = "";
+  let body = "";
+  let links = [];
+
+  $: heading = scene?._heading || "";
+  $: subtitle = scene?._subtitle || "";
+  $: body = scene?._body || "";
+  $: links = Array.isArray(scene?._cta) ? scene._cta : [];
+
+  function scrollNext() {
+    dispatch("scrollhint");
+  }
+  function handleInfoClick(event) {
+    if (!infoInteractive) return;
+    if (event?.target?.closest("a")) return;
+    scrollNext();
+  }
+  function handleInfoKey(event) {
+    if (!infoInteractive) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleInfoClick(event);
+    }
+  }
+</script>
+
+<section class="step hero-step" aria-label={"section-" + index}>
+  <div class="hero-viz-wrapper">
+    <DataViz
+      bind:this={vizRef}
+      {autoCycle}
+      {noZoom}
+      growthMode={"fungal"}
+      growthModeFixed="true"
+      {startZoom}
+      disableScrollZoom={true}
+    />
+    <div class="hero-controls-slot">
+      <slot name="controls" />
+    </div>
+    <article class="hero-info" class:controls-mode={!showText}>
+      {#if showText}
+        {#if heading}<h1>
+            <span class="line-bg">{heading}</span>
+          </h1>{/if}
+        {#if subtitle}<h2>
+            <span class="line-bg">{subtitle}</span>
+          </h2>{/if}
+        {#if body}<p><span class="line-bg">{body}</span></p>{/if}
+        {#if links.length}
+          <div class="links">
+            {#each links as link}
+              <a
+                href={link.href}
+                sveltekit:prefetch
+                class:disabled={link.visible === false}
+                aria-disabled={link.visible === false}
+              >
+                <span class="line-bg">{link._label}</span>
+              </a>
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        <slot name="controls-inline" />
+      {/if}
+    </article>
+    <div class="hero-zoom-controls" aria-label="Zoom controls">
+      <button
+        type="button"
+        on:click={() => vizRef?.zoomIn?.()}
+        aria-label="Zoom in"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        on:click={() => vizRef?.zoomOut?.()}
+        aria-label="Zoom out"
+      >
+        −
+      </button>
+    </div>
+    {#if showScrollHint}
+      <button
+        type="button"
+        class="scroll-hint"
+        on:click={() => {
+          if (showText) scrollNext();
+        }}
+        aria-disabled={!showText}
+      >
+        ↓ {scrollHintLabel}
+      </button>
+    {/if}
+  </div>
+</section>
+
+<style>
+  .hero-step {
+    position: relative;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+
+    overflow: visible;
+    min-height: 150vh;
+    margin-bottom: -35vh;
+    padding-bottom: 35vh;
+    display: block !important;
+    z-index: 100;
+  }
+  .line-bg {
+    background: #000;
+    color: #fff;
+    padding: 0.1ch 0.5ch;
+    display: inline;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  h1 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 3em;
+    font-weight: 400;
+    margin: 0;
+  }
+  h2 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.5em;
+    font-weight: 400;
+    margin: 0;
+    font-style: italic;
+  }
+  p {
+    font-size: 1em;
+    margin: 1rem 0 0;
+  }
+  .links {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .links a {
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .links a span:hover {
+    background: var(--color-1);
+    color: #000;
+  }
+  .hero-viz-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow: hidden;
+  }
+  .hero-zoom-controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 3;
+  }
+  .hero-zoom-controls button {
+    width: 25px;
+    height: 25px;
+    font-size: 1rem;
+    /* border-radius: 50%; */
+    border: none;
+    background: white;
+    color: black;
+    cursor: pointer;
+  }
+  .hero-info {
+    position: absolute;
+    bottom: 20rem;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 2;
+    width: 100%;
+    padding: 10px;
+    max-width: min(100vw, 720px);
+  }
+  .hero-info.controls-mode {
+    bottom: 0;
+    top: unset;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: black;
+    color: rgb(126, 126, 126);
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    z-index: 2;
+  }
+</style>
