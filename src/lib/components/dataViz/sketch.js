@@ -32,7 +32,9 @@ export function createSketch({
     const keywordColors = {};
     let branches = [];
     let pan = { x: 0, y: 0 };
+    let targetPan = { x: 0, y: 0 };
     let zoom = 1;
+    let targetZoom = 1;
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
@@ -58,17 +60,20 @@ export function createSketch({
       ? 1
       : p.constrain(startZoom ?? 0.5, zoomMin, zoomMax);
     zoom = initialZoomValue;
+    targetZoom = initialZoomValue;
 
     function resetView() {
-      pan = { x: 0, y: initialPanY };
+      targetPan = { x: 0, y: initialPanY };
+      pan = { ...targetPan };
       zoom = initialZoomValue;
+      targetZoom = initialZoomValue;
     }
 
     function zoomBy(mult) {
       if (noZoom) return;
-      const nextZoom = p.constrain(zoom * mult, zoomMin, zoomMax);
-      if (Math.abs(nextZoom - zoom) > 0.001) {
-        zoom = nextZoom;
+      const nextZoom = p.constrain(targetZoom * mult, zoomMin, zoomMax);
+      if (Math.abs(nextZoom - targetZoom) > 0.001) {
+        targetZoom = nextZoom;
       }
     }
 
@@ -174,15 +179,6 @@ export function createSketch({
           );
         }
       }
-      if (Math.random() < 0.007 + Math.abs(localChaos) * 0.02) {
-        dir.y *= -1;
-      }
-      dir.add(
-        p.createVector(
-          (Math.random() - 0.5) * 0.02,
-          (Math.random() - 0.5) * 0.02
-        )
-      );
       return dir.normalize();
     }
 
@@ -340,6 +336,13 @@ export function createSketch({
         p.background(0);
         return;
       }
+
+      const panEase = 0.15;
+      pan.x += (targetPan.x - pan.x) * panEase;
+      pan.y += (targetPan.y - pan.y) * panEase;
+      const zoomEase = 0.12;
+      zoom += (targetZoom - zoom) * zoomEase;
+
       if (simFrame % bucketRebuildStride === 0) {
         globalBuckets.clear();
         branches.forEach((br) => {
@@ -488,8 +491,8 @@ export function createSketch({
       if (!dragging) return;
       const dx = (p.mouseX - lastX) / zoom;
       const dy = (p.mouseY - lastY) / zoom;
-      pan.x += dx;
-      pan.y += dy;
+      targetPan.x += dx;
+      targetPan.y += dy;
       lastX = p.mouseX;
       lastY = p.mouseY;
     };
