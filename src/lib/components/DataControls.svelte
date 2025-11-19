@@ -267,7 +267,7 @@
   h2,
   p {
     margin: 0;
-    margin-bottom: .2ch;
+    margin-bottom: 0.2ch;
   }
 
   h2 {
@@ -322,9 +322,11 @@
   }
 
   select,
-  input {
+  input,
+  .inline-checkbox {
     background-color: black;
     color: white;
+    padding: 2px;
     border: 1px solid;
   }
 

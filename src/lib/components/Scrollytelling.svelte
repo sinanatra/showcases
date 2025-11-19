@@ -20,8 +20,9 @@
   let errorMsg = "";
   let observer;
   let root;
-  let heroStage = "text";
-  let scrollHandler = null;
+let heroStage = "text";
+let heroFadeProgress = 0;
+let scrollHandler = null;
 
   $: currentLang = $lang;
 
@@ -78,6 +79,7 @@
     if (typeof window === "undefined") return;
     const scrollY = window.scrollY;
     const vh = window.innerHeight || 1;
+    heroFadeProgress = Math.min(1, Math.max(0, scrollY / (vh * 0.3)));
     if (scrollY < vh * 0.15) {
       heroStage = "text";
     } else if (scrollY < vh * 0.99) {
@@ -216,15 +218,15 @@
             startGap={heroStartGap}
             startZoom={heroStartZoom}
             vizYOffset={20}
-            showText={heroStage === "text"}
+            showText={true}
+            textFaded={heroFadeProgress}
+            showControls={heroFadeProgress}
             on:scrollhint={showControlsStage}
           >
             <svelte:fragment slot="controls-inline">
-              {#if heroStage !== "text"}
-                <div class="hero-controls-panel">
-                  <DataControls floating={false} />
-                </div>
-              {/if}
+              <div class="hero-controls-panel">
+                <DataControls floating={false} />
+              </div>
             </svelte:fragment>
           </HeroViz>
         {:else}
