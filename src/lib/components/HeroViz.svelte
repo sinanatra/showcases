@@ -185,6 +185,7 @@
     position: sticky;
     top: 0;
     overflow: hidden;
+    box-shadow: -2px 4px 6px 0px black;
   }
   .hero-zoom-controls {
     position: absolute;
