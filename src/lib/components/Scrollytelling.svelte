@@ -3,12 +3,16 @@
   import { fade } from "svelte/transition";
   import { lang, setLang, availableLangs } from "$lib/i18n";
   import Stories from "$lib/components/Stories.svelte";
+  import HeroViz from "$lib/components/HeroViz.svelte";
+  import DataControls from "$lib/components/DataControls.svelte";
 
   export let scenes = null;
   export let src = null;
   export let threshold = 0.6;
   export let data = {};
   export let storiesData = null;
+  export let heroStartGap = 120;
+  export let heroStartZoom = 1;
 
   let active = 0;
   let videoRef;
@@ -16,6 +20,8 @@
   let errorMsg = "";
   let observer;
   let root;
+  let heroStage = "text";
+  let scrollHandler = null;
 
   $: currentLang = $lang;
 
@@ -46,6 +52,7 @@
 
   $: current = localizedScenes?.[active] ?? null;
   $: isVideo = current?.media?.type === "video";
+  $: heroActive = active === 0;
 
   function handleEnded() {
     if (!videoRef) return;
@@ -65,6 +72,19 @@
         img.src = s.media.src;
       }
     });
+  }
+
+  function updateHeroStage() {
+    if (typeof window === "undefined") return;
+    const scrollY = window.scrollY;
+    const vh = window.innerHeight || 1;
+    if (scrollY < vh * 0.15) {
+      heroStage = "text";
+    } else if (scrollY < vh * 0.99) {
+      heroStage = "controls";
+    } else {
+      heroStage = "release";
+    }
   }
 
   async function initObserver() {
@@ -99,6 +119,11 @@
       active = 0;
       preloadImages(scenes);
       await initObserver();
+      if (typeof window !== "undefined") {
+        updateHeroStage();
+        scrollHandler = () => updateHeroStage();
+        window.addEventListener("scroll", scrollHandler, { passive: true });
+      }
       await tick();
       videoRef?.play?.().catch(() => {});
     } catch (e) {
@@ -107,7 +132,23 @@
     }
   });
 
-  onDestroy(() => observer?.disconnect());
+  onDestroy(() => {
+    observer?.disconnect();
+    if (typeof window !== "undefined" && scrollHandler) {
+      window.removeEventListener("scroll", scrollHandler);
+      scrollHandler = null;
+    }
+  });
+
+  function scrollToStep(index = 1) {
+    heroStage = "release";
+    const target = root?.querySelector(`.step[data-index="${index}"]`);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function showControlsStage() {
+    heroStage = "controls";
+  }
 </script>
 
 <div class="lang-switch" aria-label="Language switcher">
@@ -124,7 +165,7 @@
 
 <div class="scrolly" bind:this={root}>
   <div class="bg">
-    {#if status === "ready" && current}
+    {#if status === "ready" && current && !heroActive}
       {#key current.id}
         {#if isVideo}
           <video
@@ -155,7 +196,7 @@
           />
         {/if}
       {/key}
-    {:else if status === "loading"}
+    {:else if status === "loading" || heroActive}
       <div class="bg-media" style="background:#000;"></div>
     {/if}
   </div>
@@ -167,36 +208,57 @@
       </section>
     {:else}
       {#each localizedScenes as s, i}
-        <section class="step" aria-label={"section-" + i}>
-          <article class:with-aside={s.embed === "stories"}>
-            {#if s._heading}<h1>
-                <span class="line-bg">{s._heading}</span>
-              </h1>{/if}
-            {#if s._subtitle}<h2>
-                <span class="line-bg">{s._subtitle}</span>
-              </h2>{/if}
-            {#if s._body}<p><span class="line-bg">{s._body}</span></p>{/if}
-            {#if s._cta?.length}
-              <div class="links">
-                {#each s._cta as link}
-                  <a
-                    href={link.href}
-                    sveltekit:prefetch
-                    class:disabled={link.visible === false}
-                    aria-disabled={link.visible === false}
-                  >
-                    <span class="line-bg">{link._label}</span>
-                  </a>
-                {/each}
-              </div>
+        {#if i === 0}
+          <HeroViz
+            scene={s}
+            index={i}
+            scrollHintLabel={s._cta?.[0]?._label || "Scroll to explore"}
+            startGap={heroStartGap}
+            startZoom={heroStartZoom}
+            vizYOffset={20}
+            showText={heroStage === "text"}
+            on:scrollhint={showControlsStage}
+          >
+            <svelte:fragment slot="controls-inline">
+              {#if heroStage !== "text"}
+                <div class="hero-controls-panel">
+                  <DataControls floating={false} />
+                </div>
+              {/if}
+            </svelte:fragment>
+          </HeroViz>
+        {:else}
+          <section class="step" aria-label={"section-" + i}>
+            <article class:with-aside={s.embed === "stories"}>
+              {#if s._heading}<h1>
+                  <span class="line-bg">{s._heading}</span>
+                </h1>{/if}
+              {#if s._subtitle}<h2>
+                  <span class="line-bg">{s._subtitle}</span>
+                </h2>{/if}
+              {#if s._body}<p><span class="line-bg">{s._body}</span></p>{/if}
+              {#if s._cta?.length}
+                <div class="links">
+                  {#each s._cta as link}
+                    <a
+                      href={link.href}
+                      sveltekit:prefetch
+                      class:disabled={link.visible === false}
+                      aria-disabled={link.visible === false}
+                    >
+                      <span class="line-bg">{link._label}</span>
+                    </a>
+                  {/each}
+                </div>
+              {/if}
+            </article>
+            {#if s.embed === "stories"}
+              <aside class="aside">
+                <Stories data={storiesData} />
+              </aside>
             {/if}
-          </article>
-          {#if s.embed === "stories"}
-            <aside class="aside">
-              <Stories data={storiesData} />
-            </aside>
-          {/if}
-        </section>
+          </section>
+        {/if}
       {/each}
     {/if}
   </main>
@@ -310,6 +372,51 @@
   .links a span:hover {
     background: var(--color-1);
     color: #000;
+  }
+  .hero-controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    align-items: center;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    padding: 10px;
+    text-align: center;
+  }
+  .hero-controls-panel :global(.controls) {
+    width: 100%;
+    position: static;
+    margin-top: 0;
+    color: #fff;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .hero-controls-stage {
+    min-height: 120vh;
+    background: #000;
+    padding: 6vh 4vw;
+  }
+  .controls-sticky {
+    position: sticky;
+    top: 8vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .controls-sticky :global(.controls) {
+    width: min(1100px, 100%);
+  }
+  .continue-button {
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    padding: 0.6rem 1.4rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
   }
   .step.with-aside {
     min-height: 60vh;
