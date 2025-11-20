@@ -7,6 +7,7 @@ export function createSketch({
   noZoom,
   startGap = 105,
   startZoom = 0.5,
+  startPan = { x: 0, y: 0 },
   disableScrollZoom = false,
   activeHighlightTerms,
   recordStore,
@@ -31,8 +32,14 @@ export function createSketch({
     const maxCache = 5000;
     const keywordColors = {};
     let branches = [];
-    let pan = { x: 0, y: 0 };
-    let targetPan = { x: 0, y: 0 };
+    const clampPanValue = (val) =>
+      typeof val === "number" && Number.isFinite(val) ? val : 0;
+    let initialPan = {
+      x: clampPanValue(startPan?.x),
+      y: clampPanValue(startPan?.y),
+    };
+    let pan = { ...initialPan };
+    let targetPan = { ...initialPan };
     let zoom = 1;
     let targetZoom = 1;
     let dragging = false;
@@ -54,7 +61,6 @@ export function createSketch({
     const zoomMin = 0.25;
     const zoomMax = 1.5;
     let initialZoomValue = 1;
-    let initialPanY = 0;
 
     initialZoomValue = noZoom
       ? 1
@@ -63,7 +69,7 @@ export function createSketch({
     targetZoom = initialZoomValue;
 
     function resetView() {
-      targetPan = { x: 0, y: initialPanY };
+      targetPan = { ...initialPan };
       pan = { ...targetPan };
       zoom = initialZoomValue;
       targetZoom = initialZoomValue;
@@ -307,8 +313,8 @@ export function createSketch({
       worldBuffer.textSize(13 * scale);
       worldBuffer.background(0);
       branches = setupBranches(data, size, size);
-      initialPanY = 0;
-      pan = { x: 0, y: 0 };
+      pan = { ...initialPan };
+      targetPan = { ...initialPan };
       simFrame = 0;
       letterHitboxes = [];
       firstDraw = true;

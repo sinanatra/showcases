@@ -9,6 +9,7 @@
   export let autoCycle = false;
   export let noZoom = false;
   export let startZoom = 0.8;
+  export let startPan = { x: 0, y: 300 };
   export let showScrollHint = true;
   export let showText = true;
   export let textFaded = 0;
@@ -56,6 +57,7 @@
       growthMode={"fungal"}
       growthModeFixed="true"
       {startZoom}
+      {startPan}
       disableScrollZoom={true}
     />
     <div class="hero-controls-slot">
@@ -136,6 +138,7 @@
     padding-bottom: 35vh;
     display: block !important;
     z-index: 100;
+    user-select: none;
   }
   .line-bg {
     background: #000;
