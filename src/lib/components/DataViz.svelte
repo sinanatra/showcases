@@ -19,6 +19,7 @@
   export let autoCycle = false;
   export let noZoom = false;
   export let startZoom = 1;
+  export let startPan = { x: 0, y: 0 };
   export let disableScrollZoom = false;
 
   export let idleDelay = 10000;
@@ -257,6 +258,7 @@
     growthParams,
     noZoom,
     startZoom,
+    startPan,
     disableScrollZoom,
     activeHighlightTerms,
     recordStore: record,
