@@ -20,9 +20,9 @@
   let errorMsg = "";
   let observer;
   let root;
-let heroStage = "text";
-let heroFadeProgress = 0;
-let scrollHandler = null;
+  let heroStage = "text";
+  let heroFadeProgress = 0;
+  let scrollHandler = null;
 
   $: currentLang = $lang;
 
@@ -233,12 +233,14 @@ let scrollHandler = null;
           <section class="step" aria-label={"section-" + i}>
             <article class:with-aside={s.embed === "stories"}>
               {#if s._heading}<h1>
-                  <span class="line-bg">{s._heading}</span>
+                  <span class="line-bg">{@html s._heading}</span>
                 </h1>{/if}
               {#if s._subtitle}<h2>
-                  <span class="line-bg">{s._subtitle}</span>
+                  <span class="line-bg">{@html s._subtitle}</span>
                 </h2>{/if}
-              {#if s._body}<p><span class="line-bg">{s._body}</span></p>{/if}
+              {#if s._body}<p>
+                  <span class="line-bg">{@html s._body}</span>
+                </p>{/if}
               {#if s._cta?.length}
                 <div class="links">
                   {#each s._cta as link}
@@ -366,6 +368,13 @@ let scrollHandler = null;
     gap: 0.8rem;
     flex-wrap: wrap;
   }
+
+  :global(.step a) {
+    color: white;
+    text-decoration-color: var(--color-1);
+    text-underline-offset: 2px;
+  }
+  
   .links a {
     color: #fff;
     text-decoration: none;
