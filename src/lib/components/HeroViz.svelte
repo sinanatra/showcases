@@ -215,10 +215,10 @@
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
-    z-index: 2;
     width: 100%;
     padding: 10px;
     max-width: min(100vw, 720px);
+    z-index: 1000;
   }
   .hero-inline-controls {
     position: absolute;
