@@ -58,7 +58,14 @@ def scrape_berlin_article(url):
         if res.status_code != 200:
             return "", ""
         soup = BeautifulSoup(res.text, "html.parser")
-        content = soup.find("div", class_="textile")
+        main = soup.find("div", id="layout-grid__area--maincontent")
+        content = None
+        if main:
+            content = main.select_one("section[class*=modul-text] div.textile")
+            if not content:
+                content = main.select_one("div.textile")
+        if not content:
+            content = soup.find("div", class_="textile")
         text = content.get_text(separator="\n", strip=True) if content else ""
         location_tag = soup.find("p", class_="polizeimeldung", title="Ereignisort")
         location = location_tag.get_text(strip=True) if location_tag else ""
