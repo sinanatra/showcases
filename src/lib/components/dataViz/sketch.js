@@ -53,8 +53,8 @@ export function createSketch({
     let letterHitboxes = [];
     let firstDraw = true;
     const repulsionRadius = (isMobile ? 9 : 12) * scale;
-  const bucketRebuildStride = 3;
-  const branchUpdateStride = 2;
+    const bucketRebuildStride = 3;
+    const branchUpdateStride = 2;
     const startMargin = Math.max(0, startGap) * scale;
     let isRecording = false;
     const unsub = recordStore.subscribe((v) => (isRecording = v));
@@ -303,7 +303,9 @@ export function createSketch({
       const base = Math.max(window.innerWidth, window.innerHeight);
       const grewByData = Math.min(1.6, 1 + data.length / 40);
       const maxBuffer = isMobile ? 2048 : 4200;
-      const size = Math.min(maxBuffer, Math.floor(base * grewByData));
+      // const size = Math.min(maxBuffer, Math.floor(base * grewByData));
+
+      const size = Math.min(maxBuffer, Math.floor(base * 5));
       bufferCenter = { x: size / 2, y: size / 2 };
       bufferBounds = { left: 0, right: size, top: 0, bottom: size };
       worldBuffer = p.createGraphics(size, size);
@@ -348,7 +350,10 @@ export function createSketch({
         });
       }
       branches.forEach((br, i) => {
-        if (br.finished || i % branchUpdateStride !== simFrame % branchUpdateStride) {
+        if (
+          br.finished ||
+          i % branchUpdateStride !== simFrame % branchUpdateStride
+        ) {
           return;
         }
         if (!br.nodes?.length) return;
@@ -367,9 +372,7 @@ export function createSketch({
               const d = Math.hypot(dx2, dy2);
               if (d > 0 && d < repulsionRadius) {
                 const inv = 1 / d;
-                dir.add(
-                  p.createVector(dx2 * inv, dy2 * inv).mult(0.6 * scale)
-                );
+                dir.add(p.createVector(dx2 * inv, dy2 * inv).mult(0.6 * scale));
               }
             }
           }
@@ -431,7 +434,8 @@ export function createSketch({
                 date: br.date,
                 title: br.title,
               });
-              if (letterHitboxes.length > 20000) letterHitboxes.splice(0, 20000);
+              if (letterHitboxes.length > 20000)
+                letterHitboxes.splice(0, 20000);
             }
             br.lastPlacedCharIndex = ci;
             ci++;
