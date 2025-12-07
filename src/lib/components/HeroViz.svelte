@@ -239,8 +239,8 @@
     background: black;
     color: rgb(126, 126, 126);
     border: none;
-    padding: 0.5rem 1rem;
-    font-size: 0.95rem;
+    padding: 0.2rem .5rem;
+    font-size: 0.8rem;
     z-index: 2;
   }
 </style>

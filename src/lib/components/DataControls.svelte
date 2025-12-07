@@ -312,7 +312,7 @@
   .controls .inline-input {
     display: block;
     margin: 0;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     width: 220px;
     font-family: Arial, Helvetica, sans-serif;
   }
