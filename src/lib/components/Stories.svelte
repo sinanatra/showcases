@@ -66,38 +66,30 @@
 
   .track {
     display: grid;
-    grid-auto-flow: column;
-    /* grid-auto-columns: minmax(0, 320px); */
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
     justify-content: center;
-    gap: 10px;
+    gap: 2rem;
+    padding: 0 .2rem;
     margin: 0 auto;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
+  }
+
+  .slide {
+    display: flex;
+    width: 100%;
+    max-width: 320px;
+    background: black;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    text-decoration: none;
+    padding: 10px;
   }
 
   .track::-webkit-scrollbar {
     display: none;
   }
 
-  .slide {
-    scroll-snap-align: start;
-    display: flex;
-    margin: 0;
-    width: 100%;
-    max-width: 320px;
-
-    /* align-items: center; */
-    /* justify-content: center; */
-
-    background: black;
-
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    text-decoration: none;
-    /* aspect-ratio: 5 / 2; */
-    padding: 10px;
-  }
   .slide:hover {
     color: var(--color-1);
   }
