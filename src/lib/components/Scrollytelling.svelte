@@ -374,7 +374,7 @@
     text-decoration-color: var(--color-1);
     text-underline-offset: 2px;
   }
-  
+
   .links a {
     color: #fff;
     text-decoration: none;
@@ -403,56 +403,9 @@
     box-shadow: none;
     border-radius: 0;
   }
-  .hero-controls-stage {
-    min-height: 120vh;
-    background: #000;
-    padding: 6vh 4vw;
-  }
-  .controls-sticky {
-    position: sticky;
-    top: 8vh;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    align-items: center;
-  }
-  .controls-sticky :global(.controls) {
-    width: min(1100px, 100%);
-  }
-  .continue-button {
-    border: 1px solid #fff;
-    background: transparent;
-    color: #fff;
-    padding: 0.6rem 1.4rem;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-  }
-  .step.with-aside {
-    min-height: 60vh;
-  }
-  .step.with-aside article {
-    max-width: 48ch;
-  }
-  .step.with-aside {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    align-items: start;
-  }
+
   .aside {
     width: 100%;
     margin: 0 auto;
-  }
-  @media (min-width: 960px) {
-    .step.with-aside {
-      grid-template-columns: 1fr 1fr;
-    }
-    .step.with-aside article {
-      align-items: flex-start;
-      text-align: left;
-    }
   }
 </style>
