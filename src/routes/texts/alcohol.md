@@ -7,8 +7,8 @@ caption: "The visualisation shows all reports that mention alcohol, from 2019 to
 viz: fungal
 loop: false
 isPublic: true
-urls: 
-     -   "https://polizei.brandenburg.de/pressemeldung/-sieg-heil-ruf/2677970",
+urls: -
+"https://polizei.brandenburg.de/pressemeldung/-sieg-heil-ruf/2677970",
   "https://polizei.brandenburg.de/pressemeldung/alkoholisiert-im-amt/2652349",
   "https://polizei.brandenburg.de/pressemeldung/alkoholisierter-jugendlicher-beleidigt-p/2678604",
   "https://polizei.brandenburg.de/pressemeldung/alkoholisierter-mann-schmeisst-mit-dachz/2009556",
