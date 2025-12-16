@@ -71,8 +71,8 @@
       "sources": [{ "src": "/scrolly/all.mp4", "type": "video/mp4" }]
     },
     "subtitle": {
-      "en": "Explore the <a href='/timeline' >full dataset</a> to trace patterns of hate and exclusion over time.",
-      "de": "Erkunde den <a href='/timeline' >gesamten Datensatz</a>, um Muster von Hass und Ausgrenzung im Laufe der Zeit nachzuverfolgen."
+      "en": "Explore the <a href='/timeline' data-sveltekit-reload >full dataset</a> to trace patterns of hate and exclusion over time.",
+      "de": "Erkunde den <a href='/timeline' data-sveltekit-reload >gesamten Datensatz</a>, um Muster von Hass und Ausgrenzung im Laufe der Zeit nachzuverfolgen."
     },
     "body": {
       "en": "by Giacomo Nanni, Till Rückward, Karina Tarasiuk, with textual and conceptual support from Annette Jael Lehmann. Supported by <a href='https://mlml.io/'/>metaLAB (at) Harvard & Berlin</a>.",
