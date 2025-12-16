@@ -75,6 +75,8 @@ const filterDefaults = {
   region: "",
   yearMin: null,
   yearMax: null,
+  dateMin: null,
+  dateMax: null,
 };
 
 export function createFilterState(overrides = {}) {
@@ -96,6 +98,18 @@ export const yearsExtent = derived(articles, ($articles) => {
   if (!isFinite(min) || !isFinite(max)) {
     const y = new Date().getFullYear();
     return { min: y, max: y };
+  }
+  return { min, max };
+});
+
+export const datesExtent = derived(articles, ($articles) => {
+  let min = null;
+  let max = null;
+  for (const a of Array.isArray($articles) ? $articles : []) {
+    const d = parseDateLoose(a.ExtractedDate || a.Date);
+    if (!d || isNaN(+d)) continue;
+    if (!min || d < min) min = d;
+    if (!max || d > max) max = d;
   }
   return { min, max };
 });
@@ -454,13 +468,15 @@ function applyFilters(list, f) {
     district = "",
     keyword = "",
     gender = "",
-    timeCluster = "",
-    text = "",
-    showOnlyLatest = false,
-    region = "",
-    yearMin = null,
-    yearMax = null,
-  } = f || {};
+  timeCluster = "",
+  text = "",
+  showOnlyLatest = false,
+  region = "",
+  yearMin = null,
+  yearMax = null,
+  dateMin = null,
+  dateMax = null,
+} = f || {};
 
   let out = Array.isArray(list) ? list : [];
 
@@ -517,12 +533,30 @@ function applyFilters(list, f) {
     });
   }
 
-  if (yearMin != null || yearMax != null) {
+  const parsedDateMin = dateMin ? parseDateLoose(dateMin) : null;
+  const parsedDateMax = dateMax ? parseDateLoose(dateMax) : null;
+  const hasYearMin = yearMin != null && Number.isFinite(Number(yearMin));
+  const hasYearMax = yearMax != null && Number.isFinite(Number(yearMax));
+
+  const startDate =
+    parsedDateMin && !isNaN(+parsedDateMin)
+      ? parsedDateMin
+      : hasYearMin
+      ? new Date(Number(yearMin), 0, 1)
+      : null;
+  const endDate =
+    parsedDateMax && !isNaN(+parsedDateMax)
+      ? parsedDateMax
+      : hasYearMax
+      ? new Date(Number(yearMax), 11, 31, 23, 59, 59, 999)
+      : null;
+
+  if (startDate || endDate) {
     out = out.filter((a) => {
-      const y = getYearFromItem(a);
-      if (y == null) return false; // exclude undated items
-      if (yearMin != null && y < yearMin) return false;
-      if (yearMax != null && y > yearMax) return false;
+      const d = parseDateLoose(a.ExtractedDate || a.Date);
+      if (!d) return false;
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
       return true;
     });
   }

@@ -136,10 +136,12 @@
     <div class="filters-grid">
       <RegionFilter />
       <DistrictFilter />
-      <KeywordFilter />
       <!-- <GenderFilter /> -->
+
       <YearSlider />
       <TimeClusterFilter />
+
+      <KeywordFilter />
       <TextSearch />
     </div>
   </section>
@@ -157,14 +159,9 @@
     background-color: black;
     color: white;
     overflow: scroll;
-    display: grid;
-    grid-template-columns: minmax(320px, 640px) repeat(
-        auto-fit,
-        minmax(40px, 1fr)
-      );
-    column-gap: 5px;
-    row-gap: 5px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 10px;
     z-index: 10;
   }
@@ -175,6 +172,7 @@
     line-height: 2.2rem;
     color: white;
     margin: 0;
+    margin-bottom: 2rem;
   }
 
   .lang-switch {
@@ -200,8 +198,11 @@
   }
 
   .filters-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 940px;
+    /* grid-template-columns: repeat(3, 1fr);
+    max-width: 1040px; */
     gap: 10px;
   }
 
