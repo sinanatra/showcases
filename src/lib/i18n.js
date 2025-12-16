@@ -59,8 +59,8 @@ const dict = {
     summary_l2_for: "for earlier records.",
 
     "filters.title": "Filters",
-    "filters.region": "Region:",
-    "filters.district": "District:",
+    "filters.region": "State:",
+    "filters.district": "County/District:",
     "filters.keyword": "Keyword:",
     "filters.gender": "Gender:",
     "filters.timeOfDay": "Time of Day:",
@@ -115,8 +115,8 @@ const dict = {
     summary_l2_for: "für frühere Einträge.",
 
     "filters.title": "Filter",
-    "filters.region": "Region:",
-    "filters.district": "Bezirk:",
+    "filters.region": "Bundesland:",
+    "filters.district": "Landkreis/Bezirk:",
     "filters.keyword": "Schlagwort:",
     "filters.gender": "Geschlecht:",
     "filters.timeOfDay": "Tageszeit:",
