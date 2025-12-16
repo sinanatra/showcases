@@ -137,7 +137,7 @@
       <RegionFilter />
       <DistrictFilter />
       <KeywordFilter />
-      <GenderFilter />
+      <!-- <GenderFilter /> -->
       <YearSlider />
       <TimeClusterFilter />
       <TextSearch />
