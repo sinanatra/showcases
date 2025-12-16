@@ -86,7 +86,7 @@ const dict = {
     de: "DE",
     en: "EN",
 
-    controls_onlyLatest: "nur die neuesten.",
+    controls_onlyLatest: "nur die neueste.",
     tooltip_open_link: "Drücke <kbd>Leertaste</kbd>, um den Link zu öffnen",
 
     controls_any: "beliebig",
