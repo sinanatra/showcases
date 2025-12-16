@@ -330,7 +330,7 @@
   }
   .step article p {
     align-self: flex-start;
-    text-align: left;
+    text-align: center;
     text-indent: 3em;
   }
   .step article .links {
