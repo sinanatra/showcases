@@ -1,42 +1,55 @@
 <script>
-  import { filters, yearsExtent } from "$lib/stores";
+  import { filters, datesExtent } from "$lib/stores";
   import { t } from "$lib/i18n";
 
-  $: extent = $yearsExtent || { min: null, max: null };
-  $: yearMin = $filters.yearMin ?? extent.min;
-  $: yearMax = $filters.yearMax ?? extent.max;
+  const formatDateInput = (value) => {
+    if (!value) return "";
+    const date = value instanceof Date ? value : new Date(value);
+    if (isNaN(+date)) return "";
+    return date.toISOString().slice(0, 10);
+  };
+
+  $: extent = $datesExtent || { min: null, max: null };
+  $: defaultMin = formatDateInput(extent.min);
+  $: defaultMax = formatDateInput(extent.max);
+  $: minAttr = defaultMin || undefined;
+  $: maxAttr = defaultMax || undefined;
+  $: dateMin = $filters.dateMin ?? defaultMin;
+  $: dateMax = $filters.dateMax ?? defaultMax;
 
   function updateMin(e) {
-    const val = Number(e.target.value) || null;
-    filters.update((f) => ({ ...f, yearMin: val }));
+    const val = e.target.value || null;
+    filters.update((f) => ({ ...f, dateMin: val }));
   }
+
   function updateMax(e) {
-    const val = Number(e.target.value) || null;
-    filters.update((f) => ({ ...f, yearMax: val }));
+    const val = e.target.value || null;
+    filters.update((f) => ({ ...f, dateMax: val }));
   }
+
   function reset() {
-    filters.update((f) => ({ ...f, yearMin: extent.min, yearMax: extent.max }));
+    filters.update((f) => ({ ...f, dateMin: null, dateMax: null }));
   }
 </script>
 
 <label>
-  {$t("filters.yearRange")}
+  {$t("filters.dateRange")}
   <input
-    type="number"
-    min={extent.min}
-    max={extent.max}
-    value={yearMin}
+    type="date"
+    min={minAttr}
+    max={maxAttr}
+    value={dateMin}
     on:input={updateMin}
-    aria-label={$t("filters.yearStart")}
+    aria-label={$t("filters.dateStart")}
   />
   –
   <input
-    type="number"
-    min={extent.min}
-    max={extent.max}
-    value={yearMax}
+    type="date"
+    min={minAttr}
+    max={maxAttr}
+    value={dateMax}
     on:input={updateMax}
-    aria-label={$t("filters.yearEnd")}
+    aria-label={$t("filters.dateEnd")}
   />
   <button type="button" on:click={reset} aria-label={$t("filters.reset")}
     >↺</button
@@ -47,12 +60,15 @@
   label {
     display: flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.3rem;
     font-family: Arial, sans-serif;
   }
-  input[type="number"] {
-    width: 5em;
+
+  input[type="date"] {
+    width: 11em;
+    padding: 0.1rem 0.2rem;
   }
+
   button {
     background: none;
     border: 1px solid white;
