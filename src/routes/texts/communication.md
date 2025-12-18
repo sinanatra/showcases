@@ -5,7 +5,7 @@ excerpt: "The regional comparison of both state police departments reveals a cle
 caption: "The visualisation shows all small selection of reports, highlighting differences in the Berlin and Brandenburg police public relations cultures"
 viz: fungal
 loop: false
-isPublic: true
+isPublic: false
 urls: 
 - https://polizei.brandenburg.de/pressemeldung/mehrere-fahrzeuge-beschmiert/5457626
 - https://polizei.brandenburg.de/pressemeldung/schmierereien-an-fassade/5397601
