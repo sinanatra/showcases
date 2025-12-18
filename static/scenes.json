@@ -75,8 +75,8 @@
       "de": "Erkunde den <a href='/timeline' data-sveltekit-reload >gesamten Datensatz</a>, um Muster von Hass und Ausgrenzung im Laufe der Zeit nachzuverfolgen."
     },
     "body": {
-      "en": "by Giacomo Nanni, Till Rückward, Karina Tarasiuk, with textual and conceptual support from Annette Jael Lehmann. Supported by <a href='https://mlml.io/'/>metaLAB (at) Harvard & Berlin</a>.",
-      "de": "von Giacomo Nanni, Till Rückward, Karina Tarasiuk, mit textlicher und konzeptioneller Unterstützung von Annette Jael Lehmann. Unterstützt von <a href='https://mlml.io/'/>metaLAB (at) Harvard & Berlin</a>."
+      "en": "Showcases is a <a href='https://mlml.io/'/>metaLAB (at) Harvard & Berlin</a> by Giacomo Nanni, Till Rückwart, Karina Tarasiuk, with textual and conceptual support from Annette Jael Lehmann.",
+      "de": "Showcases ist ein <a href='https://mlml.io/'/>metaLAB (at) Harvard & Berlin</a> Projekt von Giacomo Nanni, Till Rückwart, Karina Tarasiuk, mit Unterstützung von Annette Jael Lehmann."
     }
   }
 ]
