@@ -29,7 +29,7 @@ const dict = {
     showcases: "Showcases",
     subtitle: "Recoding Right-Wing Extremism",
     description:
-      "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of racist, queerphobic violence, as well as right-wing extremism in Berlin and Brandenburg, Germany.",
+      "Showcases is a data-driven investigation that visualizes police reports on politically motivated crime, highlighting the growing normalization of racist, queerphobic violence, as well as right-wing extremism in Berlin and Brandenburg.",
     sub: "This website automatically monitors police reports from Berlin and Brandenburg and updates the dataset daily.",
 
     last: "Latest Incidents",
