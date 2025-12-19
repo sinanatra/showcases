@@ -1,6 +1,6 @@
 ---
-title: "Youth Cases"
-date: "2025-10-10"
+title: "Swastika Vandalism"
+date: "2025-12-05"
 excerpt: "In 339 of 2.111 police reports, persons aged 18 or younger are involved – either as offenders or as victims. They act in groups and are individually targeted by aggression. They share right-extremist and racist beliefs, and they are devalued by them. They beat, and are beaten."
 caption: "The visualisation shows all reports that mention the involvement of people aged 18 or below, from 2019 to October 2025"
 viz: fungal
@@ -349,34 +349,54 @@ urls:
   
 ---
 
-# Youth Cases
+# Swastika Vandalism 
 
-Of the 2.111 analyzed police reports from 2019–mid October 2025, 339 mention the involvement of people aged 18 or younger – around 16 percent of all cases. Youth can mostly be classified as either victims (44 percent) or offenders (38 percent), while in roughly one in ten cases they are both (10 percent), either the same individual or group is victim and offender, or two individuals or groups of minors are subjects of the report. In the remaining cases, 8 percent, youth can be described as witnesses or are solely mentioned in protest-related contexts.
+About a quarter of the police reports from this database include politically motivated graffiti or vandalism. To be more precise: from the 2,121 reports collected from January 3, 2019 to November 5, 2025, 528 of them fall into this category. The majority of the cases (80%) are located in the state of Brandenburg. Of the remaining 20% of cases located in Berlin. The districts that recorded most cases are Mitte, Neukölln and Friedrichshain-Kreuzberg.
 
-Beyond these numbers, the reports provide insights into how youth are portrayed in institutional communication and reveal distinct regional reporting biases. Even though the reports tend to have a standardized tone, they pivot towards the complex realities of youth living in Germany. They depict stressful everyday encounters children or minors may have to endure, while presenting symptoms of a growth in nationalist youth groups.
+Each police report was counted as a single case, regardless of the number of symbols or acts of vandalism described – and these cases can be grouped into four main categories: explicit Nazi symbolism, antisemitic targeting of memorial sites, racist and xenophobic messages against residents, and left-wing counter-graffiti. Some cases, however, cannot be categorized, since the only detail the police provide is 'politically motivated'. 
 
-In Berlin, for example, teenage girls wearing headscarves are targeted by racist attacks. The garment becomes a visual anchor for the projection of aggression and social tension. Violent attempts are made to tear it off from the girls’ heads. Attacked by adults, male and female, the religious symbol is utilized for hate. A case involving two girls aged 14 and 16 illustrates the dangers that teenagers wearing headscarves face:
+The most frequently appearing symbol is the swastika, which represents 72% of the analyzed cases. One report even mentions more than 50 swastikas found at the same place: 
 
-> “According to current findings, two unknown individuals approached them from behind and pulled on their headscarves. This tore the 14-year-old's headscarf. In the ensuing scuffle, the attackers allegedly struck both girls in the face. Furthermore, one of the men pulled out a pocket knife and inflicted a superficial cut on the 16-year-old's arm.” (Police Berlin 2025; Translated from German)
+> “On Friday afternoon, a witness reported to the police that three men were writing unconstitutional symbols on the ground. The police found three people at the scene. In total, there were over 50 swastikas and some writing on the ground. (...)” (Police Brandenburg 2025)
 
-Similarly, children are often verbally abused, spat on, pushed or hit. These incidents occur in Berlin and Brandenburg alike, on playgrounds and in public transportation. The offenders are not always adults; minors, too, often seize opportunities to harass those perceived as weaker. They mostly act in group constellations. At a bus stop in Bad Saarow, Brandenburg, for example, a 10-year-old Namibian boy was enveloped in cigarette smoke, racially abused and physically attacked by two teenage girls of around 17 years. The following day, the minors met again and a 10-year-old German girl and peer of the victim was physically punished, too, presumably for being with the boy (Police Brandenburg 2025).
+While most of the reports don’t give much detail on the location where the swastikas – or other Nazi symbols – were found, a few events show that Nazi graffiti were found at meaningful places, such as synagogues or memorials. Here is an example: 
 
-When minors of color become targets, even places of leisure activities can become scenes of racist harm. The football pitch is one of these places. From the big stadiums of France and Italy to Great Britain and Germany, right-wing football fans demonstrate their hatred by making monkey noises at black players. The local pitch is no exception, neither in Brandenburg nor Berlin.
+> “(...) three swastikas were carved into the surface of a memorial plaque at the former Klinkerbecken satellite camp (part of the Sachsenhausen Memorial), which is located on Am Klinkerhafen street, by unknown perpetrators. The removal of the graffiti has already been arranged”. (Police Brandenburg 2020)
 
-In Berlin, Lichtenberg, a 9-year-old boy was racially insulted, spat on, punched and kicked by two other boys. They pushed the boy against a fence and kicked a football into his face (Police Berlin 2025). Another violent conflict between same aged actors is portrayed in this example from Strausberg, Brandenburg:
+Another form of antisemitic vandalism was the defacing of the so-called stumbling blocks (Stolpersteine), which serve as a symbolic tribute to the victims of the Nazi regime: 
 
-> “In the evening hours of 5 October 2024, two apparent youths insulted a young footballer who was accompanied by two teammates in the sports and recreation park and repeatedly threw pyrotechnics in the direction of the footballers. [...] Police officers launched investigations into attempted grievous bodily harm, insult and incitement to hatred, which will be handled by the police state security department.” (Police Brandenburg 2024; Translated from German)
+> “Unknown individuals defaced three Stolpersteine ​​in Friedrichshain. (...) a resident of Waldeyer Straße noticed the memorial stones, which are embedded in the sidewalk, were defaced with a white-gray substance and alerted the police”. (Police Berlin 2020)
 
-This example from the Brandenburg police is written in a somewhat standardized language, which emphasizes the investigation by the police state security – something that is usually documented in the Berlin police reports, but an exception for reports from Brandenburg.
-The regional comparison of both state police departments reveals a clear difference in how minors appear in police reports. In Berlin, they are predominantly positioned in the role of victims (56 percent), whereas in Brandenburg the majority of youth is described as perpetrators (63 percent). This contrast does not necessarily align with the actual amount of youth involvement in politically motivated crimes in these two federal states (the criminal statistics of Brandenburg do not indicate the number of youth offenses), but could give a glimpse into the distinct public relations cultures of German state police departments.
+Not only were swastikas found on memorial sites dedicated to victims of the Nazi Regime, but also at spaces primarily used by children – such as schools, daycares and playgrounds. There were around 50 reports of far-right symbols found at those places, which can be exemplified by the following events: 
 
-For example, of all reported incidents with youth involvement, 29 cases refer to the painting of a swastika (“Hakenkreuz”). The majority (28) of these crimes are reported in Brandenburg, while only one case is documented in Berlin police reports. On the other hand, of the 24 reports that address antisemitism, the majority (23) is reported in Berlin, and only once in Brandenburg. This suggests reporting priorities rather than actual incident rates.
-One could assume that antisemitic cases may be more visible in Berlin due to its larger Muslim community and the renewed escalation of the Israel-Palestine conflict since the Hamas attack of 7 October 2023, which led to Israeli bombardments of Gaza and the killing of tens of thousands of Palestinians. Since autumn 2023, a rise in antisemitic crimes has been recorded, accompanied by increased policing of pro-palestinian supporters – even peaceful ones. While there certainly are incidents of islamic antisemitism, right-wing extremists still play a crucial role in threatening jews in Germany, as this report from Berlin shows:
+> “As yet unknown individuals painted 16 swastikas in blue paint on a playground sign at the corner of Ahrensfelder Straße and Karl-Marx-Straße. (...)” (Police Brandenburg 2024)
 
-> “The unknown man ordered the teenager to look at the ground and threatened to hit him if he looked up. The man then said that he was a National Socialist and made antisemitic insults towards the teenager.” (Police Berlin 2020; Translated from German)
+> “On Monday morning, a witness noticed graffiti on the facade of a school on Alexander-von-Humboldt-Straße. Unknown individuals had defaced a professionally applied graffiti mural on the school, featuring racist symbols such as a swastika and anti-Semitic slogans (...)”. (Police Brandenburg 2025)
 
-The way hate-motivated offenses are portrayed in relation to Jewish life in Berlin is similar to the presence of LGBTQ people in police reports involving youth. The minors in these cases take both roles, of the victims and the perpetrators (against jews or queers). All of the 58 homo-, trans- and queerphobic cases are documented in Berlin. While the reports almost never indicate a political or religious background, the reports significantly show that young male adolescents are the primary perpetrators. This points more to issues with patriarchal structures and wounded masculinity than to a distinct political or religious ideology.
+In most of the cases the perpetrators were unknown. But many of the ones who were apprehended were underage, such as in this example: 
 
-The difference in reporting about youth-related swastika graffiti, antisemitism and queerphobia in Berlin and Brandenburg state police departments is quite remarkable. They perform communicative gestures that disclose the unconscious (or even conscious) biases and culture within the police departments. In Berlin, swastika paintings, which could potentially be framed as entry-level offences for minors, almost don’t appear. The “Hakenkreuz” has been and still is a symbol of right-extremist activity. Its emergence in public spaces as well as schools is highly documented by the [Berliner Register](https://berliner-register.de/), a platform for civil engagement and reporting of discriminating actions in Berlin, making its absence in police reports questionable. On the other hand, the lack of police reports associated with crimes categorized as homo-, trans- and queerphobic, renders the experiences of LGBTQI people in Brandenburg largely invisible.
+> “Early in the morning of January 14, 2021, plainclothes officers from the federal police caught three young men sticking stickers and spraying graffiti on several buildings around the train station. The men, aged 14, 16, and 20, had used black spray paint to apply slogans associated with the right-wing scene, and the stickers were also found to be of the same political orientation”. (Police Brandenburg 2021)
+
+Not all the right-wing political graffiti or vandalism reported by the police was Nazi related. There was also a significant number of white supremacist and racist messages. Here is an example: 
+
+> “On Tuesday morning, police discovered graffiti on Bollensdorfer Weg. Two triangles framed by circles had been painted in yellow on the wall of a barn. Beneath the symbols, which were 40 and 75 mm in diameter, was the slogan 'Defend Europe'. The officers' investigation revealed that the symbols were likely those of the “Identitarian Movement” group, which has been classified as right-wing extremist by the Office for the Protection of the Constitution. (...)”. (Police Brandenburg 2023)
+
+The following example also shows an explicit xenophobic insult vandalized at a family’s apartment: 
+
+> “Early this morning, a xenophobic act was committed against a family in Charlottenburg-Nord. According to investigations, between 6:30 and 7:00 a.m., unknown persons wrote the word 'RAUS' (GET OUT) on the family's apartment door on Heilmannring. In addition, the wall next to the door was smeared with the word 'MÜLL' (trash) and an arrow pointing to the family's apartment door. The names of the residents had been painted over to make them unrecognizable”. (Police Berlin 2020)
+
+The police also reported on homophobic graffiti and, mostly, vandalism – with rainbow flags that were set on fire. (Police Brandenburg 2025)
+
+To a lesser extent, the dataset gathers reporting on left-wing and antifascist graffiti, which is classified as politically motivated: 
+
+> “(...) unknown perpetrators sprayed graffiti on the advertising wall of a bus stop near the gas station there during the night of November 29. Pink spray paint was used to write “Nazis, tomorrow, the state will deport you. You're all the same racist scum!” and a heart with the word 'Antifa' inside. (...)”. (Police Brandenburg 2022)
+
+Similarly, many reports on graffiti criticizing Israel and expressing pro-Palestinian positions are classified as politically motivated and antisemitic: 
+
+> “(...) At around 7 p.m., a report was received via an online advertisement regarding several anti-Israeli and pro-Palestinian slogans and symbols painted on a bridge on Uranusweg. When emergency services arrived at the scene, they discovered various anti-Israeli and pro-Palestinian graffiti in Scharnweberstraße in addition to the reported paint smears. (...)” (Police Berlin 2023)
+
+Overall, the analysis shows that politically motivated vandalism in the dataset is predominantly driven by far-right and Nazi ideology, with swastikas serving as the most persistent symbol. The symbolic violence observed here goes beyond the symbols themselves. The repeated targeting of memorials, Stolpersteine, schools, and residential spaces indicates that these acts function not only as property damage but as symbolic political violence thereby threatening diversity and democratic norms. 
+
+The fact that nearly 400 of the analyzed cases involve swastika symbols in public spaces indicates the continued presence and visibility of Nazi and far-right ideology, despite Germany’s extensive efforts to confront its past and prevent the repetition of such crimes.
 
 Similar to these ambiguities, the language used in youth-related police reports reveals biased deviations and variations. Follow the “language” section to learn more about the textual analysis of Berlin and Brandenburg state police press reports.
