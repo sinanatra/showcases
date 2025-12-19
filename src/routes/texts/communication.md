@@ -31,9 +31,7 @@ urls:
 
 # Communication Policies
 
-A comparison of police reports published by Berlin and Brandenburg state police departments reveals notable deviations between the two federal states. That invites an analysis of variations in the selection of right-wing extremist crimes and in individual reporting styles, in order to reflect on the public-relations cultures within state police departments and on structural differences between the authorities. 
-
-Of all reported incidents, 528 cases (24,5% of the dataset) refer to the painting of a swastika (“Hakenkreuz”). The vast majority of these crimes (485) are reported in Brandenburg, while only 43 cases appear in Berlin police reports. By contrast, of the 173 reports (8%) addressing antisemitism, most (150) were published by Berlin police, and only 23 by Brandenburg. A similar pattern of selective visibility appears in the reporting on LGBTQI-related offenses. Of the 247 (11,5%) homo-, trans- and queerphobic cases in the dataset, only three are documented in Brandenburg. 
+A comparison of police reports published by Berlin and Brandenburg state police departments reveals notable deviations between the two federal states. Of all reported incidents, 528 cases (24,5% of the dataset) refer to the painting of a swastika (“Hakenkreuz”). The vast majority of these crimes (485) are reported in Brandenburg, while only 43 cases appear in Berlin police reports. By contrast, of the 173 reports (8%) addressing antisemitism, most (150) were published by Berlin police, and only 23 by Brandenburg. A similar pattern of selective visibility appears in the reporting on LGBTQI-related offenses. Of the 247 (11,5%) homo-, trans- and queerphobic cases in the dataset, only three are documented in Brandenburg. 
 
 Of the 611 cases (28,4%) mentioning a xenophobic motivation, 504 are registered in Berlin, while 107 occurred in Brandenburg. In Brandenburg, many cases refer to incidents that took place in the past and were later reported to the police, without direct intervention by officers, as the following example shows:
 
