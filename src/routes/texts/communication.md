@@ -22,7 +22,9 @@ urls:
 - https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1527267.php
 - https://polizei.brandenburg.de/pressemeldung/regenbogenfahnen-beschaedigt/5465427
 - https://polizei.brandenburg.de/pressemeldung/beschimpft-und-beleidigt-/1511492
-- https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1625159.php  
+- https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1625159.php
+- https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1550759.php
+- https://polizei.brandenburg.de/pressemeldung/beleidigt/3941295 
 
   
 ---
