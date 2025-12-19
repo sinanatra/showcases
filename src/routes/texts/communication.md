@@ -43,7 +43,7 @@ Comparable incidents also occur in Berlin. However, the Berlin police department
 
 Differences in reporting on swastika graffiti, antisemitism, queerphobia, and xenophobia between the Berlin and Brandenburg police departments point to divergent communicative practices and institutional cultures. In Berlin, swastika graffiti, which remains a central symbol of right-wing extremist activity, is largely absent from police reports. Conversely, the near absence of police reports addressing homo-, trans- and queerphobic crimes in Brandenburg renders the presence and experiences of LGBTQI people in the state largely invisible. Brandenburg reports more often document crimes reported after the fact or cases with unknown suspects, such as the discovery of swastika graffiti.
 
-Beyond case selection, the language used in police reports reveals biased deviations, stylistic variations, and structural differences within the public-relations departments. All Berlin cases are issued by one central office, producing a largely standardized voice across reports, as illustrated by the following example:
+Beyond case selection, the language used in police reports reveals biased deviations, stylistic variations, and structural differences within the public-relations departments. All Berlin cases are issued by one central office, producing a largely standardized voice across reports, similar to the following example:
 
 > “Yesterday at noon, officers from Police Precinct 44 arrested a man in Tempelhof who is alleged to have attacked a woman. [...] As there is suspicion that the attack was motivated by xenophobia, the State Security Division of the State Criminal Police Office has taken over further investigations into the case of aggravated assault.” (Police Berlin 2022)
 
