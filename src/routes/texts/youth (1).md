@@ -5,7 +5,7 @@ excerpt: "In 339 of 2.111 police reports, persons aged 18 or younger are involve
 caption: "The visualisation shows all reports that mention the involvement of people aged 18 or below, from 2019 to October 2025"
 viz: fungal
 loop: false
-isPublic: true
+isPublic: false
 urls: 
     - https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1588704.php
     - https://www.berlin.de/polizei/polizeimeldungen/2025/pressemitteilung.1542167.php
