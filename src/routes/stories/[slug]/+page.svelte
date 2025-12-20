@@ -1,49 +1,69 @@
 <script>
-  import { onMount } from "svelte";
   import * as d3 from "d3";
   import { articles } from "$lib/stores";
   import DataViz from "$lib/components/DataViz.svelte";
   import { page } from "$app/stores";
 
-  export let data;
+  let { data } = $props();
 
-  let datum = data.posts.find((d) => d.path.includes($page.params.slug));
+  let markdownComponent = $state(null);
 
-  $: slug = $page.params.slug;
-  $: datum = data?.posts?.find((d) => d.path?.includes(slug)) ?? null;
-  $: urls = datum?.meta?.urls ?? [];
-  $: caption = datum?.meta?.caption ?? "";
-  $: viz = datum?.meta?.viz ?? "";
-  $: loop = datum?.meta?.loop ?? false;
+  let slug = $derived($page.params.slug);
+  let datum = $derived(data?.posts?.find((d) => d.path?.includes(slug)) ?? null);
 
-  onMount(async () => {
-    const raw = await d3.csv("/all_merged.csv");
-    const normalized = raw.map((d) => ({
-      ...d,
-      KeywordMatch:
-        typeof d.KeywordMatch === "string"
-          ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : Array.isArray(d.KeywordMatch)
-            ? d.KeywordMatch
-            : [],
-      Text: d.Text || "",
-      URL: d.URL || "",
-      Title: d.Title || "",
-      ExtractedGender: Array.isArray(d.ExtractedGender)
-        ? d.ExtractedGender
-        : d.ExtractedGender
-          ? [d.ExtractedGender]
-          : [],
-      ExtractedTime: Array.isArray(d.ExtractedTime)
-        ? d.ExtractedTime
-        : d.ExtractedTime
-          ? [d.ExtractedTime]
-          : [],
-    }));
-    articles.set(normalized);
+  $effect(() => {
+    if (datum) {
+      import(`../../texts/${slug}.md`).then((module) => {
+        markdownComponent = module.default;
+      }).catch((err) => {
+        console.warn(`Could not load markdown component for ${slug}:`, err);
+        markdownComponent = null;
+      });
+    }
+  });
+  let urls = $derived(datum?.meta?.urls ?? []);
+  let caption = $derived(datum?.meta?.caption ?? "");
+  let viz = $derived(datum?.meta?.viz ?? "");
+  let loop = $derived(datum?.meta?.loop ?? false);
+
+  let storyDataLoaded = $state(false);
+  
+  $effect(() => {
+    if (storyDataLoaded) return;
+    (async () => {
+      try {
+        const raw = await d3.csv("/all_merged.csv");
+        const normalized = raw.map((d) => ({
+          ...d,
+          KeywordMatch:
+            typeof d.KeywordMatch === "string"
+              ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
+                  .split(/[,;]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : Array.isArray(d.KeywordMatch)
+                ? d.KeywordMatch
+                : [],
+          Text: d.Text || "",
+          URL: d.URL || "",
+          Title: d.Title || "",
+          ExtractedGender: Array.isArray(d.ExtractedGender)
+            ? d.ExtractedGender
+            : d.ExtractedGender
+              ? [d.ExtractedGender]
+              : [],
+          ExtractedTime: Array.isArray(d.ExtractedTime)
+            ? d.ExtractedTime
+            : d.ExtractedTime
+              ? [d.ExtractedTime]
+              : [],
+        }));
+        articles.set(normalized);
+        storyDataLoaded = true;
+      } catch (err) {
+        console.error("Failed to load story data:", err);
+      }
+    })();
   });
 </script>
 
@@ -68,7 +88,9 @@
         </p>
       </div>
     {/if}
-    {@html datum.text}
+    {#if markdownComponent}
+      <svelte:component this={markdownComponent} />
+    {/if}
   </article>
 {/if}
 

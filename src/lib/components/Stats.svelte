@@ -16,10 +16,10 @@
     return "Other";
   };
 
-  $: total = Array.isArray($articles) ? $articles.length : 0;
-  $: shown = Array.isArray($filtered) ? $filtered.length : 0;
+  let total = $derived(Array.isArray($articles) ? $articles.length : 0);
+  let shown = $derived(Array.isArray($filtered) ? $filtered.length : 0);
 
-  $: byKeyword = (() => {
+  let byKeyword = $derived.by(() => {
     const m = new Map();
     ($filtered ?? []).forEach((a) => {
       (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []).forEach((k) => {
@@ -30,9 +30,9 @@
     return Array.from(m.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
-  })();
+  });
 
-  $: byDistrict = (() => {
+  let byDistrict = $derived.by(() => {
     const m = new Map();
     ($filtered ?? []).forEach((a) => {
       const d = a.ExtractedDistrict || "(unknown)";
@@ -41,9 +41,9 @@
     return Array.from(m.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
-  })();
+  });
 
-  $: byTime = (() => {
+  let byTime = $derived.by(() => {
     const m = new Map();
     ($filtered ?? []).forEach((a) => {
       (Array.isArray(a.ExtractedTime) ? a.ExtractedTime : []).forEach((t) => {
@@ -60,9 +60,9 @@
       });
     });
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  })();
+  });
 
-  $: byGender = (() => {
+  let byGender = $derived.by(() => {
     const counts = new Map();
     ($filtered ?? []).forEach((a) => {
       const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];

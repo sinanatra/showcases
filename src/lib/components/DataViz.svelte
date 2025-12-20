@@ -13,20 +13,22 @@
   } from "$lib/stores";
   import { createSketch } from "$lib/components/dataViz/sketch";
   import { growthModes, growthParams } from "$lib/components/dataViz/growth";
-  import { onMount, onDestroy } from "svelte";
+  
+  let { 
+    urls = [],
+    autoCycle = false,
+    noZoom = false,
+    startZoom = 1,
+    startPan = { x: 0, y: 0 },
+    disableScrollZoom = false,
+    idleDelay = 10000,
+    tickMs = 5000,
+    maxCyclesProp = 2,
+    growthMode: growthModeProp = "chaos",
+    growthModeFixed = false
+  } = $props();
 
-  export let urls = [];
-  export let autoCycle = false;
-  export let noZoom = false;
-  export let startZoom = 1;
-  export let startPan = { x: 0, y: 0 };
-  export let disableScrollZoom = false;
-
-  export let idleDelay = 10000;
-  export let tickMs = 5000;
-  export let maxCyclesProp = 2;
-  export let growthMode = "chaos";
-  export let growthModeFixed = false;
+  let growthMode = $state(growthModeProp);
 
   function normalizeUrl(u) {
     let s = String(u || "").trim();
@@ -46,21 +48,25 @@
     }
   }
 
-  let autoCycleEnabled = autoCycle;
-  let idleDelayMs = idleDelay;
-  let tickEveryMs = tickMs;
-  let maxCycles = maxCyclesProp;
+  $effect(() => {
+    growthMode = growthModeProp;
+  });
 
-  $: customUrls = Array.from(new Set(urls || []))
+  let autoCycleEnabled = $state(autoCycle);
+  let idleDelayMs = $state(idleDelay);
+  let tickEveryMs = $state(tickMs);
+  let maxCycles = $state(maxCyclesProp);
+
+  let customUrls = $derived(Array.from(new Set(urls || []))
     .map(normalizeUrl)
-    .filter(Boolean);
-  $: customUrlKeys = new Set(customUrls.map(toKey));
-  $: baseCustom = customUrls.length
+    .filter(Boolean));
+  let customUrlKeys = $derived(new Set(customUrls.map(toKey)));
+  let baseCustom = $derived(customUrls.length
     ? ($articles || []).filter((a) => customUrlKeys.has(toKey(a?.URL || "")))
-    : [];
+    : []);
 
-  function applyLightFilters(list) {
-    const f = $filters || {};
+  function applyLightFilters(list, filters) {
+    const f = filters || {};
     let out = Array.isArray(list) ? list : [];
     if (f.keyword) {
       const variants = getKeywordVariants(f.keyword).map((s) =>
@@ -90,14 +96,19 @@
     return out;
   }
 
-  $: vizData = customUrls.length
-    ? applyLightFilters(baseCustom)
-    : $filteredData;
+  let filteredDataValue = $derived($filteredData);
+  let vizData = $state([]);
 
-  let lastActivity = Date.now();
-  let cycling = false;
-  let cycles = 0;
-  let hasCycledSinceIdle = false;
+  $effect(() => {
+    vizData = (customUrls.length > 0
+      ? applyLightFilters(baseCustom, $filters)
+      : filteredDataValue) || [];
+  });
+
+  let lastActivity = $state(Date.now());
+  let cycling = $state(false);
+  let cycles = $state(0);
+  let hasCycledSinceIdle = $state(false);
 
   function markActivity() {
     lastActivity = Date.now();
@@ -149,7 +160,7 @@
     }
   }
 
-  onMount(() => {
+  $effect(() => {
     const activityEvents = [
       "mousemove",
       "mousedown",
@@ -174,41 +185,66 @@
     };
   });
 
-  let timerResetId;
-  $: {
-    clearTimeout(timerResetId);
-    timerResetId = setTimeout(() => {
-      stopAutoCycle();
-      startAutoCycle();
-    }, 150);
-  }
+  let timerResetId = $state();
+  let lastAutoCycleConfig = $state({ autoCycleEnabled, idleDelayMs, tickEveryMs, maxCycles });
+  
+  $effect(() => {
+    if (
+      lastAutoCycleConfig.autoCycleEnabled !== autoCycleEnabled ||
+      lastAutoCycleConfig.idleDelayMs !== idleDelayMs ||
+      lastAutoCycleConfig.tickEveryMs !== tickEveryMs ||
+      lastAutoCycleConfig.maxCycles !== maxCycles
+    ) {
+      clearTimeout(timerResetId);
+      lastAutoCycleConfig = { autoCycleEnabled, idleDelayMs, tickEveryMs, maxCycles };
+      timerResetId = setTimeout(() => {
+        stopAutoCycle();
+        startAutoCycle();
+      }, 150);
+    }
+  });
 
-  $: dataSig = vizData
+  let dataSig = $derived(vizData
     .map((d) => `${d.URL || ""}|${d.ExtractedDate || d.Date || ""}`)
-    .join("§");
+    .join("§"));
 
-  $: activeHighlightTerms = [
+  let activeHighlightTerms = $derived([
     ...($filters.keyword ? getKeywordVariants($filters.keyword) : []),
     ...($filters.text ? [$filters.text] : []),
-  ].filter(Boolean);
+  ].filter(Boolean));
 
-  $: if (dataSig && growthModeFixed == false) {
-    growthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
-  }
+  let nextGrowthMode = $state(growthMode);
+  let lastDataSig = $state("");
+  
+  $effect(() => {
+    if (dataSig && dataSig !== lastDataSig && growthModeFixed === false) {
+      lastDataSig = dataSig;
+      nextGrowthMode = growthModes[Math.floor(Math.random() * growthModes.length)];
+    }
+  });
 
-  $: sketchKey = `${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}|kw:${$filters.keyword}|q:${$filters.text}`;
+  $effect(() => {
+    if (nextGrowthMode && nextGrowthMode !== growthMode) {
+      growthMode = nextGrowthMode;
+    }
+  });
 
-  let hoveredText = "",
-    hoveredUrl = "",
-    hoveredTitle = "",
-    tooltipX = 0,
-    tooltipY = 0,
-    hoveredHitbox = null;
+  let sketchKey = $derived(`${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}|kw:${$filters.keyword}|q:${$filters.text}`);
 
-  let isMobileValue = false;
-  const unsubscribeIsMobile = isMobile.subscribe(
-    (value) => (isMobileValue = !!value)
-  );
+  let hoveredText = $state(""),
+    hoveredUrl = $state(""),
+    hoveredTitle = $state(""),
+    tooltipX = $state(0),
+    tooltipY = $state(0),
+    hoveredHitbox = $state(null);
+
+  let isMobileValue = $state(false);
+  $effect(() => {
+    const unsubscribeIsMobile = isMobile.subscribe(
+      (value) => (isMobileValue = !!value)
+    );
+    return unsubscribeIsMobile;
+  });
 
   function setTooltip(text, url, x, y, keywords = [], date = "", title = "") {
     hoveredText = text || "";
@@ -228,7 +264,7 @@
     return fallbackKeyword || "";
   }
 
-  let isPinned = false;
+  let isPinned = $state(false);
 
   function clearTooltip() {
     hoveredText = "";
@@ -246,13 +282,12 @@
     clearTooltip();
   }
 
-  let sketchControls = {
+  let sketchControls = $state({
     zoomIn: () => {},
     zoomOut: () => {},
     resetView: () => {},
-  };
-  let sketch;
-  $: sketch = createSketch({
+  });
+  let sketch = $derived(createSketch({
     vizData,
     growthMode,
     growthParams,
@@ -273,7 +308,7 @@
     registerControls: (controls) => {
       sketchControls = controls || sketchControls;
     },
-  });
+  }));
 
   export function zoomIn() {
     sketchControls?.zoomIn?.();
@@ -284,15 +319,11 @@
   export function resetView() {
     sketchControls?.resetView?.();
   }
-
-  onDestroy(() => {
-    unsubscribeIsMobile();
-  });
 </script>
 
 <div class="viz-container">
   {#if vizData.length}
-    {#key sketchKey}
+    {#key `${dataSig}|${growthMode}`}
       <P5 {sketch} />
     {/key}
   {:else}
@@ -319,8 +350,8 @@
 
 <style>
   .viz-container {
-    width: 100vw;
-    height: 100vh;
+    /* width: 100vw;
+    height: 100vh; */
     background: #000;
     cursor: cell;
     position: relative;

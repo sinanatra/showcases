@@ -4,10 +4,13 @@
 
   import { record } from "$lib/stores.js";
 
-  let isRecording = false;
-  $: unsub = record.subscribe((v) => (isRecording = v));
+  let isRecording = $state(false);
+  $effect(() => {
+    const unsub = record.subscribe((v) => (isRecording = v));
+    return unsub;
+  });
 
-  let savedFrames = 0;
+  let savedFrames = $state(0);
   let framesToSave = 2000;
 
   let sketch = (p) => {
