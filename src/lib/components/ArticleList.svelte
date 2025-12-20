@@ -11,9 +11,7 @@
   let minDateStr = "01.01.2024"; 
   let minDate = parseDate(minDateStr);
 
-  $: filteredByDate = $filtered.filter(a => parseDate(a.Date) >= minDate);
-
-//   $: console.log(filteredByDate);
+  let filteredByDate = $derived($filtered.filter(a => parseDate(a.Date) >= minDate));
 </script>
 
 {#if filteredByDate.length === 0}

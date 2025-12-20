@@ -1,5 +1,5 @@
 <script>
-  export let data;
+  let { data } = $props();
   const toSlug = (d) => (d?.path || "").replace(/^\/?texts\//, "");
   const isPublic = (d) => d?.meta?.isPublic !== false;
   const titleOf = (d) => d?.meta?.title || "";

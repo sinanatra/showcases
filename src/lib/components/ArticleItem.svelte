@@ -1,5 +1,5 @@
 <script>
-  export let article;
+  let { article } = $props();
 
   function getSentences(text) {
     return text.match(/[^\\.?!]+[\\.?!]+/g) || [text];
