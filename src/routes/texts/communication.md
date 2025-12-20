@@ -2,7 +2,7 @@
 title: "Communication Policies"
 date: "2025-12-15"
 excerpt: "The regional comparison of both state police departments reveals a clear difference in reporting policies in Berlin and Brandenburg. This deep dive gives a glimpse into the distinct public relations cultures of German state police departments."
-caption: "The visualisation shows all small selection of reports, highlighting differences in the Berlin and Brandenburg police public relations cultures"
+caption: "The visualisation shows a small selection of reports, highlighting differences in the Berlin and Brandenburg police public relations cultures"
 viz: fungal
 loop: false
 isPublic: true
