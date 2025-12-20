@@ -9,13 +9,13 @@
     return date.toISOString().slice(0, 10);
   };
 
-  $: extent = $datesExtent || { min: null, max: null };
-  $: defaultMin = formatDateInput(extent.min);
-  $: defaultMax = formatDateInput(extent.max);
-  $: minAttr = defaultMin || undefined;
-  $: maxAttr = defaultMax || undefined;
-  $: dateMin = $filters.dateMin ?? defaultMin;
-  $: dateMax = $filters.dateMax ?? defaultMax;
+  let extent = $state($datesExtent || { min: null, max: null });
+  let defaultMin = $derived(formatDateInput(extent.min));
+  let defaultMax = $derived(formatDateInput(extent.max));
+  let minAttr = $derived(defaultMin || undefined);
+  let maxAttr = $derived(defaultMax || undefined);
+  let dateMin = $derived($filters.dateMin ?? defaultMin);
+  let dateMax = $derived($filters.dateMax ?? defaultMax);
 
   function updateMin(e) {
     const val = e.target.value || null;

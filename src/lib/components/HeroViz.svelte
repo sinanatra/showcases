@@ -2,34 +2,31 @@
   import { createEventDispatcher } from "svelte";
   import DataViz from "$lib/components/DataViz.svelte";
 
-  export let scene = {};
-  export let index = 0;
-  export let infoInteractive = true;
-  export let scrollHintLabel = "Scroll to explore";
-  export let autoCycle = false;
-  export let noZoom = false;
-  export let startZoom = 0.8;
-  export let startPan = { x: 0, y: 300 };
-  export let showScrollHint = true;
-  export let showText = true;
-  export let textFaded = 0;
-  export let showControls = 0;
+  let { 
+    scene = {},
+    index = 0,
+    infoInteractive = true,
+    scrollHintLabel = "Scroll to explore",
+    autoCycle = false,
+    noZoom = false,
+    startZoom = 0.8,
+    startPan = { x: 0, y: 300 },
+    showScrollHint = true,
+    showText = true,
+    textFaded = 0,
+    showControls = 0
+  } = $props();
 
-  $: textOpacity = Math.max(0, Math.min(1, 1 - textFaded));
-  $: controlsOpacity = Math.max(0, Math.min(1, showControls));
+  let textOpacity = $derived(Math.max(0, Math.min(1, 1 - textFaded)));
+  let controlsOpacity = $derived(Math.max(0, Math.min(1, showControls)));
 
   const dispatch = createEventDispatcher();
   let vizRef;
 
-  let heading = "";
-  let subtitle = "";
-  let body = "";
-  let links = [];
-
-  $: heading = scene?._heading || "";
-  $: subtitle = scene?._subtitle || "";
-  $: body = scene?._body || "";
-  $: links = Array.isArray(scene?._cta) ? scene._cta : [];
+  let heading = $derived(scene?._heading || "");
+  let subtitle = $derived(scene?._subtitle || "");
+  let body = $derived(scene?._body || "");
+  let links = $derived(Array.isArray(scene?._cta) ? scene._cta : []);
 
   function scrollNext() {
     dispatch("scrollhint");
@@ -182,6 +179,7 @@
     color: #000;
   }
   .hero-viz-wrapper {
+    background-color: black;
     position: relative;
     width: 100%;
     height: 100vh;

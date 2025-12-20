@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from "svelte";
   import * as d3 from "d3";
   import { lang, setLang, availableLangs, t } from "$lib/i18n";
   import { articles, filtered, parseDateLoose } from "$lib/stores";
@@ -51,13 +50,23 @@
     };
   }
 
-  onMount(async () => {
-    const raw = await d3.csv("/all_merged.csv");
-    const data = raw.map(normalizeRecord);
-    articles.set(data);
+  let timelineDataLoaded = $state(false);
+
+  $effect(() => {
+    if (timelineDataLoaded) return;
+    (async () => {
+      try {
+        const raw = await d3.csv("/all_merged.csv");
+        const data = raw.map(normalizeRecord);
+        articles.set(data);
+        timelineDataLoaded = true;
+      } catch (err) {
+        console.error("Failed to load timeline data:", err);
+      }
+    })();
   });
 
-  $: locale = $lang === "de" ? "de-DE" : "en-GB";
+  let locale = $derived($lang === "de" ? "de-DE" : "en-GB");
   const fmtNum = (n) => new Intl.NumberFormat(locale).format(n ?? 0);
   const fmtDate = (d) =>
     d
@@ -95,16 +104,16 @@
     return `${fmtDate(start)} ${toText} ${fmtDate(end)}`;
   }
 
-  $: list = Array.isArray($filtered) ? $filtered : [];
-  $: count = list.length;
-  $: span = spanFor(list);
-  $: toText = $t("summary_l1_to");
-  $: midText = $t("summary_l1_mid");
-  $: controlsText = $t("controls_filter");
+  let list = $derived(Array.isArray($filtered) ? $filtered : []);
+  let count = $derived(list.length);
+  let span = $derived(spanFor(list));
+  let toText = $derived($t("summary_l1_to"));
+  let midText = $derived($t("summary_l1_mid"));
+  let controlsText = $derived($t("controls_filter"));
 
-  $: urls = Array.from(
+  let urls = $derived(Array.from(
     new Set((list || []).map((d) => String(d.URL || "").trim()).filter(Boolean))
-  );
+  ));
 
   function copy() {
     const text = JSON.stringify(urls, null, 2);

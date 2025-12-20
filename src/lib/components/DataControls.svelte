@@ -1,6 +1,5 @@
 <script>
-  import { onMount } from "svelte";
-  import {
+  import { 
     filters,
     createFilterState,
     articles,
@@ -12,12 +11,12 @@
   import Record from "$lib/components/Record.svelte";
   import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
 
-  export let floating = true;
+  let { floating = true } = $props();
 
-  let lastActivity = Date.now();
-  let cycling = false;
-  let cycles = 0;
-  let hasCycledSinceIdle = false;
+  let lastActivity = $state(Date.now());
+  let cycling = $state(false);
+  let cycles = $state(0);
+  let hasCycledSinceIdle = $state(false);
 
   const idle_delay = 10000;
   const check_ms = 5000;
@@ -49,7 +48,7 @@
     }
   }
 
-  onMount(() => {
+  $effect(() => {
     const activityEvents = [
       "mousemove",
       "mousedown",
@@ -143,12 +142,12 @@
     return `${fmtDate(start)} ${$t(toKey)} ${fmtDate(end)}`;
   }
 
-  $: totalFiltered = $filteredData.length;
-  $: totalRecent = $recent.length;
-  $: totalAll = $articles.length;
+  let totalFiltered = $derived($filteredData.length);
+  let totalRecent = $derived($recent.length);
+  let totalAll = $derived($articles.length);
 
-  $: spanFiltered = spanFor($filteredData);
-  $: spanTotal = spanFor($articles);
+  let spanFiltered = $derived(spanFor($filteredData));
+  let spanTotal = $derived(spanFor($articles));
 </script>
 
 <!-- <div class="lang-switch">

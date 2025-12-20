@@ -1,15 +1,16 @@
 <script>
   import { highlightTerms } from "$lib/utils/highlightTerms.js";
   import { t } from "$lib/i18n";
-  export let hoveredText = "";
-  export let hoveredTitle = "";
-
-  export let hoveredUrl = "";
-  export let tooltipX = 0;
-  export let tooltipY = 0;
-  export let keywords = [];
-  export let date = "";
-  export let isPinned = false;
+  let { 
+    hoveredText = "",
+    hoveredTitle = "",
+    hoveredUrl = "",
+    tooltipX = 0,
+    tooltipY = 0,
+    keywords = [],
+    date = "",
+    isPinned = false
+  } = $props();
 </script>
 
 {#if hoveredText}

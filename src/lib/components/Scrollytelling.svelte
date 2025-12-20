@@ -1,30 +1,32 @@
 <script>
-  import { onMount, onDestroy, tick } from "svelte";
+  import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import { lang, setLang, availableLangs } from "$lib/i18n";
   import Stories from "$lib/components/Stories.svelte";
   import HeroViz from "$lib/components/HeroViz.svelte";
   import DataControls from "$lib/components/DataControls.svelte";
 
-  export let scenes = null;
-  export let src = null;
-  export let threshold = 0.6;
-  export let data = {};
-  export let storiesData = null;
-  export let heroStartGap = 120;
-  export let heroStartZoom = 1;
+  let { 
+    scenes = null,
+    src = null,
+    threshold = 0.6,
+    data = {},
+    storiesData = null,
+    heroStartGap = 120,
+    heroStartZoom = 1
+  } = $props();
 
-  let active = 0;
-  let videoRef;
-  let status = "loading";
-  let errorMsg = "";
-  let observer;
-  let root;
-  let heroStage = "text";
-  let heroFadeProgress = 0;
-  let scrollHandler = null;
+  let active = $state(0);
+  let videoRef = $state();
+  let status = $state("loading");
+  let errorMsg = $state("");
+  let observer = $state();
+  let root = $state();
+  let heroStage = $state("text");
+  let heroFadeProgress = $state(0);
+  let scrollHandler = $state(null);
 
-  $: currentLang = $lang;
+  let currentLang = $derived($lang);
 
   function l(v, langCode) {
     if (!v) return "";
@@ -40,7 +42,7 @@
     });
   }
 
-  $: localizedScenes = (scenes || []).map((s) => {
+  let localizedScenes = $derived((scenes || []).map((s) => {
     const _heading = fill(l(s.heading, currentLang), data);
     const _subtitle = fill(l(s.subtitle, currentLang), data);
     const _body = fill(l(s.body, currentLang), data);
@@ -49,11 +51,11 @@
       _label: fill(l(c.label, currentLang), data),
     }));
     return { ...s, _heading, _subtitle, _body, _cta };
-  });
+  }));
 
-  $: current = localizedScenes?.[active] ?? null;
-  $: isVideo = current?.media?.type === "video";
-  $: heroActive = active === 0;
+  let current = $derived(localizedScenes?.[active] ?? null);
+  let isVideo = $derived(current?.media?.type === "video");
+  let heroActive = $derived(active === 0);
 
   function handleEnded() {
     if (!videoRef) return;
@@ -109,37 +111,51 @@
     });
   }
 
-  onMount(async () => {
-    try {
-      if (!(Array.isArray(scenes) && scenes.length)) {
-        if (!src) throw new Error("No scenes provided");
-        const res = await fetch(src, { credentials: "same-origin" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        scenes = await res.json();
-      }
-      status = "ready";
-      active = 0;
-      preloadImages(scenes);
-      await initObserver();
-      if (typeof window !== "undefined") {
-        updateHeroStage();
-        scrollHandler = () => updateHeroStage();
-        window.addEventListener("scroll", scrollHandler, { passive: true });
-      }
-      await tick();
-      videoRef?.play?.().catch(() => {});
-    } catch (e) {
-      status = "error";
-      errorMsg = e?.message || String(e);
-    }
-  });
+  $effect(() => {
+    let mounted = true;
+    let cleanup = null;
 
-  onDestroy(() => {
-    observer?.disconnect();
-    if (typeof window !== "undefined" && scrollHandler) {
-      window.removeEventListener("scroll", scrollHandler);
-      scrollHandler = null;
-    }
+    (async () => {
+      try {
+        if (!mounted) return;
+        if (!(Array.isArray(scenes) && scenes.length)) {
+          if (!src) throw new Error("No scenes provided");
+          const res = await fetch(src, { credentials: "same-origin" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          scenes = await res.json();
+        }
+        if (!mounted) return;
+        status = "ready";
+        active = 0;
+        preloadImages(scenes);
+        await initObserver();
+        if (!mounted) return;
+        if (typeof window !== "undefined") {
+          updateHeroStage();
+          scrollHandler = () => updateHeroStage();
+          window.addEventListener("scroll", scrollHandler, { passive: true });
+        }
+        await tick();
+        if (!mounted) return;
+        videoRef?.play?.().catch(() => {});
+      } catch (e) {
+        if (mounted) {
+          status = "error";
+          errorMsg = e?.message || String(e);
+        }
+      }
+    })();
+
+    cleanup = () => {
+      mounted = false;
+      observer?.disconnect();
+      if (typeof window !== "undefined" && scrollHandler) {
+        window.removeEventListener("scroll", scrollHandler);
+        scrollHandler = null;
+      }
+    };
+
+    return cleanup;
   });
 
   function scrollToStep(index = 1) {

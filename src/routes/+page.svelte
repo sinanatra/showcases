@@ -8,47 +8,63 @@
     keywordsGroup,
   } from "$lib/stores";
   import Scrollytelling from "$lib/components/Scrollytelling.svelte";
-  import { onMount } from "svelte";
   import * as d3 from "d3";
   import { lang } from "$lib/i18n";
-  export let data;
+  let { data } = $props();
 
-  onMount(async () => {
-    if (Array.isArray($articles) && $articles.length) return;
-    const raw = await d3.csv("/all_merged.csv");
-    articles.set(
-      raw.map((d) => ({
-        ...d,
-        ExtractedGender: (d.ExtractedGender || "")
-          .replace(/[\[\]'"]/g, "")
-          .split(/[,;]/)
-          .map((s) => s.trim())
-          .filter(Boolean),
-        ExtractedTime: (d.ExtractedTime || "")
-          .replace(/[\[\]'"]/g, "")
-          .split(/[,;]/)
-          .map((s) => s.trim())
-          .filter(Boolean),
-        KeywordMatch: (d.KeywordMatch || "")
-          .replace(/[\[\]'"]/g, "")
-          .split(/[,;]/)
-          .map((s) => s.trim())
-          .filter(Boolean),
-        Text: d.Text || "",
-        URL: d.URL || "",
-        Title: d.Title || "",
-      }))
-    );
+  let articlesLoaded = $state(false);
+
+  $effect(() => {
+    if (articlesLoaded) return;
+    if (Array.isArray($articles) && $articles.length) {
+      articlesLoaded = true;
+      return;
+    }
+    
+    (async () => {
+      try {
+        const raw = await d3.csv("/all_merged.csv");
+        articles.set(
+          raw.map((d) => ({
+            ...d,
+            ExtractedGender: (d.ExtractedGender || "")
+              .replace(/[\[\]'"]/g, "")
+              .split(/[,;]/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+            ExtractedTime: (d.ExtractedTime || "")
+              .replace(/[\[\]'"]/g, "")
+              .split(/[,;]/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+            KeywordMatch: (d.KeywordMatch || "")
+              .replace(/[\[\]'"]/g, "")
+              .split(/[,;]/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+            Text: d.Text || "",
+            URL: d.URL || "",
+            Title: d.Title || "",
+          }))
+        );
+        articlesLoaded = true;
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      }
+    })();
   });
 
-  $: locale = $lang === "de" ? "de-DE" : "en-GB";
-  const fmtDate = (d) =>
-    new Intl.DateTimeFormat(locale, {
+  let locale = $derived($lang === "de" ? "de-DE" : "en-GB");
+  let fmtDate = $derived.by(() => 
+    (d) => new Intl.DateTimeFormat(locale, {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }).format(d);
-  const fmtNum = (n) => new Intl.NumberFormat(locale).format(n);
+    }).format(d)
+  );
+  let fmtNum = $derived.by(() => 
+    (n) => new Intl.NumberFormat(locale).format(n)
+  );
 
   function detectRegion(a) {
     const s = String(a?.SourceFile || "").toLowerCase();
@@ -69,26 +85,26 @@
   const canonicalKeyword = (k) =>
     keywordsGroup[String(k || "").toLowerCase()] || String(k || "");
 
-  $: list = Array.isArray($articles) ? $articles : [];
-  $: withDates = list
+  let list = $derived(Array.isArray($articles) ? $articles : []);
+  let withDates = $derived(list
     .map((a) => ({ a, d: parseDateLoose(a?.ExtractedDate || a?.Date) }))
-    .filter((x) => x.d && !isNaN(+x.d));
+    .filter((x) => x.d && !isNaN(+x.d)));
 
-  $: firstDate = withDates.length
+  let firstDate = $derived(withDates.length
     ? new Date(Math.min(...withDates.map((x) => +x.d)))
-    : null;
-  $: lastDate = withDates.length
+    : null);
+  let lastDate = $derived(withDates.length
     ? new Date(Math.max(...withDates.map((x) => +x.d)))
-    : null;
+    : null);
 
-  $: berlinCount = withDates.filter(
+  let berlinCount = $derived(withDates.filter(
     (x) => detectRegion(x.a) === "Berlin"
-  ).length;
-  $: brandenburgCount = withDates.filter(
+  ).length);
+  let brandenburgCount = $derived(withDates.filter(
     (x) => detectRegion(x.a) === "Brandenburg"
-  ).length;
+  ).length);
 
-  $: timeCounts = (() => {
+  let timeCounts = $derived((() => {
     const m = new Map();
     for (const { a } of withDates) {
       const ts = Array.isArray(a.ExtractedTime)
@@ -101,9 +117,9 @@
       m.set(bucket, (m.get(bucket) || 0) + 1);
     }
     return m;
-  })();
+  })());
 
-  $: genderCounts = (() => {
+  let genderCounts = $derived((() => {
     const m = new Map();
     for (const { a } of withDates) {
       const gs = Array.isArray(a.ExtractedGender)
@@ -117,18 +133,18 @@
       }
     }
     return m;
-  })();
+  })());
 
-  $: yearCounts = (() => {
+  let yearCounts = $derived((() => {
     const m = new Map();
     for (const { d } of withDates) {
       const y = d.getFullYear();
       m.set(y, (m.get(y) || 0) + 1);
     }
     return m;
-  })();
+  })());
 
-  $: keywordCounts = (() => {
+  let keywordCounts = $derived((() => {
     const m = new Map();
     for (const { a } of withDates) {
       const ks = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
@@ -139,7 +155,7 @@
       }
     }
     return m;
-  })();
+  })());
 
   function topOf(map, fallback = "—") {
     let bestK = fallback,
@@ -152,15 +168,15 @@
     return { key: bestK, value: bestV };
   }
 
-  $: topTime = topOf(timeCounts);
-  $: topGender = topOf(genderCounts);
-  $: topYear = topOf(yearCounts, "—");
-  $: topKeyword = topOf(keywordCounts);
+  let topTime = $derived(topOf(timeCounts));
+  let topGender = $derived(topOf(genderCounts));
+  let topYear = $derived(topOf(yearCounts, "—"));
+  let topKeyword = $derived(topOf(keywordCounts));
 
-  $: topTimeLabel = TIME_LABELS[$lang]?.[topTime.key] ?? topTime.key;
-  $: topGenderLabel = GENDER_LABELS[$lang]?.[topGender.key] ?? topGender.key;
+  let topTimeLabel = $derived(TIME_LABELS[$lang]?.[topTime.key] ?? topTime.key);
+  let topGenderLabel = $derived(GENDER_LABELS[$lang]?.[topGender.key] ?? topGender.key);
 
-  $: scrollyData = withDates.length
+  let scrollyData = $derived(withDates.length
     ? {
         firstDate: fmtDate(firstDate),
         lastDate: fmtDate(lastDate),
@@ -190,7 +206,7 @@
         topYearCount: 0,
         topKeyword: "—",
         topKeywordCount: 0,
-      };
+      });
 </script>
 
 <Scrollytelling src="/scenes.json" data={scrollyData} storiesData={data} />
