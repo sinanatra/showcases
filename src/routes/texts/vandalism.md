@@ -5,7 +5,7 @@ excerpt: "From the 528 analyzed reports, 72% mention the appearance of swastikas
 caption: "The visualisation shows a selection of vandalism and graffiti cases reported from January 2019 to November 2025"
 viz: fungal
 loop: false
-isPublic: false
+isPublic: true
 urls: 
     - https://polizei.brandenburg.de/pressemeldung/tatverdaechtiger-nach-schmierereien-gest/5589122
     - https://polizei.brandenburg.de/pressemeldung/hakenkreuze-/1977842
