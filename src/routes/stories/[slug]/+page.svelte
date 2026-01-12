@@ -2,6 +2,7 @@
   import * as d3 from "d3";
   import { articles } from "$lib/stores";
   import DataViz from "$lib/components/DataViz.svelte";
+  import RelatedArticles from "$lib/components/RelatedArticles.svelte";
   import { page } from "$app/stores";
 
   let { data } = $props();
@@ -91,6 +92,8 @@
     {#if markdownComponent}
       <svelte:component this={markdownComponent} />
     {/if}
+
+    <RelatedArticles posts={data?.posts ?? []} currentSlug={slug} />
   </article>
 {/if}
 
