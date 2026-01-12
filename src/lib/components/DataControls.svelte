@@ -1,5 +1,5 @@
 <script>
-  import { 
+  import {
     filters,
     createFilterState,
     articles,
@@ -194,6 +194,7 @@
       </span>
     </p> -->
   </div>
+  <br />
   <div>
     {#if $availableKeywordsLabeled.length}
       <p>
@@ -202,6 +203,7 @@
         </span>
       </p>
       <select
+        class="control"
         value={$filters.keyword}
         on:change={(e) => setKeywordFilter(e.target.value)}
       >
@@ -217,7 +219,7 @@
       on:input={(e) => setTextFilter(e.target.value)}
       minlength="3"
       placeholder={$t("controls_textPlaceholder")}
-      class="inline-input"
+      class="inline-input control"
     />
 
     <label class="inline-checkbox">
@@ -312,7 +314,6 @@
     display: block;
     margin: 0;
     margin-bottom: 5px;
-    width: 220px;
     font-family: Arial, Helvetica, sans-serif;
   }
 
@@ -320,8 +321,19 @@
     font-family: Arial, Helvetica, sans-serif;
   }
 
+  .control {
+    min-width: 120px;
+    padding: 2px;
+    margin: 0;
+  }
   select,
-  input,
+  input {
+    background-color: black;
+    color: white;
+    padding: 2px;
+    border: 1px solid;
+  }
+
   .inline-checkbox {
     background-color: black;
     color: white;

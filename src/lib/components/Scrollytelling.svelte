@@ -402,7 +402,7 @@
   }
   .hero-controls-panel {
     display: flex;
-    flex-direction: column;
+    /* flex-direction: column; */
     gap: 1.2rem;
     align-items: center;
     width: 100vw;
