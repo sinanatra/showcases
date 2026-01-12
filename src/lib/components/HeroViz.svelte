@@ -193,7 +193,7 @@
     top: 1rem;
     right: 1rem;
     display: flex;
-    flex-direction: column;
+    /* flex-direction: column; */
     gap: 0.5rem;
     z-index: 3;
   }
