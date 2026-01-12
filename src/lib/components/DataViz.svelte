@@ -282,6 +282,24 @@
     clearTooltip();
   }
 
+  $effect(() => {
+    const handleScroll = () => {
+      clearTooltip();
+      isPinned = false;
+    };
+    const handleClick = () => {
+      if (!isPinned) {
+        clearTooltip();
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("click", handleClick, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("click", handleClick);
+    };
+  });
+
   let sketchControls = $state({
     zoomIn: () => {},
     zoomOut: () => {},
