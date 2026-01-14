@@ -305,7 +305,7 @@ export function createSketch({
       const maxBuffer = isMobile ? 2048 : 4200;
       // const size = Math.min(maxBuffer, Math.floor(base * grewByData));
 
-      const size = Math.min(maxBuffer, Math.floor(base * 1.5));
+      const size = Math.min(maxBuffer, Math.floor(base * 2.1));
 
       bufferCenter = { x: size / 2, y: size / 2 };
       bufferBounds = { left: 0, right: size, top: 0, bottom: size };
