@@ -267,7 +267,7 @@
       );
 
       branches.forEach((br) => {
-        if (br.finished || simFrame < br.startFrame) return;
+        if (!isRecording || br.finished || simFrame < br.startFrame) return;
         br.frameCount++;
         if (br.frameCount % growthInterval !== 0 || br.grown >= br.maxSteps)
           return;
@@ -358,7 +358,9 @@
         if (br.grown >= br.maxSteps) br.finished = true;
       });
 
-      simFrame++;
+      if (isRecording) {
+        simFrame++;
+      }
 
       const tCurrent = Math.min(simFrame / timelineFrames, 1);
       const timelineX0 = sketch.timelineX0;
@@ -498,7 +500,7 @@
   };
 </script>
 
-<!-- <Record /> -->
+<Record />
 <div class="viz-container">
   <P5 {sketch} style="position:absolute; top:0; left:0;" />
 </div>
