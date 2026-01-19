@@ -215,6 +215,7 @@
     text-align: center;
     width: 100%;
     padding: 10px;
+    pointer-events: none;
     max-width: min(100vw, 720px);
     z-index: 1000;
   }
