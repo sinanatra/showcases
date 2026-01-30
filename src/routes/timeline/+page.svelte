@@ -1,7 +1,7 @@
 <script>
   import * as d3 from "d3";
   import { lang, setLang, availableLangs, t } from "$lib/i18n";
-  import { articles, filtered, parseDateLoose } from "$lib/stores";
+  import { articles, filtered, parseDateLoose, augmentKeywordMatch } from "$lib/stores";
   import RegionFilter from "$lib/components/RegionFilter.svelte";
   import DistrictFilter from "$lib/components/DistrictFilter.svelte";
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
@@ -36,7 +36,10 @@
     const extractedDistrict = districtArr[0] || d.Location || "";
     return {
       ...d,
-      KeywordMatch: keywordMatch,
+      KeywordMatch: augmentKeywordMatch(
+        keywordMatch,
+        `${d.Title || ""} ${d.Text || ""}`
+      ),
       KeywordExtracted: keywordExtracted,
       ExtractedTime: extractedTime,
       ExtractedAge: extractedAge,

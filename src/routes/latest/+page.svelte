@@ -1,6 +1,6 @@
 <script>
   import * as d3 from "d3";
-  import { articles } from "$lib/stores";
+  import { articles, augmentKeywordMatch } from "$lib/stores";
   import DataControls from "$lib/components/DataControls.svelte";
   import DataViz from "$lib/components/DataViz.svelte";
 
@@ -34,6 +34,12 @@
               : d?.ExtractedTime
                 ? [d?.ExtractedTime]
                 : [],
+          })).map((a) => ({
+            ...a,
+            KeywordMatch: augmentKeywordMatch(
+              a.KeywordMatch,
+              `${a.Title || ""} ${a.Text || ""}`
+            ),
           }))
         );
         latestDataLoaded = true;
