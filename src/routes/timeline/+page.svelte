@@ -160,7 +160,7 @@
   <Timeline />
 </main>
 
-<!-- <button type="button" on:click={copy}>Copy URLs</button> -->
+<button type="button" on:click={copy}>Copy URLs</button>
 
 <style>
   article {
