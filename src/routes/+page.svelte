@@ -4,6 +4,7 @@
     TIME_LABELS,
     genderMap,
     articles,
+    augmentKeywordMatch,
     parseDateLoose,
     keywordsGroup,
   } from "$lib/stores";
@@ -46,6 +47,13 @@
             URL: d.URL || "",
             Title: d.Title || "",
           }))
+            .map((a) => ({
+              ...a,
+              KeywordMatch: augmentKeywordMatch(
+                a.KeywordMatch,
+                `${a.Title || ""} ${a.Text || ""}`
+              ),
+            }))
         );
         articlesLoaded = true;
       } catch (err) {
