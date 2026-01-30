@@ -1,6 +1,6 @@
 <script>
   import * as d3 from "d3";
-  import { articles } from "$lib/stores";
+  import { articles, augmentKeywordMatch } from "$lib/stores";
   import DataViz from "$lib/components/DataViz.svelte";
   import RelatedArticles from "$lib/components/RelatedArticles.svelte";
   import { page } from "$app/stores";
@@ -58,6 +58,12 @@
             : d.ExtractedTime
               ? [d.ExtractedTime]
               : [],
+        })).map((a) => ({
+          ...a,
+          KeywordMatch: augmentKeywordMatch(
+            a.KeywordMatch,
+            `${a.Title || ""} ${a.Text || ""}`
+          ),
         }));
         articles.set(normalized);
         storyDataLoaded = true;

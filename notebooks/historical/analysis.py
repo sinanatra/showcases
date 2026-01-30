@@ -32,6 +32,16 @@ keywords = [
     "fremdenfeindlich",
     "islamophobie",
     "islamfeindlichkeit",
+    "islamfeindlich",
+    "islamophob",
+    "muslimfeindlich",
+    "muslimfeindlichkeit",
+    "antimuslimisch",
+    "anti-muslimisch",
+    "anti muslimisch",
+    "antiislamisch",
+    "anti-islamisch",
+    "anti islamisch",
     "nationalsozialismus",
     "nationalsozialistisch",
     "nationalsozialistische",
@@ -96,9 +106,27 @@ def find_keywords_with_matches(text, terms, threshold):
                     hits.append(m.group(0))
     return list(set(hits)) 
 
+islam_marker_regex = re.compile(r"\bkopftuch\w*\b")
+hate_context_regex = re.compile(r"\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b")
+
+def augment_islamfeindlichkeit(text, kws):
+    t = text or ""
+    hits = list(kws or [])
+
+    if any(str(k).lower().startswith(("islamfeind", "islamophob", "muslimfeind")) for k in hits):
+        if "islamfeindlichkeit" not in hits:
+            hits.append("islamfeindlichkeit")
+        return list(set(hits))
+
+    if islam_marker_regex.search(t) and hate_context_regex.search(t):
+        hits.append("islamfeindlichkeit")
+
+    return list(set(hits))
+
 for idx, text in df_text.items():
     print(f"Processing row {idx+1} of {len(df)}")
     kws = find_keywords(text, keywords, diff_threshold)
+    kws = augment_islamfeindlichkeit(text, kws)
     related = bool(kws)
     df.at[idx, 'RightWingRelated'] = related
     df.at[idx, 'KeywordMatch'] = kws
