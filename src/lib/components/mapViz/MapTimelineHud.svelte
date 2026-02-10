@@ -13,26 +13,30 @@
       .sort((a, b) => a.date - b.date),
   );
 
-  function floorIndexByDate(list, t) {
-    if (!Array.isArray(list) || list.length === 0 || !Number.isFinite(t))
-      return -1;
-    let lo = 0;
-    let hi = list.length - 1;
-    let ans = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (list[mid].date <= t) {
-        ans = mid;
-        lo = mid + 1;
-      } else hi = mid - 1;
-    }
-    return ans;
+  function dayKey(ms) {
+    if (!Number.isFinite(ms)) return "";
+    const d = new Date(ms);
+    if (isNaN(+d)) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
   }
 
+  let incidentsByDay = $derived.by(() => {
+    const map = new Map();
+    for (let i = 0; i < orderedIncidents.length; i++) {
+      const inc = orderedIncidents[i];
+      const key = dayKey(inc?.date);
+      if (key && !map.has(key)) map.set(key, inc);
+    }
+    return map;
+  });
+
   let currentIncident = $derived.by(() => {
-    const t = Number(playhead);
-    const idx = floorIndexByDate(orderedIncidents, t);
-    return idx >= 0 ? orderedIncidents[idx] : null;
+    const key = dayKey(Number(playhead));
+    if (!key) return null;
+    return incidentsByDay.get(key) || null;
   });
 
   function fmtDateLarge(ms) {
@@ -56,6 +60,8 @@
       <div class="hud-text">
         {currentIncident.sentence || currentIncident.kw}
       </div>
+    {:else}
+      <div class="hud-text"></div>
     {/if}
   </aside>
 {/if}
@@ -77,8 +83,10 @@
   }
 
   .hud-text {
+    min-height: 20px;
     margin-top: 6px;
     opacity: 0.9;
+
     max-height: min(22vh, 220px);
     overflow: auto;
   }
