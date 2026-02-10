@@ -120,10 +120,6 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       return baseLtrSpacing * (segmentLength() / baseSegmentLength);
     }
 
-    function startMargin() {
-      return segmentLength() * 8;
-    }
-
     function lengthFactor() {
       return 1;
     }
@@ -346,14 +342,8 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       const dir0 = p.createVector(Math.cos(angle), Math.sin(angle)).normalize();
 
       const nodes = [anchor.copy()];
-      nodes.push(
-        anchor
-          .copy()
-          .add(dir0.copy().mult(startMargin() * (0.72 + Math.random() * 0.18))),
-      );
-
-      const pathLength = nodes[0].dist(nodes[1]);
-      const distArr = [0, pathLength];
+      const pathLength = 0;
+      const distArr = [0];
 
       return {
         id: `${inc.lon},${inc.lat},${inc.date}`,
@@ -423,13 +413,13 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       clearSimulation();
     }
 
-    function resetSimulation() {
+    function resetSimulation(hydrate = false) {
       playhead = desiredStartMs();
       nextIncidentIndex = 0;
       lastMillis = null;
       simFrame = 0;
       clearSimulation();
-      seekToMs(playhead, true);
+      seekToMs(playhead, hydrate);
     }
 
     function placeLetters(w) {
@@ -511,6 +501,9 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
 
     function spawnDue(maxBurst = 8) {
       if (!Number.isFinite(playhead) || playhead == null) return;
+      const capped = maxBurst != null;
+      const cap = capped ? Math.max(0, Math.floor(Number(maxBurst))) : 0;
+      if (capped && cap <= 0) return;
 
       let spawned = 0;
       while (
@@ -518,15 +511,14 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
         incidents[nextIncidentIndex].date <= playhead
       ) {
         const inc = incidents[nextIncidentIndex];
-        const candidateIndex = nextIncidentIndex + 1;
-
         const w = spawnParticle(inc);
         if (!w) break;
         particles.push(w);
-        nextIncidentIndex = candidateIndex;
-        spawned++;
-
-        if (spawned >= maxBurst) break;
+        nextIncidentIndex++;
+        if (capped) {
+          spawned++;
+          if (spawned >= cap) break;
+        }
       }
     }
 
@@ -555,7 +547,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       }
 
       playhead = target;
-      spawnDue(Number.POSITIVE_INFINITY);
+      spawnDue(null);
 
       if (hydrate && particles.length) {
         const passes = 14;
@@ -585,7 +577,10 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
 
       lastIncidentsRef = getIncidents?.() || [];
       setIncidents(lastIncidentsRef);
-      seekToMs(playhead, true);
+      seekToMs(playhead, false);
+      const initialSettings = getSettings?.() || {};
+      lastResetVersion = initialSettings.resetVersion ?? null;
+      lastSeekVersion = initialSettings.timelineSeekVersion ?? null;
     };
 
     p.draw = () => {
@@ -602,14 +597,14 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       if (latest !== lastIncidentsRef && Array.isArray(latest)) {
         lastIncidentsRef = latest;
         setIncidents(latest);
-        seekToMs(playhead, true);
+        seekToMs(playhead, false);
       }
 
       const settings = getSettings?.() || {};
       const resetVersion = settings.resetVersion ?? null;
       if (resetVersion != null && resetVersion !== lastResetVersion) {
         lastResetVersion = resetVersion;
-        resetSimulation();
+        resetSimulation(false);
       }
 
       const seekVersion = settings.timelineSeekVersion ?? null;
@@ -617,11 +612,12 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
         lastSeekVersion = seekVersion;
         const seekRatio = Number(settings.timelineSeekRatio);
         const targetMs = ratioToMs(seekRatio);
-        seekToMs(targetMs, true);
+        const shouldHydrate = seekRatio > 0;
+        seekToMs(targetMs, shouldHydrate);
       }
 
       updatePlayhead();
-      spawnDue(8);
+      spawnDue();
 
       if (simFrame % 4 === 0) rebuildBuckets();
       for (let i = 0; i < particles.length; i++) {
@@ -649,7 +645,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
       refreshProjection(true);
-      resetSimulation();
+      resetSimulation(false);
     };
 
     p.remove = () => {
