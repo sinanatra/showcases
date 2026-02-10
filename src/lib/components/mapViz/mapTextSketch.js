@@ -1,0 +1,662 @@
+import { shortenAroundKeyword } from "$lib/utils/textUtils";
+import { growthParams } from "$lib/components/dataViz/growth";
+import {
+  createRegionProjector,
+  drawRegionOutlines,
+} from "$lib/components/mapViz/mapOutlines";
+
+function parseDateLoose(v) {
+  if (!v) return null;
+  const raw = String(v).trim().replace(/,/g, "");
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  const de = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+  if (de) {
+    let [, day, month, year] = de;
+    let y = Number(year);
+    if (year.length === 2) y += y >= 70 ? 1900 : 2000;
+    return new Date(y, Number(month) - 1, Number(day));
+  }
+  const tmp = new Date(raw);
+  return isNaN(+tmp) ? null : tmp;
+}
+
+function parseList(str) {
+  if (!str) return [];
+  if (Array.isArray(str)) return str;
+  try {
+    const arr = JSON.parse(String(str).replace(/'/g, '"'));
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return String(str)
+      .replace(/[\[\]'"]/g, "")
+      .split(/[,;]\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+}
+
+function detectRegion(row) {
+  const s = String(row?.SourceFile || "").toLowerCase();
+  const u = String(row?.URL || "").toLowerCase();
+  if (s.includes("berlin") || u.includes("berlin.de")) return "Berlin";
+  if (s.includes("brandenburg") || u.includes("brandenburg.de"))
+    return "Brandenburg";
+  return "";
+}
+
+export function normalizeGeocodedRow(r) {
+  const lat = Number(r.latitude);
+  const lon = Number(r.longitude);
+  const d = parseDateLoose(r.ExtractedDate || r.Date);
+  const kws = parseList(r.KeywordMatch);
+  const kw0 = String(kws?.[0] || "").trim();
+  const text = String(r.Text || "");
+  const title = String(r.Title || "");
+  const sentence = shortenAroundKeyword(`${title} ${text}`.trim(), kw0, 120);
+  const region = detectRegion(r);
+
+  return {
+    lat,
+    lon,
+    date: d ? +d : null,
+    kw: kw0,
+    sentence,
+    title,
+    url: String(r.URL || ""),
+    region,
+  };
+}
+
+export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
+  return (p) => {
+    const scale = 0.62;
+    const glyphScale = 0.35;
+    const baseSegmentLength = 6.2;
+    const baseLtrSpacing = 7.3;
+    const widthBucket = 100;
+    const baseRepulsionRadius = 14;
+
+    const charCache = new Map();
+    const maxCache = 1400;
+    const keywordColors = {};
+
+    let particles = [];
+    let globalBuckets = new Map();
+    let simFrame = 0;
+
+    let incidents = [];
+    let lastIncidentsRef = null;
+    let nextIncidentIndex = 0;
+    let minT = null;
+    let maxT = null;
+    let playhead = null;
+    let lastMillis = null;
+    let lastResetVersion = null;
+    let lastSeekVersion = null;
+    let lastRegionFilter = null;
+    let projectPoint = null;
+
+    const params = () => {
+      const settings = getSettings?.() || {};
+      const mode = String(settings.growthMode || "fungal");
+      return growthParams[mode] || growthParams.fungal;
+    };
+
+    function lineScale() {
+      const settings = getSettings?.() || {};
+      const s = Number(settings.lineScale ?? 1);
+      return Number.isFinite(s) ? Math.max(0.15, Math.min(3.2, s)) : 1;
+    }
+
+    function segmentLength() {
+      return Math.max(0.2, Math.min(24, baseSegmentLength * lineScale()));
+    }
+
+    function ltrSpacing() {
+      return baseLtrSpacing * (segmentLength() / baseSegmentLength);
+    }
+
+    function startMargin() {
+      return segmentLength() * 8;
+    }
+
+    function lengthFactor() {
+      return 1;
+    }
+
+    function repulsionRadius() {
+      return baseRepulsionRadius * (segmentLength() / baseSegmentLength);
+    }
+
+    function clampPlayhead(ms) {
+      if (!Number.isFinite(ms)) return minT;
+      if (!Number.isFinite(minT) || !Number.isFinite(maxT)) return ms;
+      return Math.max(minT, Math.min(maxT, ms));
+    }
+
+    function desiredStartMs() {
+      const settings = getSettings?.() || {};
+      const s = Number(settings.startAtMs);
+      return clampPlayhead(Number.isFinite(s) ? s : minT);
+    }
+
+    function lowerBoundByDate(targetMs) {
+      const t = Number(targetMs);
+      if (!Number.isFinite(t) || !incidents.length) return 0;
+      let lo = 0;
+      let hi = incidents.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (incidents[mid].date < t) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    }
+
+    function ratioToMs(ratio) {
+      if (!Number.isFinite(minT) || !Number.isFinite(maxT)) return null;
+      const r = Math.max(0, Math.min(1, Number(ratio) || 0));
+      return minT + (maxT - minT) * r;
+    }
+
+    function regionFilter() {
+      const rf = String(getSettings?.()?.regionFilter || "all");
+      if (rf === "Berlin" || rf === "Brandenburg") return rf;
+      return "all";
+    }
+
+    function projectionPadding() {
+      const rf = regionFilter();
+      return rf === "all" ? 36 : 8;
+    }
+
+    function refreshProjection(force = false) {
+      const rf = regionFilter();
+      const changed = rf !== lastRegionFilter;
+      if (!force && !changed && projectPoint) return;
+      projectPoint = createRegionProjector({
+        regionFilter: rf,
+        width: p.width,
+        height: p.height,
+        padding: projectionPadding(),
+      });
+      lastRegionFilter = rf;
+      if (!force && changed) resetSimulation();
+    }
+
+    function getCachedLetter(kw, letter, textSize) {
+      const key = `${kw}_${letter}_${Math.round(textSize)}`;
+      if (charCache.has(key)) {
+        const val = charCache.get(key);
+        charCache.delete(key);
+        charCache.set(key, val);
+        return val;
+      }
+
+      const ts = Math.max(
+        1,
+        Math.min(34, Math.round(textSize * glyphScale * 1.9)),
+      );
+      const side = Math.max(4, Math.ceil(ts + 6));
+      const pg = p.createGraphics(side, side);
+      if (typeof pg.pixelDensity === "function") {
+        pg.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
+      }
+      pg.colorMode(p.HSB);
+      pg.textFont("courier");
+      pg.textAlign(p.CENTER, p.CENTER);
+      pg.textSize(ts);
+      const w = Math.max(pg.textWidth(letter), 4);
+      pg.noStroke();
+      pg.fill(keywordColors[kw] || p.color(0, 0, 74));
+      pg.rectMode(p.CENTER);
+      pg.rect(pg.width / 2, pg.height / 2, w + 6, ts + 6, 2);
+      pg.fill(0, 0, 4);
+      pg.text(letter, pg.width / 2, pg.height / 2);
+
+      charCache.set(key, pg);
+      if (charCache.size > maxCache) {
+        const oldestKey = charCache.keys().next().value;
+        const old = charCache.get(oldestKey);
+        old?.remove?.();
+        charCache.delete(oldestKey);
+      }
+      return pg;
+    }
+
+    function drawGlyph(kw, letter, x, y, angle) {
+      const textSize = repulsionRadius() / 1.2;
+      const cached = getCachedLetter(kw, letter, textSize);
+      if (!cached) return;
+      p.push();
+      p.translate(x, y);
+      p.rotate(angle);
+      p.imageMode(p.CENTER);
+      p.image(cached, 0, -segmentLength());
+      p.pop();
+    }
+
+    function growDir(br, tip) {
+      const { growthMode = "fungal" } = getSettings?.() || {};
+      const gp = params();
+
+      let dir = br.dir0.copy();
+      if (br.__rand == null) br.__rand = Math.random();
+      const localChaos = (br.__rand - 0.5) * 2;
+      dir.y += (gp.downwardBias || 0) + localChaos * 0.08;
+      dir.normalize();
+      const nv = p.noise(
+        tip.x * 0.01 * scale,
+        tip.y * 0.01 * scale,
+        simFrame * 0.03,
+      );
+      const rotAmt = p.map(
+        nv,
+        0,
+        1,
+        -gp.directionRandomness,
+        gp.directionRandomness,
+      );
+      dir.rotate(rotAmt * (0.5 + Math.abs(localChaos)));
+
+      if (growthMode === "staccato") {
+        if (Math.random() < 0.25) {
+          dir.rotate((Math.random() - 0.5) * gp.directionRandomness * 3);
+        }
+        dir.add(
+          p.createVector(
+            (Math.random() - 0.5) * 0.6 * gp.directionRandomness,
+            (Math.random() - 0.5) * 0.6 * gp.directionRandomness,
+          ),
+        );
+      }
+      if (growthMode === "psychedelic") {
+        const phase = (br.phase || 0) + simFrame * (0.08 + br.__rand * 0.3);
+        const swirl = p
+          .createVector(Math.cos(phase), Math.sin(phase))
+          .mult(0.9 + br.__rand);
+        dir.add(swirl).normalize();
+      }
+      if (growthMode === "vortex") {
+        const toCenter = p.createVector(
+          tip.x - br.anchor.x,
+          tip.y - br.anchor.y,
+        );
+        if (toCenter.mag() > 0.001) {
+          const tang = p.createVector(-toCenter.y, toCenter.x).normalize();
+          dir.add(tang.mult(1.2 + br.__rand * 2));
+          dir.add(toCenter.normalize().mult(-0.6 * (1 + br.__rand)));
+        }
+      }
+      if (growthMode === "river") {
+        const s = 0.0025;
+        const t = simFrame * 0.015;
+        const a = p.noise(tip.x * s, tip.y * s, t) * Math.PI * 2;
+        const flow = p.createVector(Math.cos(a), Math.sin(a));
+        dir.add(flow.mult(0.6 + Math.random() * 1.4)).normalize();
+      }
+      if (growthMode === "tendrils") {
+        const osc = 0.25 * Math.sin((br.phase || 0) + simFrame * 0.08);
+        dir.rotate(osc * (1 + Math.random() * 1.5));
+      }
+      if (growthMode === "plasma") {
+        if (Math.random() < 0.08) {
+          dir.add(
+            p.createVector(
+              (Math.random() - 0.5) * 3,
+              (Math.random() - 0.5) * 3,
+            ),
+          );
+        }
+      }
+      return dir.normalize();
+    }
+
+    function rebuildBuckets() {
+      globalBuckets.clear();
+      for (const w of particles) {
+        const nodes = w?.nodes || [];
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          const bx = Math.floor(n.x / widthBucket);
+          const by = Math.floor(n.y / widthBucket);
+          const key = `${bx},${by}`;
+          if (!globalBuckets.has(key)) globalBuckets.set(key, []);
+          globalBuckets.get(key).push(n);
+        }
+      }
+    }
+
+    function spawnParticle(inc) {
+      if (!projectPoint) return null;
+      const anchorPx = projectPoint(inc.lon, inc.lat);
+      if (!Number.isFinite(anchorPx?.x) || !Number.isFinite(anchorPx?.y))
+        return null;
+
+      const anchor = p.createVector(anchorPx.x, anchorPx.y);
+      const kw = inc.kw || "";
+      const sentence = inc.sentence || "";
+      if (!sentence.length) return null;
+
+      const angle = p.random(0, Math.PI * 2);
+      const dir0 = p.createVector(Math.cos(angle), Math.sin(angle)).normalize();
+
+      const nodes = [anchor.copy()];
+      nodes.push(
+        anchor
+          .copy()
+          .add(dir0.copy().mult(startMargin() * (0.72 + Math.random() * 0.18))),
+      );
+
+      const pathLength = nodes[0].dist(nodes[1]);
+      const distArr = [0, pathLength];
+
+      return {
+        id: `${inc.lon},${inc.lat},${inc.date}`,
+        lon: inc.lon,
+        lat: inc.lat,
+        date: inc.date,
+        kw,
+        sentence,
+        title: inc.title,
+        url: inc.url,
+        anchor,
+        nodes,
+        dir0,
+        phase: Math.random() * Math.PI * 2,
+        grown: 0,
+        pathLength,
+        distArr,
+        lastPlacedCharIndex: -1,
+        maxSteps: Math.max(
+          6,
+          Math.ceil(
+            (sentence.length || 1) *
+              (ltrSpacing() / Math.max(segmentLength(), 1)) *
+              lengthFactor(),
+          ),
+        ),
+        finished: false,
+      };
+    }
+
+    function clearSimulation() {
+      particles = [];
+      globalBuckets.clear();
+      p.clear();
+    }
+
+    function setIncidents(list) {
+      incidents = (Array.isArray(list) ? list : [])
+        .filter(
+          (x) =>
+            x &&
+            Number.isFinite(x.lat) &&
+            Number.isFinite(x.lon) &&
+            Number.isFinite(x.date),
+        )
+        .sort((a, b) => a.date - b.date);
+      refreshProjection(true);
+
+      nextIncidentIndex = 0;
+      minT = incidents.length ? incidents[0].date : null;
+      maxT = incidents.length ? incidents.at(-1).date : null;
+      playhead = desiredStartMs();
+      nextIncidentIndex = lowerBoundByDate(playhead);
+      lastMillis = null;
+
+      const allKws = Array.from(
+        new Set(incidents.map((a) => a.kw).filter(Boolean)),
+      );
+      allKws.forEach((kw, i) => {
+        keywordColors[kw] = p.color(
+          0,
+          0,
+          55 + (i * 120) / Math.max(allKws.length - 1, 1),
+        );
+      });
+
+      clearSimulation();
+    }
+
+    function resetSimulation() {
+      playhead = desiredStartMs();
+      nextIncidentIndex = 0;
+      lastMillis = null;
+      simFrame = 0;
+      clearSimulation();
+      seekToMs(playhead, true);
+    }
+
+    function placeLetters(w) {
+      const margin = 0;
+      const usableLength = Math.max(0, w.pathLength - margin);
+      let ci = w.lastPlacedCharIndex + 1;
+      const spacing = ltrSpacing();
+      while (ci < w.sentence.length && (ci + 0.5) * spacing < usableLength) {
+        const target = margin + (ci + 0.5) * spacing;
+        const si = w.distArr.findIndex((d) => d >= target);
+        if (si <= 0) break;
+        const d0 = w.distArr[si - 1];
+        const v0 = w.nodes[si - 1];
+        const v1 = w.nodes[si];
+        if (!v0 || !v1) break;
+
+        const seg = v1.dist(v0);
+        const tnorm = seg > 0 ? (target - d0) / seg : 0;
+        const px = p.lerp(v0.x, v1.x, tnorm);
+        const py = p.lerp(v0.y, v1.y, tnorm);
+        const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
+        const letter = w.sentence[ci];
+        drawGlyph(w.kw, letter, px, py, ang);
+
+        w.lastPlacedCharIndex = ci;
+        ci++;
+      }
+    }
+
+    function growParticle(w, stepBoost = 1) {
+      if (w.finished) return;
+      const steps = Math.max(1, Math.round(stepBoost));
+
+      for (let step = 0; step < steps; step++) {
+        const tip = w.nodes[w.nodes.length - 1];
+        let dir = growDir(w, tip);
+
+        const bx = Math.floor(tip.x / widthBucket);
+        const by = Math.floor(tip.y / widthBucket);
+        const repulse = repulsionRadius();
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const arr = globalBuckets.get(`${bx + dx},${by + dy}`) || [];
+            for (let j = 0; j < arr.length; j++) {
+              const n2 = arr[j];
+              if (!n2) continue;
+              const dx2 = tip.x - n2.x;
+              const dy2 = tip.y - n2.y;
+              const d = Math.hypot(dx2, dy2);
+              if (d > 0 && d < repulse) {
+                const inv = 1 / d;
+                dir.add(
+                  p.createVector(dx2 * inv, dy2 * inv).mult(0.65 * scale),
+                );
+              }
+            }
+          }
+        }
+        dir.normalize();
+
+        const next = tip.copy().add(dir.copy().mult(segmentLength()));
+
+        next.x = p.constrain(next.x, -60, p.width + 60);
+        next.y = p.constrain(next.y, -60, p.height + 60);
+
+        w.nodes.push(next);
+        w.grown++;
+        const segLen = tip.dist(next);
+        w.pathLength += segLen;
+        w.distArr.push(w.pathLength);
+
+        placeLetters(w);
+        if (w.grown >= w.maxSteps) {
+          w.finished = true;
+          break;
+        }
+      }
+    }
+
+    function spawnDue(maxBurst = 8) {
+      if (!Number.isFinite(playhead) || playhead == null) return;
+
+      let spawned = 0;
+      while (
+        nextIncidentIndex < incidents.length &&
+        incidents[nextIncidentIndex].date <= playhead
+      ) {
+        const inc = incidents[nextIncidentIndex];
+        const candidateIndex = nextIncidentIndex + 1;
+
+        const w = spawnParticle(inc);
+        if (!w) break;
+        particles.push(w);
+        nextIncidentIndex = candidateIndex;
+        spawned++;
+
+        if (spawned >= maxBurst) break;
+      }
+    }
+
+    function updatePlayhead() {
+      const settings = getSettings?.() || {};
+      const { daysPerSecond = 20 } = settings;
+      const now = p.millis();
+      if (lastMillis == null) lastMillis = now;
+      const dt = Math.max(0, now - lastMillis);
+      lastMillis = now;
+      if (!Number.isFinite(minT) || !Number.isFinite(maxT)) return;
+      const stepMs = (Number(daysPerSecond) || 20) * 86400000 * (dt / 1000);
+      playhead = Math.min(maxT, (playhead ?? minT) + stepMs);
+    }
+
+    function seekToMs(ms, hydrate = false) {
+      const target = clampPlayhead(ms);
+      if (!Number.isFinite(target)) return;
+
+      const was = playhead;
+      const backwards = !Number.isFinite(was) || target < was;
+
+      if (backwards) {
+        clearSimulation();
+        nextIncidentIndex = 0;
+      }
+
+      playhead = target;
+      spawnDue(Number.POSITIVE_INFINITY);
+
+      if (hydrate && particles.length) {
+        const passes = 14;
+        for (let pass = 0; pass < passes; pass++) {
+          rebuildBuckets();
+          let anyGrowing = false;
+          for (let i = 0; i < particles.length; i++) {
+            const w = particles[i];
+            if (!w.finished) {
+              growParticle(w, 4);
+              anyGrowing = true;
+            }
+          }
+          simFrame++;
+          if (!anyGrowing) break;
+        }
+      }
+    }
+
+    p.setup = () => {
+      p.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
+      const c = p.createCanvas(window.innerWidth, window.innerHeight);
+      c.elt.style.background = "transparent";
+      p.colorMode(p.HSB);
+      p.frameRate(22);
+      p.clear();
+
+      lastIncidentsRef = getIncidents?.() || [];
+      setIncidents(lastIncidentsRef);
+      seekToMs(playhead, true);
+    };
+
+    p.draw = () => {
+      p.background(0, 0.01);
+      refreshProjection();
+      if (projectPoint) {
+        drawRegionOutlines(p, {
+          project: projectPoint,
+          regionFilter: regionFilter(),
+        });
+      }
+
+      const latest = getIncidents?.() || [];
+      if (latest !== lastIncidentsRef && Array.isArray(latest)) {
+        lastIncidentsRef = latest;
+        setIncidents(latest);
+        seekToMs(playhead, true);
+      }
+
+      const settings = getSettings?.() || {};
+      const resetVersion = settings.resetVersion ?? null;
+      if (resetVersion != null && resetVersion !== lastResetVersion) {
+        lastResetVersion = resetVersion;
+        resetSimulation();
+      }
+
+      const seekVersion = settings.timelineSeekVersion ?? null;
+      if (seekVersion != null && seekVersion !== lastSeekVersion) {
+        lastSeekVersion = seekVersion;
+        const seekRatio = Number(settings.timelineSeekRatio);
+        const targetMs = ratioToMs(seekRatio);
+        seekToMs(targetMs, true);
+      }
+
+      updatePlayhead();
+      spawnDue(8);
+
+      if (simFrame % 4 === 0) rebuildBuckets();
+      for (let i = 0; i < particles.length; i++) {
+        if (i % 3 === simFrame % 3) growParticle(particles[i]);
+      }
+      simFrame++;
+
+      if (typeof setStatus === "function" && simFrame % 8 === 0) {
+        const ratio =
+          Number.isFinite(minT) && Number.isFinite(maxT) && maxT > minT
+            ? (playhead - minT) / (maxT - minT)
+            : 0;
+        setStatus({
+          minT,
+          maxT,
+          playhead,
+          active: particles.length,
+          progressed: nextIncidentIndex,
+          total: incidents.length,
+          ratio: Math.max(0, Math.min(1, ratio)),
+        });
+      }
+    };
+
+    p.windowResized = () => {
+      p.resizeCanvas(window.innerWidth, window.innerHeight);
+      refreshProjection(true);
+      resetSimulation();
+    };
+
+    p.remove = () => {
+      for (const pg of charCache.values()) {
+        pg?.remove?.();
+      }
+      charCache.clear();
+    };
+  };
+}
