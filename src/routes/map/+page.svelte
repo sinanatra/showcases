@@ -13,8 +13,9 @@
   let errMsg = $state("");
   let incidents = $state([]);
 
-  let daysPerSecond = $state(25);
-  let lineScale = $state(0.7);
+  let daysPerSecond = $state(1);
+  let lineScale = $state(.9);
+  
   let growthMode = $state("fungal");
   let resetVersion = $state(0);
   let regionFilter = $state("all");
