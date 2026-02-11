@@ -85,7 +85,6 @@
   .hud-text {
     min-height: 20px;
     margin-top: 6px;
-    opacity: 0.9;
 
     max-height: min(22vh, 220px);
     overflow: auto;
