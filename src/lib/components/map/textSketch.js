@@ -79,6 +79,9 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     const baseLtrSpacing = 7.3;
     const widthBucket = 100;
     const baseRepulsionRadius = 14;
+    const normalSpawnBurst = 8;
+    const catchupSpawnBurst = 64;
+    const seekWarmStartBurst = 48;
 
     const charCache = new Map();
     const maxCache = 1400;
@@ -582,23 +585,16 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       }
 
       playhead = target;
-      spawnDue(null);
+      spawnDue(seekWarmStartBurst);
 
       if (hydrate && particles.length) {
-        const passes = 14;
-        for (let pass = 0; pass < passes; pass++) {
-          rebuildBuckets();
-          let anyGrowing = false;
-          for (let i = 0; i < particles.length; i++) {
-            const w = particles[i];
-            if (!w.finished) {
-              growParticle(w, 4);
-              anyGrowing = true;
-            }
-          }
-          simFrame++;
-          if (!anyGrowing) break;
+        rebuildBuckets();
+        const from = Math.max(0, particles.length - 80);
+        for (let i = from; i < particles.length; i++) {
+          const w = particles[i];
+          if (!w.finished) growParticle(w, 2);
         }
+        simFrame++;
       }
     }
 
@@ -655,8 +651,14 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       }
 
       drawAnchors();
-      updatePlayhead();
-      spawnDue();
+      let hasBacklog =
+        nextIncidentIndex < incidents.length &&
+        incidents[nextIncidentIndex].date <= playhead;
+      if (!hasBacklog) updatePlayhead();
+      hasBacklog =
+        nextIncidentIndex < incidents.length &&
+        incidents[nextIncidentIndex].date <= playhead;
+      spawnDue(hasBacklog ? catchupSpawnBurst : normalSpawnBurst);
 
       if (simFrame % 4 === 0) rebuildBuckets();
       for (let i = 0; i < particles.length; i++) {
