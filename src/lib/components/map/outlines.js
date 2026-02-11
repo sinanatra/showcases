@@ -211,14 +211,6 @@ function edgeMapToList(map, minCount = 1, maxCount = Infinity) {
   return out;
 }
 
-function drawEdges(p, edges, project) {
-  for (const e of edges || []) {
-    const a = project(e.a[0], e.a[1]);
-    const b = project(e.b[0], e.b[1]);
-    p.line(a.x, a.y, b.x, b.y);
-  }
-}
-
 const SUBDIVISION_EDGES = (() => {
   const berlinMap = buildEdgeMap(BASE_SUBDIVISIONS.Berlin);
   const brandenburgMap = buildEdgeMap(BASE_SUBDIVISIONS.Brandenburg);
@@ -233,6 +225,40 @@ const SUBDIVISION_EDGES = (() => {
   };
 })();
 
+const PROJECTED_EDGE_CACHE = new WeakMap();
+
+function regionEdges(regionFilter) {
+  if (regionFilter === "all") {
+    return [
+      ...SUBDIVISION_EDGES.Brandenburg.all,
+      ...SUBDIVISION_EDGES.Berlin.internal,
+    ];
+  }
+  if (regionFilter === "Berlin") return SUBDIVISION_EDGES.Berlin.all;
+  if (regionFilter === "Brandenburg") return SUBDIVISION_EDGES.Brandenburg.all;
+  return [];
+}
+
+function getProjectedEdges(project, regionFilter) {
+  const key = regionFilter === "Berlin" || regionFilter === "Brandenburg"
+    ? regionFilter
+    : "all";
+  let byRegion = PROJECTED_EDGE_CACHE.get(project);
+  if (!byRegion) {
+    byRegion = new Map();
+    PROJECTED_EDGE_CACHE.set(project, byRegion);
+  }
+  if (byRegion.has(key)) return byRegion.get(key);
+
+  const projected = regionEdges(key).map((e) => {
+    const a = project(e.a[0], e.a[1]);
+    const b = project(e.b[0], e.b[1]);
+    return [a.x, a.y, b.x, b.y];
+  });
+  byRegion.set(key, projected);
+  return projected;
+}
+
 export function drawRegionOutlines(p, { project, regionFilter = "all" }) {
   p.push();
   p.noFill();
@@ -241,13 +267,10 @@ export function drawRegionOutlines(p, { project, regionFilter = "all" }) {
   p.stroke("gainsboro");
   p.strokeWeight(0.72);
 
-  if (regionFilter === "all") {
-    drawEdges(p, SUBDIVISION_EDGES.Brandenburg.all, project);
-    drawEdges(p, SUBDIVISION_EDGES.Berlin.internal, project);
-  } else if (regionFilter === "Berlin") {
-    drawEdges(p, SUBDIVISION_EDGES.Berlin.all, project);
-  } else if (regionFilter === "Brandenburg") {
-    drawEdges(p, SUBDIVISION_EDGES.Brandenburg.all, project);
+  const projected = getProjectedEdges(project, regionFilter);
+  for (let i = 0; i < projected.length; i++) {
+    const e = projected[i];
+    p.line(e[0], e[1], e[2], e[3]);
   }
 
   p.pop();

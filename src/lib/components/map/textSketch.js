@@ -3,7 +3,7 @@ import { growthParams } from "$lib/components/dataViz/growth";
 import {
   createRegionProjector,
   drawRegionOutlines,
-} from "$lib/components/mapViz/mapOutlines";
+} from "$lib/components/map/outlines";
 
 function parseDateLoose(v) {
   if (!v) return null;
@@ -71,7 +71,7 @@ export function normalizeGeocodedRow(r) {
   };
 }
 
-export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
+export function createTextSketch({ getIncidents, getSettings, setStatus }) {
   return (p) => {
     const scale = 0.62;
     const glyphScale = 0.35;
@@ -202,6 +202,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       if (typeof pg.pixelDensity === "function") {
         pg.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
       }
+      if (typeof pg.smooth === "function") pg.smooth();
       pg.colorMode(p.HSB);
       pg.textFont("courier");
       pg.textAlign(p.CENTER, p.CENTER);
@@ -210,7 +211,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       pg.noStroke();
       pg.fill(keywordColors[kw] || p.color(0, 0, 74));
       pg.rectMode(p.CENTER);
-      pg.rect(pg.width / 2, pg.height / 2, w + 6, ts + 6, 2);
+      pg.rect(pg.width / 2, pg.height / 2, w + 6, ts + 6);
       pg.fill(0, 0, 4);
       pg.text(letter, pg.width / 2, pg.height / 2);
 
@@ -361,6 +362,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
         grown: 0,
         pathLength,
         distArr,
+        segmentCursor: 1,
         lastPlacedCharIndex: -1,
         maxSteps: Math.max(
           6,
@@ -427,10 +429,14 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
       const usableLength = Math.max(0, w.pathLength - margin);
       let ci = w.lastPlacedCharIndex + 1;
       const spacing = ltrSpacing();
+      let si = Math.max(1, Number(w.segmentCursor) || 1);
       while (ci < w.sentence.length && (ci + 0.5) * spacing < usableLength) {
         const target = margin + (ci + 0.5) * spacing;
-        const si = w.distArr.findIndex((d) => d >= target);
-        if (si <= 0) break;
+        while (si < w.distArr.length && w.distArr[si] < target) si++;
+        if (si <= 0 || si >= w.distArr.length) {
+          w.segmentCursor = si;
+          break;
+        }
         const d0 = w.distArr[si - 1];
         const v0 = w.nodes[si - 1];
         const v1 = w.nodes[si];
@@ -445,6 +451,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
         drawGlyph(w.kw, letter, px, py, ang);
 
         w.lastPlacedCharIndex = ci;
+        w.segmentCursor = si;
         ci++;
       }
     }
@@ -460,6 +467,9 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
         const bx = Math.floor(tip.x / widthBucket);
         const by = Math.floor(tip.y / widthBucket);
         const repulse = repulsionRadius();
+        const repulseMul = 0.65 * scale;
+        let repulseX = 0;
+        let repulseY = 0;
         for (let dx = -1; dx <= 1; dx++) {
           for (let dy = -1; dy <= 1; dy++) {
             const arr = globalBuckets.get(`${bx + dx},${by + dy}`) || [];
@@ -470,13 +480,16 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
               const dy2 = tip.y - n2.y;
               const d = Math.hypot(dx2, dy2);
               if (d > 0 && d < repulse) {
-                const inv = 1 / d;
-                dir.add(
-                  p.createVector(dx2 * inv, dy2 * inv).mult(0.65 * scale),
-                );
+                const inv = repulseMul / d;
+                repulseX += dx2 * inv;
+                repulseY += dy2 * inv;
               }
             }
           }
+        }
+        if (repulseX !== 0 || repulseY !== 0) {
+          dir.x += repulseX;
+          dir.y += repulseY;
         }
         dir.normalize();
 
@@ -570,7 +583,7 @@ export function createMapTextSketch({ getIncidents, getSettings, setStatus }) {
     p.setup = () => {
       p.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
       const c = p.createCanvas(window.innerWidth, window.innerHeight);
-      c.elt.style.background = "transparent";
+      // c.elt.style.background = "transparent";
       p.colorMode(p.HSB);
       p.frameRate(22);
       p.clear();

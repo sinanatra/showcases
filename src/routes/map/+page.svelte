@@ -3,11 +3,11 @@
   import P5 from "p5-svelte";
   import { onMount } from "svelte";
   import MapControls from "$lib/components/MapControls.svelte";
-  import MapTimelineHud from "$lib/components/mapViz/MapTimelineHud.svelte";
+  import TimelineHud from "$lib/components/map/TimelineHud.svelte";
   import {
-    createMapTextSketch,
+    createTextSketch,
     normalizeGeocodedRow,
-  } from "$lib/components/mapViz/mapTextSketch";
+  } from "$lib/components/map/textSketch";
 
   let loading = $state(true);
   let errMsg = $state("");
@@ -110,7 +110,7 @@
   }
 
   let sketch = $derived(
-    createMapTextSketch({
+    createTextSketch({
       getIncidents,
       getSettings,
       setStatus: (s) => (status = s),
@@ -150,7 +150,7 @@
     />
   </div>
 
-  <MapTimelineHud
+  <TimelineHud
     {loading}
     {errMsg}
     incidents={filteredIncidents}
