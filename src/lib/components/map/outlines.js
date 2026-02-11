@@ -264,7 +264,7 @@ export function drawRegionOutlines(p, { project, regionFilter = "all" }) {
   p.noFill();
   p.strokeJoin(p.ROUND);
   p.strokeCap(p.ROUND);
-  p.stroke("gainsboro");
+  p.stroke("#333");
   p.strokeWeight(0.72);
 
   const projected = getProjectedEdges(project, regionFilter);
