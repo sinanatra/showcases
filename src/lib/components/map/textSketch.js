@@ -113,7 +113,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     }
 
     function segmentLength() {
-      return Math.max(0.2, Math.min(24, baseSegmentLength * lineScale()));
+      return 4; // Math.max(0.1, Math.min(12, baseSegmentLength * lineScale()));
     }
 
     function ltrSpacing() {
@@ -197,7 +197,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         1,
         Math.min(34, Math.round(textSize * glyphScale * 1.9)),
       );
-      const side = Math.max(4, Math.ceil(ts + 6));
+      const side = Math.max(2, Math.ceil((ts + 6) * 0.5));
       const pg = p.createGraphics(side, side);
       if (typeof pg.pixelDensity === "function") {
         pg.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
@@ -233,7 +233,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       p.translate(x, y);
       p.rotate(angle);
       p.imageMode(p.CENTER);
-      p.image(cached, 0, -segmentLength());
+      p.image(cached, 0, 0);
       p.pop();
     }
 
@@ -430,8 +430,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       let ci = w.lastPlacedCharIndex + 1;
       const spacing = ltrSpacing();
       let si = Math.max(1, Number(w.segmentCursor) || 1);
-      while (ci < w.sentence.length && (ci + 0.5) * spacing < usableLength) {
-        const target = margin + (ci + 0.5) * spacing;
+      while (ci < w.sentence.length && ci * spacing < usableLength) {
+        const target = margin + ci * spacing;
         while (si < w.distArr.length && w.distArr[si] < target) si++;
         if (si <= 0 || si >= w.distArr.length) {
           w.segmentCursor = si;
@@ -535,6 +535,28 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       }
     }
 
+    function drawAnchors() {
+      const textSize = repulsionRadius() / 1.2;
+      const ts = Math.max(
+        1,
+        Math.min(34, Math.round(textSize * glyphScale * 1.9)),
+      );
+      const side = Math.max(2, Math.ceil((ts + 6) * 0.5));
+      p.push();
+      p.noStroke();
+      p.rectMode(p.CENTER);
+      for (let i = 0; i < particles.length; i++) {
+        const w = particles[i];
+        if (!w?.anchor) continue;
+        p.fill("yellow");
+        p.push();
+        p.translate(w.anchor.x, w.anchor.y);
+        p.square(0, 0, side * 0.5);
+        p.pop();
+      }
+      p.pop();
+    }
+
     function updatePlayhead() {
       const settings = getSettings?.() || {};
       const { daysPerSecond = 20 } = settings;
@@ -597,7 +619,10 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     };
 
     p.draw = () => {
-      p.background(0, 0.01);
+
+      if (p.frameCount % 10 === 0) p.background(0, 0.08);
+      else p.background(0, 0.01);
+
       refreshProjection();
       if (projectPoint) {
         drawRegionOutlines(p, {
@@ -629,6 +654,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         seekToMs(targetMs, shouldHydrate);
       }
 
+      drawAnchors();
       updatePlayhead();
       spawnDue();
 
