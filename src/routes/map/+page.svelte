@@ -1,11 +1,10 @@
 <script>
   import * as d3 from "d3";
   import P5 from "p5-svelte";
-  import { onDestroy, onMount } from "svelte";
+  import { onMount } from "svelte";
   import MapControls from "$lib/components/MapControls.svelte";
   import Title from "$lib/components/map/Title.svelte";
   import TimelineHud from "$lib/components/map/TimelineHud.svelte";
-  import { getMapViewLabel } from "$lib/components/map/viewLabel";
   import {
     BERLIN_DISTRICTS,
     classifyMapRegion,
@@ -44,22 +43,6 @@
     total: 0,
     ratio: 0,
   });
-  let recording = $state(false);
-  let recordingSupported = $state(true);
-  let recordingLabel = $state("");
-
-  const RECORD_WIDTH = 3840;
-  const RECORD_HEIGHT = 2160;
-  const RECORD_FPS = 30;
-  const RECORD_BITRATE = 40_000_000;
-
-  let mediaRecorder = null;
-  let recordingChunks = [];
-  let recordingStream = null;
-  let recordingCanvas = null;
-  let recordingCtx = null;
-  let recordingRaf = null;
-  let shouldSaveRecording = true;
 
   const BERLIN_DISTRICTS_FALLBACK = [
     "Mitte",
@@ -187,205 +170,6 @@
     timelineSeekVersion += 1;
   }
 
-  function pickRecordingMimeType() {
-    if (typeof window === "undefined" || !window.MediaRecorder) return "";
-    const candidates = [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-    ];
-    for (const mime of candidates) {
-      if (window.MediaRecorder.isTypeSupported?.(mime)) return mime;
-    }
-    return "";
-  }
-
-  function mapCanvasEl() {
-    if (typeof document === "undefined") return null;
-    return document.querySelector(".overlay canvas");
-  }
-
-  function stopFramePump() {
-    if (recordingRaf != null) {
-      cancelAnimationFrame(recordingRaf);
-      recordingRaf = null;
-    }
-  }
-
-  function stopRecordingTracks() {
-    if (!recordingStream) return;
-    for (const t of recordingStream.getTracks()) t.stop();
-    recordingStream = null;
-  }
-
-  function cleanupRecorderRuntime() {
-    stopFramePump();
-    stopRecordingTracks();
-    mediaRecorder = null;
-    recordingCanvas = null;
-    recordingCtx = null;
-  }
-
-  function downloadRecording(blob) {
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    const districtSuffix = districtFilter ? `-${districtFilter}` : "";
-    const regionSuffix =
-      regionFilter === "all" ? "berlin-brandenburg" : String(regionFilter);
-    const filename = `map-${regionSuffix}${districtSuffix}-${RECORD_WIDTH}x${RECORD_HEIGHT}-${ts}.webm`;
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }
-
-  function drawRecordingViewLabel(ctx, width, height) {
-    const label = getMapViewLabel(regionFilter, districtFilter);
-    if (!label) return;
-    const padX = Math.round(width * 0.018);
-    const padY = Math.round(height * 0.02);
-    const titleSize = Math.max(24, Math.round(width * 0.012));
-
-    ctx.save();
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.font = `${titleSize}px "Courier New", Courier, monospace`;
-    const labelW = ctx.measureText(label).width;
-
-    const cardW = Math.ceil(labelW + 24);
-    const textH = titleSize;
-    const cardH = Math.ceil(textH + 18);
-    const cardX = width - padX - cardW;
-    const cardY = padY;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
-    ctx.fillRect(cardX, cardY, cardW, cardH);
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.font = `${titleSize}px "Courier New", Courier, monospace`;
-    ctx.fillText(label, cardX + 12, cardY + 8);
-    ctx.restore();
-  }
-
-  function startFramePump(sourceCanvas) {
-    const tick = () => {
-      if (!recordingCtx || !recordingCanvas) return;
-      recordingCtx.clearRect(0, 0, RECORD_WIDTH, RECORD_HEIGHT);
-      recordingCtx.drawImage(sourceCanvas, 0, 0, RECORD_WIDTH, RECORD_HEIGHT);
-      drawRecordingViewLabel(recordingCtx, RECORD_WIDTH, RECORD_HEIGHT);
-      recordingRaf = requestAnimationFrame(tick);
-    };
-    tick();
-  }
-
-  function stopRecordingInternal({ save = true } = {}) {
-    const rec = mediaRecorder;
-    if (!rec) {
-      recording = false;
-      cleanupRecorderRuntime();
-      recordingLabel = "";
-      return;
-    }
-    if (rec.state !== "inactive") {
-      rec.stop();
-      return;
-    }
-    const shouldSave = save && shouldSaveRecording;
-    if (shouldSave && recordingChunks.length > 0) {
-      const blob = new Blob(recordingChunks, { type: "video/webm" });
-      if (blob.size > 0) downloadRecording(blob);
-    }
-    recordingChunks = [];
-    recording = false;
-    recordingLabel = "";
-    shouldSaveRecording = true;
-    cleanupRecorderRuntime();
-  }
-
-  function startRecording() {
-    try {
-      const sourceCanvas = mapCanvasEl();
-      if (!sourceCanvas) {
-        recordingLabel = "Canvas not ready yet";
-        return;
-      }
-      if (typeof window === "undefined" || !window.MediaRecorder) {
-        recordingSupported = false;
-        recordingLabel = "MediaRecorder not supported in this browser";
-        return;
-      }
-
-      const mimeType = pickRecordingMimeType();
-      recordingCanvas = document.createElement("canvas");
-      recordingCanvas.width = RECORD_WIDTH;
-      recordingCanvas.height = RECORD_HEIGHT;
-      recordingCtx = recordingCanvas.getContext("2d", {
-        alpha: false,
-        desynchronized: true,
-      });
-      if (!recordingCtx) {
-        recordingLabel = "Could not initialize recorder context";
-        return;
-      }
-
-      startFramePump(sourceCanvas);
-      recordingStream = recordingCanvas.captureStream(RECORD_FPS);
-      recordingChunks = [];
-      shouldSaveRecording = true;
-
-      mediaRecorder = mimeType
-        ? new MediaRecorder(recordingStream, {
-            mimeType,
-            videoBitsPerSecond: RECORD_BITRATE,
-          })
-        : new MediaRecorder(recordingStream, {
-            videoBitsPerSecond: RECORD_BITRATE,
-          });
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) recordingChunks.push(e.data);
-      };
-
-      mediaRecorder.onerror = () => {
-        recordingLabel = "Recording failed";
-        shouldSaveRecording = false;
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          mediaRecorder.stop();
-        } else {
-          stopRecordingInternal({ save: false });
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        stopRecordingInternal({ save: true });
-      };
-
-      mediaRecorder.start(1000);
-      recording = true;
-      recordingLabel = "Recording...";
-    } catch (e) {
-      recording = false;
-      recordingLabel = String(e?.message || e || "Failed to start recording");
-      cleanupRecorderRuntime();
-    }
-  }
-
-  function handleToggleRecording() {
-    if (recording) {
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-      } else {
-        stopRecordingInternal({ save: true });
-      }
-      return;
-    }
-    startRecording();
-  }
-
   let sketch = $derived(
     createTextSketch({
       getIncidents,
@@ -395,9 +179,6 @@
   );
 
   onMount(async () => {
-    recordingSupported =
-      typeof window !== "undefined" && typeof window.MediaRecorder !== "undefined";
-
     try {
       const rows = await d3.csv("/geocoded_data.csv");
       incidents = rows
@@ -420,15 +201,6 @@
       errMsg = String(e?.message || e || "Failed to initialize map");
     }
   });
-
-  onDestroy(() => {
-    shouldSaveRecording = false;
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
-    } else {
-      stopRecordingInternal({ save: false });
-    }
-  });
 </script>
 
 <main>
@@ -449,14 +221,10 @@
       bind:growthMode
       bind:daysPerSecond
       timelineRatio={status.ratio}
-      {recording}
-      {recordingSupported}
-      {recordingLabel}
       onSeek={handleTimelineSeek}
       onRestart={handleRestart}
       onAreaChange={handleAreaChange}
       onDistrictChange={handleDistrictChange}
-      onToggleRecording={handleToggleRecording}
     />
   </div>
 
