@@ -291,11 +291,11 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         regionFilter: regionFilter(),
         districtFilter: districtFilter(),
       });
-      drawRegionOutlines(basemapLayer, {
-        project: projectPoint,
-        regionFilter: regionFilter(),
-        districtFilter: districtFilter(),
-      });
+    drawRegionOutlines(basemapLayer, {
+      project: projectPoint,
+      regionFilter: regionFilter(),
+      districtFilter: districtFilter(),
+    });
       needsBasemapRedraw = false;
     }
 
