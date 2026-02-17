@@ -3,6 +3,7 @@ import { growthParams } from "$lib/components/dataViz/growth";
 import {
   createRegionProjector,
   drawRegionOutlines,
+  drawRegionStreets,
 } from "$lib/components/map/outlines";
 
 function parseDateLoose(v) {
@@ -100,8 +101,11 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     let lastMillis = null;
     let lastResetVersion = null;
     let lastSeekVersion = null;
-    let lastRegionFilter = null;
+    let lastProjectionKey = null;
+    let needsBasemapRedraw = true;
     let projectPoint = null;
+    let basemapLayer = null;
+    let textLayer = null;
 
     const params = () => {
       const settings = getSettings?.() || {};
@@ -116,11 +120,15 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     }
 
     function segmentLength() {
-      return 4; // Math.max(0.1, Math.min(12, baseSegmentLength * lineScale()));
+      return 10; // Math.max(0.1, Math.min(12, baseSegmentLength * lineScale()));
     }
 
     function ltrSpacing() {
-      return baseLtrSpacing * (segmentLength() / baseSegmentLength);
+      return 9; // baseLtrSpacing * (segmentLength() / baseSegmentLength);
+    }
+
+    function anchorTextOffset() {
+      return Math.max(ltrSpacing() * 0.9, repulsionRadius() * 0.7);
     }
 
     function lengthFactor() {
@@ -168,22 +176,43 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       return "all";
     }
 
+    function districtFilter() {
+      if (regionFilter() !== "Berlin") return "";
+      const df = String(getSettings?.()?.districtFilter || "");
+      return df || "";
+    }
+
+    function sidePadding() {
+      const s = Number(getSettings?.()?.sidePadding);
+      if (!Number.isFinite(s)) return 0;
+      return Math.max(0, Math.min(360, s));
+    }
+
     function projectionPadding() {
       const rf = regionFilter();
-      return rf === "all" ? 36 : 8;
+      const df = districtFilter();
+      if (df) return { x: sidePadding(), y: 10 };
+      if (rf === "all") return { x: sidePadding(), y: 36 };
+      return { x: sidePadding(), y: 8 };
     }
 
     function refreshProjection(force = false) {
       const rf = regionFilter();
-      const changed = rf !== lastRegionFilter;
+      const df = districtFilter();
+      const pad = projectionPadding();
+      const projectionKey = `${rf}:${df}:${pad.x}:${pad.y}`;
+      const changed = projectionKey !== lastProjectionKey;
       if (!force && !changed && projectPoint) return;
       projectPoint = createRegionProjector({
         regionFilter: rf,
+        districtFilter: df,
         width: p.width,
         height: p.height,
-        padding: projectionPadding(),
+        paddingX: pad.x,
+        paddingY: pad.y,
       });
-      lastRegionFilter = rf;
+      lastProjectionKey = projectionKey;
+      needsBasemapRedraw = true;
       if (!force && changed) resetSimulation();
     }
 
@@ -228,16 +257,71 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       return pg;
     }
 
+    function createLayers(width, height) {
+      basemapLayer?.remove?.();
+      textLayer?.remove?.();
+
+      basemapLayer = p.createGraphics(width, height);
+      textLayer = p.createGraphics(width, height);
+
+      const density = Math.min(2, window.devicePixelRatio || 1);
+      if (typeof basemapLayer.pixelDensity === "function") {
+        basemapLayer.pixelDensity(density);
+      }
+      if (typeof textLayer.pixelDensity === "function") {
+        textLayer.pixelDensity(density);
+      }
+      if (typeof basemapLayer.colorMode === "function") {
+        basemapLayer.colorMode(p.HSB);
+      }
+      if (typeof textLayer.colorMode === "function") {
+        textLayer.colorMode(p.HSB);
+      }
+
+      basemapLayer.clear();
+      textLayer.clear();
+      needsBasemapRedraw = true;
+    }
+
+    function redrawBasemapLayer() {
+      if (!basemapLayer || !projectPoint) return;
+      basemapLayer.clear();
+      drawRegionStreets(basemapLayer, {
+        project: projectPoint,
+        regionFilter: regionFilter(),
+        districtFilter: districtFilter(),
+      });
+      drawRegionOutlines(basemapLayer, {
+        project: projectPoint,
+        regionFilter: regionFilter(),
+        districtFilter: districtFilter(),
+      });
+      needsBasemapRedraw = false;
+    }
+
+    function fadeTextLayer(alpha = 0.1) {
+      if (!textLayer?.drawingContext) return;
+      const a = Math.max(0, Math.min(1, Number(alpha) || 0));
+      if (a <= 0) return;
+      const ctx = textLayer.drawingContext;
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.fillStyle = `rgba(0, 0, 0, ${a})`;
+      ctx.fillRect(0, 0, textLayer.width, textLayer.height);
+      ctx.restore();
+    }
+
     function drawGlyph(kw, letter, x, y, angle) {
       const textSize = repulsionRadius() / 1.2;
       const cached = getCachedLetter(kw, letter, textSize);
       if (!cached) return;
-      p.push();
-      p.translate(x, y);
-      p.rotate(angle);
-      p.imageMode(p.CENTER);
-      p.image(cached, 0, 0);
-      p.pop();
+      const g = textLayer || p;
+      g.push();
+      g.translate(x, y);
+      g.rotate(angle);
+      g.imageMode(p.CENTER);
+      g.image(cached, 0, 0);
+      g.pop();
     }
 
     function growDir(br, tip) {
@@ -348,6 +432,9 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       const nodes = [anchor.copy()];
       const pathLength = 0;
       const distArr = [0];
+      const leadInSteps = Math.ceil(
+        anchorTextOffset() / Math.max(segmentLength(), 1),
+      );
 
       return {
         id: `${inc.lon},${inc.lat},${inc.date}`,
@@ -369,6 +456,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         lastPlacedCharIndex: -1,
         maxSteps: Math.max(
           6,
+          leadInSteps +
           Math.ceil(
             (sentence.length || 1) *
               (ltrSpacing() / Math.max(segmentLength(), 1)) *
@@ -382,7 +470,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     function clearSimulation() {
       particles = [];
       globalBuckets.clear();
-      p.clear();
+      textLayer?.clear?.();
     }
 
     function setIncidents(list) {
@@ -424,11 +512,11 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       lastMillis = null;
       simFrame = 0;
       clearSimulation();
-      seekToMs(playhead, hydrate);
+      seekToMs(playhead, { hydrate });
     }
 
     function placeLetters(w) {
-      const margin = 0;
+      const margin = anchorTextOffset();
       const usableLength = Math.max(0, w.pathLength - margin);
       let ci = w.lastPlacedCharIndex + 1;
       const spacing = ltrSpacing();
@@ -538,43 +626,103 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       }
     }
 
+    function dayStartMs(ms) {
+      if (!Number.isFinite(ms)) return ms;
+      const d = new Date(ms);
+      d.setHours(0, 0, 0, 0);
+      return +d;
+    }
+
+    function spawnDateOnly(targetMs) {
+      const start = dayStartMs(targetMs);
+      if (!Number.isFinite(start)) return;
+      const end = start + 86400000;
+      nextIncidentIndex = lowerBoundByDate(start);
+
+      while (
+        nextIncidentIndex < incidents.length &&
+        incidents[nextIncidentIndex].date < end
+      ) {
+        const inc = incidents[nextIncidentIndex];
+        const w = spawnParticle(inc);
+        if (w) particles.push(w);
+        nextIncidentIndex++;
+      }
+    }
+
     function drawAnchors() {
       const textSize = repulsionRadius() / 1.2;
+
       const ts = Math.max(
         1,
         Math.min(34, Math.round(textSize * glyphScale * 1.9)),
       );
-      const side = Math.max(2, Math.ceil((ts + 6) * 0.5));
-      p.push();
-      p.noStroke();
-      p.rectMode(p.CENTER);
+      const side = Math.max(2, Math.ceil((ts + 6) * 0.3));
+      const g = textLayer || p;
+      g.push();
+      g.noStroke();
+      g.rectMode(p.CENTER);
       for (let i = 0; i < particles.length; i++) {
         const w = particles[i];
         if (!w?.anchor) continue;
-        p.fill("yellow");
-        p.push();
-        p.translate(w.anchor.x, w.anchor.y);
-        p.square(0, 0, side * 0.5);
-        p.pop();
+        g.fill("yellow");
+        g.push();
+        g.translate(w.anchor.x, w.anchor.y);
+        g.square(0, 0, side * 0.5);
+        g.pop();
       }
-      p.pop();
+      g.pop();
     }
 
     function updatePlayhead() {
       const settings = getSettings?.() || {};
       const { daysPerSecond = 20 } = settings;
+      const skipEmptyGaps = Boolean(settings.skipEmptyGaps);
+      const gapSkipThresholdDays = Math.max(
+        1,
+        Number(settings.gapSkipThresholdDays) || 45,
+      );
       const now = p.millis();
       if (lastMillis == null) lastMillis = now;
       const dt = Math.max(0, now - lastMillis);
       lastMillis = now;
       if (!Number.isFinite(minT) || !Number.isFinite(maxT)) return;
+      const current = Number.isFinite(playhead) ? playhead : minT;
+      const nextDate = incidents[nextIncidentIndex]?.date;
+
+      if (skipEmptyGaps && Number.isFinite(nextDate) && nextDate > current) {
+        const gapDays = (nextDate - current) / 86400000;
+        if (gapDays > gapSkipThresholdDays) {
+          playhead = Math.min(maxT, nextDate);
+          return;
+        }
+      }
+
       const stepMs = (Number(daysPerSecond) || 20) * 86400000 * (dt / 1000);
-      playhead = Math.min(maxT, (playhead ?? minT) + stepMs);
+      playhead = Math.min(maxT, current + stepMs);
     }
 
-    function seekToMs(ms, hydrate = false) {
+    function seekToMs(ms, { hydrate = false, mode = "progressive" } = {}) {
       const target = clampPlayhead(ms);
       if (!Number.isFinite(target)) return;
+
+      if (mode === "exact-date") {
+        clearSimulation();
+        nextIncidentIndex = 0;
+        playhead = target;
+        spawnDateOnly(target);
+
+        if (hydrate && particles.length) {
+          rebuildBuckets();
+          const from = Math.max(0, particles.length - 80);
+          for (let i = from; i < particles.length; i++) {
+            const w = particles[i];
+            if (!w.finished) growParticle(w, 2);
+          }
+          simFrame++;
+        }
+        return;
+      }
 
       const was = playhead;
       const backwards = !Number.isFinite(was) || target < was;
@@ -605,33 +753,28 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       p.colorMode(p.HSB);
       p.frameRate(22);
       p.clear();
+      createLayers(p.width, p.height);
 
       lastIncidentsRef = getIncidents?.() || [];
       setIncidents(lastIncidentsRef);
-      seekToMs(playhead, false);
+      seekToMs(playhead, { hydrate: false });
       const initialSettings = getSettings?.() || {};
       lastResetVersion = initialSettings.resetVersion ?? null;
       lastSeekVersion = initialSettings.timelineSeekVersion ?? null;
     };
 
     p.draw = () => {
+      const didClear = p.frameCount % 5 === 0;
+      if (didClear) fadeTextLayer(0.1);
+      // fadeTextLayer(0.02);
 
-      if (p.frameCount % 10 === 0) p.background(0, 0.08);
-      else p.background(0, 0.01);
-
-      refreshProjection();
-      if (projectPoint) {
-        drawRegionOutlines(p, {
-          project: projectPoint,
-          regionFilter: regionFilter(),
-        });
-      }
+      if (needsBasemapRedraw) redrawBasemapLayer();
 
       const latest = getIncidents?.() || [];
       if (latest !== lastIncidentsRef && Array.isArray(latest)) {
         lastIncidentsRef = latest;
         setIncidents(latest);
-        seekToMs(playhead, false);
+        seekToMs(playhead, { hydrate: false });
       }
 
       const settings = getSettings?.() || {};
@@ -645,12 +788,17 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       if (seekVersion != null && seekVersion !== lastSeekVersion) {
         lastSeekVersion = seekVersion;
         const seekRatio = Number(settings.timelineSeekRatio);
+        const seekMode = String(settings.timelineSeekMode || "progressive");
         const targetMs = ratioToMs(seekRatio);
         const shouldHydrate = seekRatio > 0;
-        seekToMs(targetMs, shouldHydrate);
+        seekToMs(targetMs, {
+          hydrate: shouldHydrate,
+          mode: seekMode,
+        });
       }
 
       drawAnchors();
+
       let hasBacklog =
         nextIncidentIndex < incidents.length &&
         incidents[nextIncidentIndex].date <= playhead;
@@ -681,10 +829,15 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
           ratio: Math.max(0, Math.min(1, ratio)),
         });
       }
+
+      p.clear();
+      if (basemapLayer) p.image(basemapLayer, 0, 0, p.width, p.height);
+      if (textLayer) p.image(textLayer, 0, 0, p.width, p.height);
     };
 
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight);
+      createLayers(p.width, p.height);
       refreshProjection(true);
       resetSimulation(false);
     };
@@ -694,6 +847,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         pg?.remove?.();
       }
       charCache.clear();
+      basemapLayer?.remove?.();
+      textLayer?.remove?.();
     };
   };
 }
