@@ -8,10 +8,14 @@
     growthMode = $bindable("fungal"),
     daysPerSecond = $bindable(25),
     timelineRatio = 0,
+    recording = false,
+    recordingSupported = true,
+    recordingLabel = "",
     onSeek = () => {},
     onRestart = () => {},
     onAreaChange = () => {},
     onDistrictChange = () => {},
+    onToggleRecording = () => {},
   } = $props();
 
   const berlinDistrictsFallback = [
@@ -48,10 +52,9 @@
 
 <div class="panel">
   {#if loading}
-    <div class="message">Loading map + data…</div>
+    <div class="message">Loading…</div>
   {:else if errMsg}
     <div class="message error">{errMsg}</div>
-    <div class="hint">Check `static/geocoded_data.csv` and reload.</div>
   {:else}
     <label class="field">
       <span>Timeline</span>
@@ -73,6 +76,17 @@
     </label>
 
     <button type="button" class="restart" onclick={onRestart}>Restart</button>
+    <button
+      type="button"
+      class:recording={recording}
+      disabled={!recordingSupported}
+      onclick={onToggleRecording}
+    >
+      {recording ? "Stop recording" : "Record"}
+    </button>
+    {#if recordingLabel}
+      <div class="hint">{recordingLabel}</div>
+    {/if}
 
     <label class="field">
       <span>Speed ({Math.round(Number(daysPerSecond) || 0)} days/s)</span>
@@ -191,6 +205,11 @@
   .restart {
     margin-bottom: 10px;
     cursor: pointer;
+  }
+
+  button.recording {
+    border-color: rgba(255, 90, 90, 0.75);
+    color: #ffd8d8;
   }
 
   .message {
