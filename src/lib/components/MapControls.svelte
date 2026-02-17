@@ -3,13 +3,37 @@
     loading = false,
     errMsg = "",
     regionFilter = $bindable("all"),
+    districtFilter = $bindable(""),
+    berlinDistricts = [],
     growthMode = $bindable("fungal"),
     daysPerSecond = $bindable(25),
     timelineRatio = 0,
     onSeek = () => {},
     onRestart = () => {},
     onAreaChange = () => {},
+    onDistrictChange = () => {},
   } = $props();
+
+  const berlinDistrictsFallback = [
+    "Mitte",
+    "Friedrichshain-Kreuzberg",
+    "Pankow",
+    "Charlottenburg-Wilmersdorf",
+    "Spandau",
+    "Steglitz-Zehlendorf",
+    "Tempelhof-Schöneberg",
+    "Neukölln",
+    "Treptow-Köpenick",
+    "Marzahn-Hellersdorf",
+    "Lichtenberg",
+    "Reinickendorf",
+  ];
+
+  let districtOptions = $derived.by(() =>
+    Array.isArray(berlinDistricts) && berlinDistricts.length > 0
+      ? berlinDistricts
+      : berlinDistrictsFallback,
+  );
 
   let timelineSlider = $state(0);
   let isScrubbing = $state(false);
@@ -64,14 +88,38 @@
     <label class="field">
       <span>Area</span>
       <select
-        bind:value={regionFilter}
-        onchange={(e) => onAreaChange(e.currentTarget.value)}
+        value={regionFilter}
+        onchange={(e) => {
+          const value = String(e.currentTarget.value || "all");
+          regionFilter = value;
+          onAreaChange(value);
+        }}
       >
         <option value="all">Berlin + Brandenburg</option>
         <option value="Berlin">Berlin</option>
         <option value="Brandenburg">Brandenburg</option>
       </select>
     </label>
+
+    {#if regionFilter === "Berlin"}
+      <label class="field">
+        <span>District</span>
+        <select
+          class="district-select"
+          value={districtFilter}
+          onchange={(e) => {
+            const value = String(e.currentTarget.value || "");
+            districtFilter = value;
+            onDistrictChange(value);
+          }}
+        >
+          <option value="">All Berlin districts</option>
+          {#each districtOptions as district}
+            <option value={district}>{district}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
 
     <label class="field">
       <span>Growth mode</span>
@@ -122,6 +170,16 @@
     color: inherit;
     padding: 5px 7px;
     font: inherit;
+  }
+
+  option {
+    color: #111;
+    background: #fff;
+  }
+
+  .district-select {
+    color: #111;
+    background: #fff;
   }
 
   input[type="range"] {

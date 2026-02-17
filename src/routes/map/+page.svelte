@@ -5,6 +5,11 @@
   import MapControls from "$lib/components/MapControls.svelte";
   import TimelineHud from "$lib/components/map/TimelineHud.svelte";
   import {
+    BERLIN_DISTRICTS,
+    classifyMapRegion,
+    findBerlinDistrict,
+  } from "$lib/components/map/outlines";
+  import {
     createTextSketch,
     normalizeGeocodedRow,
   } from "$lib/components/map/textSketch";
@@ -13,14 +18,20 @@
   let errMsg = $state("");
   let incidents = $state([]);
 
-  let daysPerSecond = $state(1);
-  let lineScale = $state(.9);
-  
+  const MAP_SIDE_PADDING = 500;
+  const SKIP_EMPTY_GAPS = true;
+  const GAP_SKIP_THRESHOLD_DAYS = 45;
+
+  let daysPerSecond = $state(7);
+  let lineScale = $state(0.9);
+
   let growthMode = $state("fungal");
   let resetVersion = $state(0);
-  let regionFilter = $state("all");
+  let regionFilter = $state("Berlin");
+  let districtFilter = $state("");
   let startAt = $state(""); // YYYY-MM-DD
   let timelineSeekRatio = $state(0);
+  let timelineSeekMode = $state("progressive");
   let timelineSeekVersion = $state(0);
   let status = $state({
     minT: null,
@@ -31,6 +42,21 @@
     total: 0,
     ratio: 0,
   });
+
+  const BERLIN_DISTRICTS_FALLBACK = [
+    "Mitte",
+    "Friedrichshain-Kreuzberg",
+    "Pankow",
+    "Charlottenburg-Wilmersdorf",
+    "Spandau",
+    "Steglitz-Zehlendorf",
+    "Tempelhof-Schöneberg",
+    "Neukölln",
+    "Treptow-Köpenick",
+    "Marzahn-Hellersdorf",
+    "Lichtenberg",
+    "Reinickendorf",
+  ];
 
   function fmtDateMs(ms) {
     if (!Number.isFinite(ms)) return "—";
@@ -59,40 +85,62 @@
     if (Number.isFinite(first)) startAt = fmtDateMs(first);
   });
 
-  let filteredIncidents = $derived(
-    regionFilter === "all"
-      ? incidents
-      : incidents.filter((x) => x.region === regionFilter),
+  const berlinDistricts =
+    Array.isArray(BERLIN_DISTRICTS) && BERLIN_DISTRICTS.length > 0
+      ? BERLIN_DISTRICTS
+      : BERLIN_DISTRICTS_FALLBACK;
+
+  function incidentsForView(region, district = "") {
+    const list = Array.isArray(incidents) ? incidents : [];
+    if (region === "Berlin") {
+      const berlin = list.filter((x) => x?.mapRegion === "Berlin");
+      if (!district) return berlin;
+      return berlin.filter((x) => x?.berlinDistrict === district);
+    }
+    if (region === "Brandenburg") {
+      return list.filter((x) => x?.mapRegion === "Brandenburg");
+    }
+    return list.filter(
+      (x) => x?.mapRegion === "Berlin" || x?.mapRegion === "Brandenburg",
+    );
+  }
+
+  let filteredIncidents = $derived.by(() =>
+    incidentsForView(regionFilter, districtFilter),
   );
 
   const getIncidents = () => filteredIncidents;
   const getSettings = () => ({
     daysPerSecond,
+    sidePadding: MAP_SIDE_PADDING,
+    skipEmptyGaps: SKIP_EMPTY_GAPS,
+    gapSkipThresholdDays: GAP_SKIP_THRESHOLD_DAYS,
     lineScale,
     growthMode,
     resetVersion,
     regionFilter,
+    districtFilter,
     startAtMs,
     timelineSeekRatio,
+    timelineSeekMode,
     timelineSeekVersion,
   });
 
   function handleTimelineSeek(ratio) {
     timelineSeekRatio = Math.max(0, Math.min(1, Number(ratio) || 0));
+    timelineSeekMode = "exact-date";
     timelineSeekVersion += 1;
   }
 
   function handleRestart() {
     resetVersion += 1;
     timelineSeekRatio = 0;
+    timelineSeekMode = "progressive";
     timelineSeekVersion += 1;
   }
 
-  function firstIncidentDateForRegion(region) {
-    const list =
-      region === "all"
-        ? incidents
-        : incidents.filter((x) => x?.region === region);
+  function firstIncidentDateForSelection(region, district = "") {
+    const list = incidentsForView(region, district);
     const first = (Array.isArray(list) ? list : [])
       .map((x) => x?.date)
       .filter((t) => Number.isFinite(t))
@@ -102,10 +150,22 @@
 
   function handleAreaChange(region) {
     regionFilter = region;
-    const first = firstIncidentDateForRegion(region);
+    if (region !== "Berlin") districtFilter = "";
+    const first = firstIncidentDateForSelection(region, districtFilter);
     startAt = Number.isFinite(first) ? fmtDateMs(first) : "";
     resetVersion += 1;
     timelineSeekRatio = 0;
+    timelineSeekMode = "progressive";
+    timelineSeekVersion += 1;
+  }
+
+  function handleDistrictChange(district) {
+    districtFilter = district;
+    const first = firstIncidentDateForSelection(regionFilter, district);
+    startAt = Number.isFinite(first) ? fmtDateMs(first) : "";
+    resetVersion += 1;
+    timelineSeekRatio = 0;
+    timelineSeekMode = "progressive";
     timelineSeekVersion += 1;
   }
 
@@ -120,7 +180,20 @@
   onMount(async () => {
     try {
       const rows = await d3.csv("/geocoded_data.csv");
-      incidents = rows.map(normalizeGeocodedRow).filter((x) => x.date != null);
+      incidents = rows
+        .map(normalizeGeocodedRow)
+        .filter((x) => x.date != null)
+        .map((x) => {
+          const mapRegion = classifyMapRegion(Number(x?.lon), Number(x?.lat));
+          return {
+            ...x,
+            mapRegion,
+            berlinDistrict:
+              mapRegion === "Berlin"
+                ? findBerlinDistrict(Number(x?.lon), Number(x?.lat))
+                : "",
+          };
+        });
       loading = false;
     } catch (e) {
       loading = false;
@@ -141,12 +214,15 @@
       {loading}
       {errMsg}
       bind:regionFilter
+      bind:districtFilter
+      {berlinDistricts}
       bind:growthMode
       bind:daysPerSecond
       timelineRatio={status.ratio}
       onSeek={handleTimelineSeek}
       onRestart={handleRestart}
       onAreaChange={handleAreaChange}
+      onDistrictChange={handleDistrictChange}
     />
   </div>
 
