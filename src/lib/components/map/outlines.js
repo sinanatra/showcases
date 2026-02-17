@@ -591,7 +591,7 @@ export function drawRegionOutlines(
   p.strokeJoin(p.ROUND);
   p.strokeCap(p.ROUND);
   p.stroke("white");
-  p.strokeWeight(key.startsWith("Berlin:") ? 0.95 : 0.72);
+  p.strokeWeight(0.5);
 
   const projected = getProjectedEdges(project, key);
   for (let i = 0; i < projected.length; i++) {
