@@ -1,4 +1,6 @@
 <script>
+  import Recorder from "$lib/components/map/Recorder.svelte";
+
   let {
     loading = false,
     errMsg = "",
@@ -8,14 +10,10 @@
     growthMode = $bindable("fungal"),
     daysPerSecond = $bindable(25),
     timelineRatio = 0,
-    recording = false,
-    recordingSupported = true,
-    recordingLabel = "",
     onSeek = () => {},
     onRestart = () => {},
     onAreaChange = () => {},
     onDistrictChange = () => {},
-    onToggleRecording = () => {},
   } = $props();
 
   const berlinDistrictsFallback = [
@@ -76,17 +74,7 @@
     </label>
 
     <button type="button" class="restart" onclick={onRestart}>Restart</button>
-    <button
-      type="button"
-      class:recording={recording}
-      disabled={!recordingSupported}
-      onclick={onToggleRecording}
-    >
-      {recording ? "Stop recording" : "Record"}
-    </button>
-    {#if recordingLabel}
-      <div class="hint">{recordingLabel}</div>
-    {/if}
+    <Recorder {regionFilter} {districtFilter} />
 
     <label class="field">
       <span>Speed ({Math.round(Number(daysPerSecond) || 0)} days/s)</span>
@@ -207,11 +195,6 @@
     cursor: pointer;
   }
 
-  button.recording {
-    border-color: rgba(255, 90, 90, 0.75);
-    color: #ffd8d8;
-  }
-
   .message {
     opacity: 0.9;
   }
@@ -220,8 +203,4 @@
     color: #ffc6c6;
   }
 
-  .hint {
-    margin-top: 8px;
-    opacity: 0.7;
-  }
 </style>
