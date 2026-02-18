@@ -7,8 +7,9 @@
     regionFilter = $bindable("all"),
     districtFilter = $bindable(""),
     berlinDistricts = [],
-    growthMode = $bindable("fungal"),
+    growthMode = $bindable("river"),
     daysPerSecond = $bindable(25),
+    growthSpeed = $bindable(1),
     timelineRatio = 0,
     onSeek = () => {},
     onRestart = () => {},
@@ -88,6 +89,17 @@
     </label>
 
     <label class="field">
+      <span>Line speed ({Number(growthSpeed).toFixed(1)}x)</span>
+      <input
+        type="range"
+        min="0.2"
+        max="2"
+        step="0.1"
+        bind:value={growthSpeed}
+      />
+    </label>
+
+    <label class="field">
       <span>Area</span>
       <select
         value={regionFilter}
@@ -126,6 +138,7 @@
     <label class="field">
       <span>Growth mode</span>
       <select bind:value={growthMode}>
+        <option value="calm">calm</option>
         <option value="fungal">fungal</option>
         <option value="chaos">chaos</option>
         <option value="tendrils">tendrils</option>

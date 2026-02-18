@@ -62,6 +62,29 @@ export function createSketch({
     const zoomMax = 1.5;
     let initialZoomValue = 1;
 
+    function parseList(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      const raw = String(value).trim();
+      if (!raw) return [];
+      try {
+        const arr = JSON.parse(raw.replace(/'/g, '"'));
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return raw
+          .replace(/[\[\]'"]/g, "")
+          .split(/[,;]\s*/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
+
+    function actionForItem(item) {
+      const actions = parseList(item?.ExtractedAction);
+      const action0 = String(actions?.[0] || "").trim();
+      return action0;
+    }
+
     initialZoomValue = noZoom
       ? 1
       : p.constrain(startZoom ?? 0.5, zoomMin, zoomMax);
@@ -89,8 +112,8 @@ export function createSketch({
       resetView,
     });
 
-    function getCachedLetter(kw, letter, textSize) {
-      const key = `${kw}_${letter}_${Math.round(textSize)}`;
+    function getCachedLetter(colorKey, letter, textSize) {
+      const key = `${colorKey}_${letter}_${Math.round(textSize)}`;
       if (charCache.has(key)) {
         const val = charCache.get(key);
         charCache.delete(key);
@@ -105,7 +128,7 @@ export function createSketch({
       pg.textSize(ts);
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
-      pg.fill(keywordColors[kw] || p.color(0, 0, 75));
+      pg.fill(keywordColors[colorKey] || p.color(0, 0, 75));
       pg.rectMode(p.CENTER);
       pg.rect(pg.width / 2, pg.height / 2, w + 4, ts + 4);
       pg.fill(0, 0, 0);
@@ -185,29 +208,36 @@ export function createSketch({
           );
         }
       }
+      if (growthMode === "calm") {
+        const side = br.__rand < 0.5 ? -1 : 1;
+        const target = p.createVector(side, 0.03).normalize();
+        dir.mult(0.88).add(target.mult(0.12)).normalize();
+      }
       return dir.normalize();
     }
 
     function setupBranches(data, w, h) {
       const cx = w / 2;
       const cy = h / 2;
-      const allKws = Array.from(
+      charCache.clear();
+      const allColorKeys = Array.from(
         new Set(
-          data.flatMap((a) =>
-            Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []
-          )
+          data
+            .map((a) => actionForItem(a) || a?.KeywordMatch?.[0] || "")
+            .filter(Boolean)
         )
       );
-      allKws.forEach((kw, i) => {
-        keywordColors[kw] = p.color(
+      allColorKeys.forEach((key, i) => {
+        keywordColors[key] = p.color(
           0,
           0,
-          55 + (i * 120) / Math.max(allKws.length - 1, 1)
+          55 + (i * 120) / Math.max(allColorKeys.length - 1, 1)
         );
       });
       const result = [];
       if (!data.length) return result;
       const kw0 = data[0]?.KeywordMatch?.[0] || "";
+      const action0 = actionForItem(data[0]);
       const text0 = data[0]?.Text ?? data[0]?.sentence ?? "";
       const focus0 = currentFocusFor(text0, kw0);
       const trunkText = shortenAroundKeyword(text0, focus0, 120);
@@ -221,6 +251,7 @@ export function createSketch({
       const trunkDistArr = [0, trunkPathLength];
       result.push({
         kw: kw0,
+        action: action0,
         text: trunkText,
         nodes: trunkNodes,
         dir0: trunkDir.copy(),
@@ -251,11 +282,13 @@ export function createSketch({
           .rotate((Math.random() - 0.5) * 0.3)
           .normalize();
         const kw = data[i]?.KeywordMatch?.[0] || "";
+        const action = actionForItem(data[i]);
         const txtFull = data[i]?.Text ?? data[i]?.sentence ?? "";
         const focus = currentFocusFor(txtFull, kw);
         const txt = shortenAroundKeyword(txtFull, focus, 120);
         result.push({
           kw,
+          action,
           text: txt,
           nodes: [attachPoint.copy()],
           dir0: dirSeed,
@@ -415,7 +448,8 @@ export function createSketch({
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
             const letter = br.sentence[ci];
             const textSize = repulsionRadius / 1.2;
-            const cached = getCachedLetter(br.kw, letter, textSize);
+            const colorKey = br.action || br.kw || "";
+            const cached = getCachedLetter(colorKey, letter, textSize);
             if (cached) {
               worldBuffer.push();
               worldBuffer.translate(px, py);
