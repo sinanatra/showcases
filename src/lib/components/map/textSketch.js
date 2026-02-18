@@ -650,6 +650,24 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       }
     }
 
+    function spawnHistoricalAnchors(targetMs) {
+      const start = dayStartMs(targetMs);
+      if (!Number.isFinite(start)) return;
+      nextIncidentIndex = 0;
+      while (
+        nextIncidentIndex < incidents.length &&
+        incidents[nextIncidentIndex].date < start
+      ) {
+        const inc = incidents[nextIncidentIndex];
+        const w = spawnParticle(inc);
+        if (w) {
+          w.finished = true;
+          particles.push(w);
+        }
+        nextIncidentIndex++;
+      }
+    }
+
     function drawAnchors() {
       const textSize = repulsionRadius() / 1.2;
 
@@ -710,6 +728,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         clearSimulation();
         nextIncidentIndex = 0;
         playhead = target;
+        spawnHistoricalAnchors(target);
         spawnDateOnly(target);
 
         if (hydrate && particles.length) {
