@@ -53,6 +53,8 @@ export function normalizeGeocodedRow(r) {
   const lat = Number(r.latitude);
   const lon = Number(r.longitude);
   const d = parseDateLoose(r.ExtractedDate || r.Date);
+  const actions = parseList(r.ExtractedAction);
+  const action0 = String(actions?.[0] || "").trim();
   const kws = parseList(r.KeywordMatch);
   const kw0 = String(kws?.[0] || "").trim();
   const text = String(r.Text || "");
@@ -65,6 +67,7 @@ export function normalizeGeocodedRow(r) {
     lon,
     date: d ? +d : null,
     kw: kw0,
+    action: action0,
     sentence,
     title,
     url: String(r.URL || ""),
@@ -80,13 +83,21 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     const baseLtrSpacing = 7.3;
     const widthBucket = 100;
     const baseRepulsionRadius = 14;
-    const normalSpawnBurst = 8;
-    const catchupSpawnBurst = 64;
-    const seekWarmStartBurst = 48;
+    const normalSpawnBurst = 12;
+    const catchupSpawnBurst = 96;
+    const seekWarmStartBurst = 72;
 
     const charCache = new Map();
     const maxCache = 1400;
     const keywordColors = {};
+
+    function colorForKey(key, index, total) {
+      if (!key) return p.color(0, 0, 74);
+      const i = Number.isFinite(index) ? index : 0;
+      const n = Math.max(1, Number.isFinite(total) ? total : 1);
+      const bri = 52 + (i * 120) / Math.max(n - 1, 1);
+      return p.color(0, 0, bri);
+    }
 
     let particles = [];
     let globalBuckets = new Map();
@@ -216,8 +227,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       if (!force && changed) resetSimulation();
     }
 
-    function getCachedLetter(kw, letter, textSize) {
-      const key = `${kw}_${letter}_${Math.round(textSize)}`;
+    function getCachedLetter(colorKey, letter, textSize) {
+      const key = `${colorKey}_${letter}_${Math.round(textSize)}`;
       if (charCache.has(key)) {
         const val = charCache.get(key);
         charCache.delete(key);
@@ -241,7 +252,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       pg.textSize(ts);
       const w = Math.max(pg.textWidth(letter), 4);
       pg.noStroke();
-      pg.fill(keywordColors[kw] || p.color(0, 0, 74));
+      pg.fill(keywordColors[colorKey] || p.color(0, 0, 74));
       pg.rectMode(p.CENTER);
       pg.rect(pg.width / 2, pg.height / 2, w + 6, ts + 6);
       pg.fill(0, 0, 4);
@@ -311,9 +322,9 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       ctx.restore();
     }
 
-    function drawGlyph(kw, letter, x, y, angle) {
+    function drawGlyph(colorKey, letter, x, y, angle) {
       const textSize = repulsionRadius() / 1.2;
-      const cached = getCachedLetter(kw, letter, textSize);
+      const cached = getCachedLetter(colorKey, letter, textSize);
       if (!cached) return;
       const g = textLayer || p;
       g.push();
@@ -397,6 +408,11 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
           );
         }
       }
+      if (growthMode === "calm") {
+        const side = br.__rand < 0.5 ? -1 : 1;
+        const target = p.createVector(side, 0.03).normalize();
+        dir.mult(0.88).add(target.mult(0.12)).normalize();
+      }
       return dir.normalize();
     }
 
@@ -423,6 +439,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
 
       const anchor = p.createVector(anchorPx.x, anchorPx.y);
       const kw = inc.kw || "";
+      const action = inc.action || "";
       const sentence = inc.sentence || "";
       if (!sentence.length) return null;
 
@@ -442,6 +459,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         lat: inc.lat,
         date: inc.date,
         kw,
+        action,
         sentence,
         title: inc.title,
         url: inc.url,
@@ -454,10 +472,11 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         distArr,
         segmentCursor: 1,
         lastPlacedCharIndex: -1,
+        isAnchor: true,
         maxSteps: Math.max(
           6,
           leadInSteps +
-          Math.ceil(
+            Math.ceil(
             (sentence.length || 1) *
               (ltrSpacing() / Math.max(segmentLength(), 1)) *
               lengthFactor(),
@@ -492,15 +511,12 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       nextIncidentIndex = lowerBoundByDate(playhead);
       lastMillis = null;
 
-      const allKws = Array.from(
-        new Set(incidents.map((a) => a.kw).filter(Boolean)),
-      );
-      allKws.forEach((kw, i) => {
-        keywordColors[kw] = p.color(
-          0,
-          0,
-          55 + (i * 120) / Math.max(allKws.length - 1, 1),
-        );
+      const allColorKeys = Array.from(
+        new Set(incidents.map((a) => a.action || a.kw).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b));
+      charCache.clear();
+      allColorKeys.forEach((key, i) => {
+        keywordColors[key] = colorForKey(key, i, allColorKeys.length);
       });
 
       clearSimulation();
@@ -539,7 +555,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         const py = p.lerp(v0.y, v1.y, tnorm);
         const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
         const letter = w.sentence[ci];
-        drawGlyph(w.kw, letter, px, py, ang);
+        const colorKey = w.action || w.kw || "";
+        drawGlyph(colorKey, letter, px, py, ang);
 
         w.lastPlacedCharIndex = ci;
         w.segmentCursor = si;
@@ -558,7 +575,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         const bx = Math.floor(tip.x / widthBucket);
         const by = Math.floor(tip.y / widthBucket);
         const repulse = repulsionRadius();
-        const repulseMul = 0.65 * scale;
+        const repulseMul = 0.35 * scale;
         let repulseX = 0;
         let repulseY = 0;
         for (let dx = -1; dx <= 1; dx++) {
@@ -682,7 +699,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       g.rectMode(p.CENTER);
       for (let i = 0; i < particles.length; i++) {
         const w = particles[i];
-        if (!w?.anchor) continue;
+        if (!w?.anchor || !w?.isAnchor || (w.lastPlacedCharIndex ?? -1) < 0)
+          continue;
         g.fill("yellow");
         g.push();
         g.translate(w.anchor.x, w.anchor.y);
@@ -770,7 +788,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       const c = p.createCanvas(window.innerWidth, window.innerHeight);
       // c.elt.style.background = "transparent";
       p.colorMode(p.HSB);
-      p.frameRate(22);
+      p.frameRate(30);
       p.clear();
       createLayers(p.width, p.height);
 
@@ -783,7 +801,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     };
 
     p.draw = () => {
-      const didClear = p.frameCount % 5 === 0;
+      const didClear = p.frameCount % 10 === 0;
       if (didClear) fadeTextLayer(0.1);
       // fadeTextLayer(0.02);
 
@@ -828,8 +846,12 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       spawnDue(hasBacklog ? catchupSpawnBurst : normalSpawnBurst);
 
       if (simFrame % 4 === 0) rebuildBuckets();
+      const growthSpeed = Math.max(0.2, Number(settings.growthSpeed) || 1);
+      const stride = growthSpeed < 1 ? Math.max(1, Math.round(1 / growthSpeed)) : 1;
+      const stepBoost = growthSpeed > 1 ? growthSpeed : 1;
       for (let i = 0; i < particles.length; i++) {
-        if (i % 3 === simFrame % 3) growParticle(particles[i]);
+        if (simFrame % stride !== 0) continue;
+        if (i % 2 === simFrame % 2) growParticle(particles[i], stepBoost);
       }
       simFrame++;
 

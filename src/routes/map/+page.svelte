@@ -25,6 +25,7 @@
 
   let daysPerSecond = $state(7);
   let lineScale = $state(0.9);
+  let growthSpeed = $state(0.5);
 
   let growthMode = $state("fungal");
   let resetVersion = $state(0);
@@ -117,6 +118,7 @@
     skipEmptyGaps: SKIP_EMPTY_GAPS,
     gapSkipThresholdDays: GAP_SKIP_THRESHOLD_DAYS,
     lineScale,
+    growthSpeed,
     growthMode,
     resetVersion,
     regionFilter,
@@ -220,6 +222,7 @@
       {berlinDistricts}
       bind:growthMode
       bind:daysPerSecond
+      bind:growthSpeed
       timelineRatio={status.ratio}
       onSeek={handleTimelineSeek}
       onRestart={handleRestart}

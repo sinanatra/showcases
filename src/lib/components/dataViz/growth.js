@@ -35,6 +35,12 @@ export const growthParams = {
     branchAngle: Math.PI / 1.2,
     downwardBias: 0.008,
   },
+  calm: {
+    branchingChance: 0.06,
+    directionRandomness: 0.35,
+    branchAngle: Math.PI / 3.2,
+    downwardBias: 0.0,
+  },
 };
 
 export const growthModes = Object.keys(growthParams);
