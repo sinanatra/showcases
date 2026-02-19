@@ -679,6 +679,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
         const w = spawnParticle(inc);
         if (w) {
           w.finished = true;
+          w.isHistorical = true;
           particles.push(w);
         }
         nextIncidentIndex++;
@@ -699,8 +700,8 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
       g.rectMode(p.CENTER);
       for (let i = 0; i < particles.length; i++) {
         const w = particles[i];
-        if (!w?.anchor || !w?.isAnchor || (w.lastPlacedCharIndex ?? -1) < 0)
-          continue;
+        if (!w?.anchor || !w?.isAnchor) continue;
+        if (!w.isHistorical && (w.lastPlacedCharIndex ?? -1) < 0) continue;
         g.fill("yellow");
         g.push();
         g.translate(w.anchor.x, w.anchor.y);
