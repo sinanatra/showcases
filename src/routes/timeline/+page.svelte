@@ -1,7 +1,7 @@
 <script>
-  import * as d3 from "d3";
   import { lang, setLang, availableLangs, t } from "$lib/i18n";
-  import { articles, filtered, parseDateLoose, augmentKeywordMatch } from "$lib/stores";
+  import { filtered, parseDateLoose } from "$lib/stores";
+  import { loadArticles } from "$lib/utils/loadArticles";
   import RegionFilter from "$lib/components/RegionFilter.svelte";
   import DistrictFilter from "$lib/components/DistrictFilter.svelte";
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
@@ -11,62 +11,13 @@
   import TextSearch from "$lib/components/TextSearch.svelte";
   import Timeline from "$lib/components/Timeline.svelte";
 
-  function parseList(str) {
-    if (!str) return [];
-    try {
-      const arr = JSON.parse(String(str).replace(/'/g, '"'));
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return String(str)
-        .replace(/[\[\]'"]/g, "")
-        .split(/[,;]\s*/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-
-  function normalizeRecord(d) {
-    const keywordMatch = parseList(d.KeywordMatch);
-    const keywordExtracted = parseList(d.KeywordExtracted);
-    const extractedTime = parseList(d.ExtractedTime);
-    const extractedAge = parseList(d.ExtractedAge);
-    const extractedGender = parseList(d.ExtractedGender);
-    const extractedAction = parseList(d.ExtractedAction);
-    const districtArr = parseList(d.ExtractedDistrict);
-    const extractedDistrict = districtArr[0] || d.Location || "";
-    return {
-      ...d,
-      KeywordMatch: augmentKeywordMatch(
-        keywordMatch,
-        `${d.Title || ""} ${d.Text || ""}`
-      ),
-      KeywordExtracted: keywordExtracted,
-      ExtractedTime: extractedTime,
-      ExtractedAge: extractedAge,
-      ExtractedGender: extractedGender,
-      ExtractedAction: extractedAction,
-      ExtractedDistrict: extractedDistrict,
-      ExtractedDate: d.ExtractedDate || d.Date,
-      Text: d.Text || "",
-      Title: d.Title || "",
-      URL: d.URL || "",
-    };
-  }
-
   let timelineDataLoaded = $state(false);
 
   $effect(() => {
     if (timelineDataLoaded) return;
-    (async () => {
-      try {
-        const raw = await d3.csv("/all_merged.csv");
-        const data = raw.map(normalizeRecord);
-        articles.set(data);
-        timelineDataLoaded = true;
-      } catch (err) {
-        console.error("Failed to load timeline data:", err);
-      }
-    })();
+    loadArticles()
+      .then(() => { timelineDataLoaded = true; })
+      .catch((err) => console.error("Failed to load timeline data:", err));
   });
 
   let locale = $derived($lang === "de" ? "de-DE" : "en-GB");
