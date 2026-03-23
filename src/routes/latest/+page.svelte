@@ -1,52 +1,15 @@
 <script>
-  import * as d3 from "d3";
-  import { articles, augmentKeywordMatch } from "$lib/stores";
+  import { loadArticles } from "$lib/utils/loadArticles";
   import DataControls from "$lib/components/DataControls.svelte";
   import DataViz from "$lib/components/DataViz.svelte";
 
-  let latestDataLoaded = $state(false);
+  let loaded = $state(false);
 
   $effect(() => {
-    if (latestDataLoaded) return;
-    (async () => {
-      try {
-        const raw = await d3.csv("/all_merged.csv");
-        articles.set(
-          raw.map((d) => ({
-            ...d,
-            KeywordMatch:
-              typeof d.KeywordMatch === "string"
-                ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
-                    .split(/[,;]/)
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                : [],
-            Text: d.Text || "",
-            URL: d.URL || "",
-            Title: d.Title || "",
-            ExtractedGender: Array.isArray(d.ExtractedGender)
-              ? d.ExtractedGender
-              : d.ExtractedGender
-                ? [d.ExtractedGender]
-                : [],
-            ExtractedTime: Array.isArray(d?.ExtractedTime)
-              ? d?.ExtractedTime
-              : d?.ExtractedTime
-                ? [d?.ExtractedTime]
-                : [],
-          })).map((a) => ({
-            ...a,
-            KeywordMatch: augmentKeywordMatch(
-              a.KeywordMatch,
-              `${a.Title || ""} ${a.Text || ""}`
-            ),
-          }))
-        );
-        latestDataLoaded = true;
-      } catch (err) {
-        console.error("Failed to load latest data:", err);
-      }
-    })();
+    if (loaded) return;
+    loadArticles()
+      .then(() => { loaded = true; })
+      .catch((err) => console.error("Failed to load latest data:", err));
   });
 </script>
 

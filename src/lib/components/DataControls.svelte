@@ -150,18 +150,6 @@
   let spanTotal = $derived(spanFor($articles));
 </script>
 
-<!-- <div class="lang-switch">
-  {#each availableLangs as l}
-    <button
-      class:active={$lang === l}
-      on:click={() => setLang(l)}
-      aria-pressed={$lang === l}
-    >
-      {l.toUpperCase()}
-    </button>
-  {/each}
-</div> -->
-
 <div class="controls" class:floating>
   <div>
     <h2>
@@ -186,13 +174,6 @@
       </p>
     </div>
     <br />
-    <!-- <p>
-      <span class="line-bg">
-        {$t("summary_l2_see")}
-        <a href="/timeline" data-sveltekit-reload>{$t("summary_l2_link")}</a>
-        {$t("summary_l2_for")}
-      </span>
-    </p> -->
   </div>
   <br />
   <div>
