@@ -4,12 +4,13 @@
     TIME_LABELS,
     genderMap,
     articles,
-    augmentKeywordMatch,
     parseDateLoose,
     keywordsGroup,
   } from "$lib/stores";
+  import { detectRegion } from "$lib/utils/detectRegion";
+  import { timeCluster } from "$lib/constants/times";
+  import { loadArticles } from "$lib/utils/loadArticles";
   import Scrollytelling from "$lib/components/Scrollytelling.svelte";
-  import * as d3 from "d3";
   import { lang } from "$lib/i18n";
   let { data } = $props();
 
@@ -17,49 +18,9 @@
 
   $effect(() => {
     if (articlesLoaded) return;
-    if (Array.isArray($articles) && $articles.length) {
-      articlesLoaded = true;
-      return;
-    }
-    
-    (async () => {
-      try {
-        const raw = await d3.csv("/all_merged.csv");
-        articles.set(
-          raw.map((d) => ({
-            ...d,
-            ExtractedGender: (d.ExtractedGender || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
-            ExtractedTime: (d.ExtractedTime || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
-            KeywordMatch: (d.KeywordMatch || "")
-              .replace(/[\[\]'"]/g, "")
-              .split(/[,;]/)
-              .map((s) => s.trim())
-              .filter(Boolean),
-            Text: d.Text || "",
-            URL: d.URL || "",
-            Title: d.Title || "",
-          }))
-            .map((a) => ({
-              ...a,
-              KeywordMatch: augmentKeywordMatch(
-                a.KeywordMatch,
-                `${a.Title || ""} ${a.Text || ""}`
-              ),
-            }))
-        );
-        articlesLoaded = true;
-      } catch (err) {
-        console.error("Failed to load data:", err);
-      }
-    })();
+    loadArticles()
+      .then(() => { articlesLoaded = true; })
+      .catch((err) => console.error("Failed to load data:", err));
   });
 
   let locale = $derived($lang === "de" ? "de-DE" : "en-GB");
@@ -73,22 +34,6 @@
   let fmtNum = $derived.by(() => 
     (n) => new Intl.NumberFormat(locale).format(n)
   );
-
-  function detectRegion(a) {
-    const s = String(a?.SourceFile || "").toLowerCase();
-    const u = String(a?.URL || "").toLowerCase();
-    if (s.includes("berlin") || u.includes("berlin.de")) return "Berlin";
-    if (s.includes("brandenburg") || u.includes("brandenburg.de"))
-      return "Brandenburg";
-    return "";
-  }
-
-  function timeCluster(h) {
-    if (h >= 6 && h < 12) return "Morning";
-    if (h >= 12 && h < 18) return "Afternoon";
-    if (h >= 18 && h < 24) return "Evening";
-    return "Night";
-  }
 
   const canonicalKeyword = (k) =>
     keywordsGroup[String(k || "").toLowerCase()] || String(k || "");

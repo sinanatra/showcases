@@ -1,6 +1,5 @@
 <script>
-  import * as d3 from "d3";
-  import { articles, augmentKeywordMatch } from "$lib/stores";
+  import { loadArticles } from "$lib/utils/loadArticles";
   import DataViz from "$lib/components/DataViz.svelte";
   import RelatedArticles from "$lib/components/RelatedArticles.svelte";
   import { page } from "$app/stores";
@@ -28,49 +27,12 @@
   let loop = $derived(datum?.meta?.loop ?? false);
 
   let storyDataLoaded = $state(false);
-  
+
   $effect(() => {
     if (storyDataLoaded) return;
-    (async () => {
-      try {
-        const raw = await d3.csv("/all_merged.csv");
-        const normalized = raw.map((d) => ({
-          ...d,
-          KeywordMatch:
-            typeof d.KeywordMatch === "string"
-              ? d.KeywordMatch.replace(/[\[\]'"]/g, "")
-                  .split(/[,;]/)
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : Array.isArray(d.KeywordMatch)
-                ? d.KeywordMatch
-                : [],
-          Text: d.Text || "",
-          URL: d.URL || "",
-          Title: d.Title || "",
-          ExtractedGender: Array.isArray(d.ExtractedGender)
-            ? d.ExtractedGender
-            : d.ExtractedGender
-              ? [d.ExtractedGender]
-              : [],
-          ExtractedTime: Array.isArray(d.ExtractedTime)
-            ? d.ExtractedTime
-            : d.ExtractedTime
-              ? [d.ExtractedTime]
-              : [],
-        })).map((a) => ({
-          ...a,
-          KeywordMatch: augmentKeywordMatch(
-            a.KeywordMatch,
-            `${a.Title || ""} ${a.Text || ""}`
-          ),
-        }));
-        articles.set(normalized);
-        storyDataLoaded = true;
-      } catch (err) {
-        console.error("Failed to load story data:", err);
-      }
-    })();
+    loadArticles()
+      .then(() => { storyDataLoaded = true; })
+      .catch((err) => console.error("Failed to load story data:", err));
   });
 </script>
 
