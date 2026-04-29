@@ -62,6 +62,7 @@
     /* padding: 0 2rem; */
     z-index: 1000;
     margin-bottom: 100px;
+    margin-top: 50px;
   }
 
   .track {
