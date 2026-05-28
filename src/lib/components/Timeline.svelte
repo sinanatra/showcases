@@ -6,8 +6,10 @@
   import { translateDE_EN } from "$lib/utils/translate";
   import { shortenAroundKeyword } from "$lib/utils/textUtils";
 
-  const lineHeight = 16;
-  const fontSize = Math.round(lineHeight * 0.9);
+  function typescale(size) {
+    return { fontSize: size, lineHeight: Math.round(size * 1.4), dateFontSize: Math.round(size * 0.8) };
+  }
+  const { fontSize, lineHeight, dateFontSize } = typescale(16);
   const yOffset = 0;
   const leftPad = 120;
   const rightPad = 2500;
@@ -382,7 +384,7 @@
         if (r.after) out += `<tspan>${escXML(r.after)}</tspan>`;
       }
 
-      out += `<tspan fill="${color}" font-size="${Math.round(fontSize * 0.8)}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
+      out += `<tspan fill="${color}" font-size="${dateFontSize}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
       out += `</text>`;
     }
 
@@ -412,7 +414,7 @@
               class="date"
               x={t.x}
               y={18}
-              font-size={fontSize}
+              font-size={dateFontSize}
               dominant-baseline="middle"
               text-anchor="start">{fmtDate(t.d)}</text
             >
@@ -463,7 +465,7 @@
                   <tspan class="highlight">{item.match}</tspan>
                   <tspan class="text">{item.after}</tspan>
                 {/if}
-                <tspan class="date" dx="2"> {fmtDate(item.date)} ↗</tspan>
+                <tspan class="date" font-size={dateFontSize} dx="2"> {fmtDate(item.date)} ↗</tspan>
               </text>
             </a>
           {/each}
@@ -526,7 +528,6 @@
   }
   .date,
   a {
-    font-size: 0.8em;
     fill: gainsboro;
   }
   .date {
