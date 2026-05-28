@@ -10,7 +10,7 @@
   const fontSize = Math.round(lineHeight * 0.9);
   const yOffset = 0;
   const leftPad = 120;
-  const rightPad = 1500;
+  const rightPad = 2500;
   const tickPx = 500;
   const bufferRows = 60;
 
