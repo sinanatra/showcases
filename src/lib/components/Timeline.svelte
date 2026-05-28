@@ -1,16 +1,18 @@
 <script>
-  import { filtered, isMobile } from "$lib/stores";
+  import { filtered, filters, isMobile } from "$lib/stores";
   import { onMount, onDestroy, tick } from "svelte";
   import { browser } from "$app/environment";
-  import { lang, setLang, availableLangs } from "$lib/i18n";
+  import { lang } from "$lib/i18n";
+  import { translateDE_EN } from "$lib/utils/translate";
+  import { shortenAroundKeyword } from "$lib/utils/textUtils";
 
-  const lineHeight = 12;
+  const lineHeight = 16;
   const fontSize = Math.round(lineHeight * 0.9);
   const yOffset = 0;
   const leftPad = 120;
   const rightPad = 1500;
   const tickPx = 500;
-  const bufferRows = 30;
+  const bufferRows = 60;
 
   let sectionEl;
   let timelineContainer;
@@ -31,28 +33,6 @@
     return isNaN(+dt) ? null : dt;
   }
 
-  function extractSnippet(text = "", terms = []) {
-    const snippet = text.slice(0, 200);
-    if (!terms.length) return { before: snippet, match: "", after: "" };
-    const rx = new RegExp(
-      `\\b${String(terms[0]).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-      "i"
-    );
-    const m = rx.exec(text);
-    if (!m) return { before: snippet, match: "", after: "" };
-    const idx = m.index,
-      len = m[0].length;
-    const start = Math.max(0, idx - 80);
-    const end = Math.min(text.length, idx + len + 80);
-    const s = text.slice(start, end);
-    const rel = idx - start;
-    return {
-      before: s.slice(0, rel),
-      match: s.slice(rel, rel + len),
-      after: s.slice(rel + len),
-    };
-  }
-
   let fmtDate;
   $: {
     const locale = $lang === "de" ? "de-DE" : "en-GB";
@@ -63,6 +43,36 @@
         year: "numeric",
       });
   }
+
+  // Translation
+  let translatedMap = {};
+  function snippetKey(item) { return item.before + item.match + item.after; }
+  function splitAround(text, term) {
+    if (!term || !text) return null;
+    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    const m = rx.exec(text);
+    if (!m) return null;
+    return { pre: text.slice(0, m.index), hit: m[0], post: text.slice(m.index + m[0].length) };
+  }
+  let translating = false;
+  async function translateVisible() {
+    const seen = new Set(Object.keys(translatedMap));
+    const toAdd = new Map();
+    for (const item of visible) {
+      const sKey = snippetKey(item);
+      if (!seen.has(sKey)) toAdd.set(sKey, translateDE_EN(sKey));
+      if (item.match) {
+        const kKey = `__k:${item.match}`;
+        if (!seen.has(kKey)) toAdd.set(kKey, translateDE_EN(item.match));
+      }
+    }
+    if (!toAdd.size) return;
+    translating = true;
+    const results = await Promise.all([...toAdd.entries()].map(async ([k, p]) => [k, await p]));
+    translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
+    translating = false;
+  }
+  $: if ($lang === "en" && visible.length) translateVisible();
 
   let rows = [];
   let start = null;
@@ -133,9 +143,11 @@
         (window.scrollY + window.innerHeight - rowsStartY) / lineHeight
       ) + bufferRows
     );
-    visibleStart = first;
-    visibleEnd = last;
-    visible = rows.slice(visibleStart, visibleEnd);
+    if (first !== visibleStart || last !== visibleEnd) {
+      visibleStart = first;
+      visibleEnd = last;
+      visible = rows.slice(visibleStart, visibleEnd);
+    }
     if (!hScrollActive && idx !== lastActiveIndex) {
       scrollToCenterForIndex(idx);
       lastActiveIndex = idx;
@@ -171,10 +183,16 @@
             : "00:00";
         const d = parseDate(a.ExtractedDate || a.Date, t0);
         if (!d) return null;
-        const { before, match, after } = extractSnippet(
-          a.Text || "",
-          a.KeywordExtracted || a.KeywordMatch || []
-        );
+        const kwFromMatch = (Array.isArray(a.KeywordMatch) && a.KeywordMatch[0])
+          || (Array.isArray(a.KeywordExtracted) && a.KeywordExtracted[0])
+          || "";
+        // text search takes priority; keyword as fallback
+        const kw = $filters.text || kwFromMatch;
+        const snippet = shortenAroundKeyword(a.Text || "", kw, 200);
+        const sp = kw ? splitAround(snippet, kw) : null;
+        const before = sp ? sp.pre : snippet;
+        const match = sp ? sp.hit : "";
+        const after = sp ? sp.post : "";
         return { date: d, before, match, after, url: a.URL };
       })
       .filter(Boolean)
@@ -216,8 +234,9 @@
       if (browser && sig !== lastRowsSig) {
         lastRowsSig = sig;
         lastActiveIndex = -1;
-        updateVisible();
       }
+      // always refresh visible slice when rows rebuild (content may have changed)
+      if (browser) visible = rows.slice(visibleStart, visibleEnd);
     } else {
       start = null;
       end = null;
@@ -301,6 +320,79 @@
     if (hScrollRaf) cancelAnimationFrame(hScrollRaf);
     if (filteredUnsub) filteredUnsub();
   });
+
+  // SVG export
+  let exporting = false;
+
+  function escXML(s) {
+    return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  async function exportSVG() {
+    if (!rows.length || exporting) return;
+
+    if ($lang === "en") {
+      exporting = true;
+      const seen = new Set(Object.keys(translatedMap));
+      const toAdd = new Map();
+      for (const r of rows) {
+        const sKey = snippetKey(r);
+        if (!seen.has(sKey)) toAdd.set(sKey, translateDE_EN(sKey));
+        if (r.match) {
+          const kKey = `__k:${r.match}`;
+          if (!seen.has(kKey)) toAdd.set(kKey, translateDE_EN(r.match));
+        }
+      }
+      if (toAdd.size) {
+        const results = await Promise.all([...toAdd.entries()].map(async ([k, p]) => [k, await p]));
+        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
+      }
+      exporting = false;
+    }
+
+    const color = "rgb(231,233,91)";
+    const h = rows.length * lineHeight + 50;
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:black;font-family:Courier,monospace;font-size:${fontSize}px">`;
+
+    for (const t of ticks) {
+      out += `<line x1="${t.x}" y1="0" x2="${t.x}" y2="${h}" stroke="${color}" stroke-dasharray="4 4" shape-rendering="crispEdges"/>`;
+      out += `<text x="${t.x}" y="${lineHeight}" fill="${color}" font-size="${fontSize}" dominant-baseline="middle">${escXML(fmtDate(t.d))}</text>`;
+    }
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const x = normPos(r.date);
+      const y = (i + 2) * lineHeight + lineHeight / 2;
+      out += `<text x="${x}" y="${y}" dominant-baseline="middle" fill="gainsboro" font-style="italic">`;
+
+      if ($lang === "en") {
+        const ts = translatedMap[snippetKey(r)];
+        const tk = r.match ? translatedMap[`__k:${r.match}`] : "";
+        const sp = ts ? splitAround(ts, tk || "") : null;
+        if (sp) {
+          if (sp.pre) out += `<tspan>${escXML(sp.pre)}</tspan>`;
+          if (sp.hit) out += `<tspan fill="${color}" font-weight="700" font-style="normal">${escXML(sp.hit)}</tspan>`;
+          if (sp.post) out += `<tspan>${escXML(sp.post)}</tspan>`;
+        } else {
+          out += `<tspan>${escXML(ts ?? snippetKey(r))}</tspan>`;
+        }
+      } else {
+        if (r.before) out += `<tspan>${escXML(r.before)}</tspan>`;
+        if (r.match) out += `<tspan fill="${color}" font-weight="700" font-style="normal">${escXML(r.match)}</tspan>`;
+        if (r.after) out += `<tspan>${escXML(r.after)}</tspan>`;
+      }
+
+      out += `<tspan fill="${color}" font-size="${Math.round(fontSize * 0.8)}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
+      out += `</text>`;
+    }
+
+    out += `</svg>`;
+    const blob = new Blob([out], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "timeline.svg"; a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <section bind:this={sectionEl}>
@@ -346,7 +438,12 @@
           {/each}
         </g>
         <g>
-          {#each visible as item, i}
+          {#each visible as item, i (visibleStart + i)}
+            {@const isEN = $lang === "en"}
+            {@const sKey = snippetKey(item)}
+            {@const ts = translatedMap[sKey]}
+            {@const tk = item.match ? translatedMap[`__k:${item.match}`] : ""}
+            {@const enSplit = isEN && ts ? splitAround(ts, tk || "") : null}
             <a href={item.url} target="_blank" rel="noopener">
               <text
                 x={normPos(item.date)}
@@ -355,9 +452,17 @@
                 dominant-baseline="middle"
                 text-anchor="start"
               >
-                <tspan class="text">{item.before}</tspan>
-                <tspan class="highlight">{item.match}</tspan>
-                <tspan class="text">{item.after}</tspan>
+                {#if isEN}
+                  {#if enSplit}
+                    <tspan class="text">{enSplit.pre}</tspan><tspan class="highlight">{enSplit.hit}</tspan><tspan class="text">{enSplit.post}</tspan>
+                  {:else}
+                    <tspan class="text">{ts ?? sKey}</tspan>
+                  {/if}
+                {:else}
+                  <tspan class="text">{item.before}</tspan>
+                  <tspan class="highlight">{item.match}</tspan>
+                  <tspan class="text">{item.after}</tspan>
+                {/if}
                 <tspan class="date" dx="2"> {fmtDate(item.date)} ↗</tspan>
               </text>
             </a>
@@ -365,6 +470,14 @@
         </g>
       </svg>
     </div>
+
+    <button class="export" on:click={exportSVG} disabled={exporting}>
+      {exporting ? "translating…" : "↓ SVG"}
+    </button>
+
+    {#if translating}
+      <span class="tl-loading">translating…</span>
+    {/if}
   {/if}
 </section>
 
@@ -423,5 +536,28 @@
     stroke: var(--color-1);
     stroke-dasharray: 4 4;
     shape-rendering: crispEdges;
+  }
+  .export {
+    position: fixed;
+    bottom: 3.5rem;
+    right: 1rem;
+    background: #111;
+    color: #eee;
+    border: none;
+    cursor: pointer;
+    padding: 0.35rem 0.6rem;
+    font-family: Courier, monospace;
+    z-index: 10;
+  }
+  .export:hover { background: white; color: black; }
+  .tl-loading {
+    position: fixed;
+    bottom: 6rem;
+    right: 1rem;
+    font-family: Courier, monospace;
+    font-size: 0.75rem;
+    color: var(--color-1);
+    z-index: 10;
+    opacity: 0.8;
   }
 </style>
