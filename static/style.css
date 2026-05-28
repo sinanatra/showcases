@@ -1,5 +1,6 @@
 html {
   --color-1: rgb(254, 216, 0);
+  --color-1: rgb(231, 233, 91);
   overscroll-behavior: none;
 }
 
@@ -8,6 +9,7 @@ body {
   padding: 0px;
   font-size: 14px;
   overscroll-behavior: none;
+
   font-family: Courier, monospace;
   text-rendering: optimizeSpeed;
   -webkit-font-smoothing: antialiased;

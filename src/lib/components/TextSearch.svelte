@@ -1,6 +1,25 @@
 <script>
   import { filters } from "$lib/stores";
-  import { t } from "$lib/i18n";
+  import { lang, t } from "$lib/i18n";
+  import { translateEN_DE } from "$lib/utils/translate";
+
+  let displayValue = $filters.text ?? "";
+  let debounceTimer;
+
+  function onInput(e) {
+    displayValue = e.target.value;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => applyFilter(displayValue), 400);
+  }
+
+  async function applyFilter(raw) {
+    if ($lang !== "en") {
+      filters.update((f) => ({ ...f, text: raw }));
+      return;
+    }
+    const translated = raw.trim() ? await translateEN_DE(raw) : raw;
+    filters.update((f) => ({ ...f, text: translated }));
+  }
 </script>
 
 <label>
@@ -8,8 +27,8 @@
   <input
     type="search"
     placeholder={$t("filters.searchPlaceholder")}
-    value={$filters.text}
-    on:input={(e) => filters.update((f) => ({ ...f, text: e.target.value }))}
+    value={displayValue}
+    on:input={onInput}
     aria-label={$t("filters.search")}
   />
 </label>
