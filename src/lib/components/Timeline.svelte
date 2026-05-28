@@ -51,10 +51,16 @@
   function snippetKey(item) { return item.before + item.match + item.after; }
   function splitAround(text, term) {
     if (!term || !text) return null;
-    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    const m = rx.exec(text);
-    if (!m) return null;
-    return { pre: text.slice(0, m.index), hit: m[0], post: text.slice(m.index + m[0].length) };
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // try exact, then progressively shorter prefixes down to 4 chars
+    const minLen = Math.min(4, term.length);
+    for (let len = term.length; len >= minLen; len = Math.max(minLen, Math.floor(len * 0.75))) {
+      const rx = new RegExp(esc(term.slice(0, len)) + "\\w*", "i");
+      const m = rx.exec(text);
+      if (m) return { pre: text.slice(0, m.index), hit: m[0], post: text.slice(m.index + m[0].length) };
+      if (len === minLen) break;
+    }
+    return null;
   }
   let translating = false;
   async function translateVisible() {
@@ -185,12 +191,14 @@
             : "00:00";
         const d = parseDate(a.ExtractedDate || a.Date, t0);
         if (!d) return null;
-        const kwFromMatch = (Array.isArray(a.KeywordMatch) && a.KeywordMatch[0])
-          || (Array.isArray(a.KeywordExtracted) && a.KeywordExtracted[0])
-          || "";
-        // text search takes priority; keyword as fallback
-        const kw = $filters.text || kwFromMatch;
-        const snippet = shortenAroundKeyword(a.Text || "", kw, 200);
+        const text = a.Text || "";
+        const candidates = [
+          $filters.text,
+          ...(Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []),
+          ...(Array.isArray(a.KeywordExtracted) ? a.KeywordExtracted : []),
+        ].filter(Boolean);
+        const kw = candidates.find(c => text.toLowerCase().includes(String(c).toLowerCase())) || candidates[0] || "";
+        const snippet = shortenAroundKeyword(text, kw, 200);
         const sp = kw ? splitAround(snippet, kw) : null;
         const before = sp ? sp.pre : snippet;
         const match = sp ? sp.hit : "";
@@ -370,7 +378,11 @@
       if ($lang === "en") {
         const ts = translatedMap[snippetKey(r)];
         const tk = r.match ? translatedMap[`__k:${r.match}`] : "";
-        const sp = ts ? splitAround(ts, tk || "") : null;
+        const sp = ts ? (
+          splitAround(ts, tk || "") ||
+          (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
+          splitAround(ts, r.match || "")
+        ) : null;
         if (sp) {
           if (sp.pre) out += `<tspan>${escXML(sp.pre)}</tspan>`;
           if (sp.hit) out += `<tspan fill="${color}" font-weight="700" font-style="normal">${escXML(sp.hit)}</tspan>`;
@@ -445,7 +457,11 @@
             {@const sKey = snippetKey(item)}
             {@const ts = translatedMap[sKey]}
             {@const tk = item.match ? translatedMap[`__k:${item.match}`] : ""}
-            {@const enSplit = isEN && ts ? splitAround(ts, tk || "") : null}
+            {@const enSplit = isEN && ts ? (
+              splitAround(ts, tk || "") ||
+              (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
+              splitAround(ts, item.match || "")
+            ) : null}
             <a href={item.url} target="_blank" rel="noopener">
               <text
                 x={normPos(item.date)}
