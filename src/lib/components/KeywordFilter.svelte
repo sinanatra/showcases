@@ -1,5 +1,5 @@
 <script>
-  import { filters, availableKeywords } from "$lib/stores";
+  import { filters, availableKeywordsLabeled } from "$lib/stores";
   import { t } from "$lib/i18n";
 </script>
 
@@ -11,8 +11,8 @@
     aria-label={$t("filters.keyword")}
   >
     <option value="">{$t("filters.all")}</option>
-    {#each $availableKeywords ?? [] as kw}
-      <option value={kw}>{kw}</option>
+    {#each $availableKeywordsLabeled ?? [] as kw}
+      <option value={kw.value}>{kw.label}</option>
     {/each}
   </select>
 </label>

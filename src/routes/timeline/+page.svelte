@@ -76,6 +76,7 @@
   }
 </script>
 
+<div class="page">
 <article>
   <header class="top">
     <div class="lang-switch" aria-label="Language switcher">
@@ -113,20 +114,28 @@
 <main>
   <Timeline />
 </main>
+</div>
 
-<button type="button" on:click={copy}>Copy URLs</button>
+<!-- <button type="button" on:click={copy}>Copy URLs</button> -->
 
 <style>
+  .page {
+    display: flex;
+    flex-direction: column;
+  }
+
   article {
     font-family: Arial, Helvetica, sans-serif;
     background-color: black;
     color: white;
-    overflow: scroll;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 10px;
-    z-index: 10;
+  }
+
+  main {
+    width: 100%;
   }
 
   h2 {
