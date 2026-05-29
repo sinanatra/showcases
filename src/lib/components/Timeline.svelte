@@ -5,6 +5,7 @@
   import { lang } from "$lib/i18n";
   import { translateDE_EN } from "$lib/utils/translate";
   import { shortenAroundKeyword } from "$lib/utils/textUtils";
+  import TimelineExport from "$lib/components/TimelineExport.svelte";
 
   function typescale(size) {
     return { fontSize: size, lineHeight: Math.round(size * 1.4), dateFontSize: Math.round(size * 0.8) };
@@ -343,40 +344,67 @@
 
   async function exportSVG() {
     if (!rows.length || exporting) return;
-
-    if ($lang === "en") {
-      exporting = true;
-      const seen = new Set(Object.keys(translatedMap));
-      const toAdd = new Map();
-      for (const r of rows) {
-        const sKey = snippetKey(r);
-        if (!seen.has(sKey)) toAdd.set(sKey, translateDE_EN(sKey));
-        if (r.match) {
-          const kKey = `__k:${r.match}`;
-          if (!seen.has(kKey)) toAdd.set(kKey, translateDE_EN(r.match));
-        }
-      }
-      if (toAdd.size) {
-        const results = await Promise.all([...toAdd.entries()].map(async ([k, p]) => [k, await p]));
-        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
-      }
+    exporting = true;
+    try {
+      const { svg } = await buildSVGString();
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "timeline.svg"; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
       exporting = false;
     }
+  }
 
-    const color = "rgb(231,233,91)";
+  let exportingPng = false;
+
+  function readPageColors() {
+    const style = getComputedStyle(sectionEl);
+    const accent = style.getPropertyValue("--color-1").trim() || "rgb(231,233,91)";
+    const bg = style.backgroundColor || "black";
+    const textFill = style.color || "gainsboro";
+    return { accent, bg, textFill };
+  }
+
+  async function buildSVGString(colors = readPageColors()) {
+    if ($lang === "en") {
+      const seen = new Set(Object.keys(translatedMap));
+      const toTranslate = [];
+      for (const r of rows) {
+        const sKey = snippetKey(r);
+        if (!seen.has(sKey)) toTranslate.push([sKey, sKey]);
+        if (r.match) {
+          const kKey = `__k:${r.match}`;
+          if (!seen.has(kKey)) toTranslate.push([kKey, r.match]);
+        }
+      }
+      // batch to avoid saturating the browser connection pool
+      const BATCH = 6;
+      for (let i = 0; i < toTranslate.length; i += BATCH) {
+        const batch = toTranslate.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map(async ([k, text]) => [k, await translateDE_EN(text)])
+        );
+        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
+      }
+    }
+
+    const { accent, bg, textFill } = colors;
+
     const h = rows.length * lineHeight + 50;
-    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:black;font-family:Courier,monospace;font-size:${fontSize}px">`;
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:${bg};font-family:Courier,monospace;font-size:${fontSize}px">`;
 
     for (const t of ticks) {
-      out += `<line x1="${t.x}" y1="0" x2="${t.x}" y2="${h}" stroke="${color}" stroke-dasharray="4 4" shape-rendering="crispEdges"/>`;
-      out += `<text x="${t.x}" y="${lineHeight}" fill="${color}" font-size="${fontSize}" dominant-baseline="middle">${escXML(fmtDate(t.d))}</text>`;
+      out += `<line x1="${t.x}" y1="0" x2="${t.x}" y2="${h}" stroke="${accent}" stroke-dasharray="4 4" shape-rendering="crispEdges"/>`;
+      out += `<text x="${t.x}" y="${lineHeight}" fill="${accent}" font-size="${fontSize}" dominant-baseline="middle">${escXML(fmtDate(t.d))}</text>`;
     }
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       const x = normPos(r.date);
       const y = (i + 2) * lineHeight + lineHeight / 2;
-      out += `<text x="${x}" y="${y}" dominant-baseline="middle" fill="gainsboro" font-style="italic">`;
+      out += `<text x="${x}" y="${y}" dominant-baseline="middle" fill="${textFill}" font-style="italic">`;
 
       if ($lang === "en") {
         const ts = translatedMap[snippetKey(r)];
@@ -388,27 +416,70 @@
         ) : null;
         if (sp) {
           if (sp.pre) out += `<tspan>${escXML(sp.pre)}</tspan>`;
-          if (sp.hit) out += `<tspan fill="${color}" font-weight="700" font-style="normal">${escXML(sp.hit)}</tspan>`;
+          if (sp.hit) out += `<tspan fill="${accent}" font-weight="700" font-style="normal">${escXML(sp.hit)}</tspan>`;
           if (sp.post) out += `<tspan>${escXML(sp.post)}</tspan>`;
         } else {
           out += `<tspan>${escXML(ts ?? snippetKey(r))}</tspan>`;
         }
       } else {
         if (r.before) out += `<tspan>${escXML(r.before)}</tspan>`;
-        if (r.match) out += `<tspan fill="${color}" font-weight="700" font-style="normal">${escXML(r.match)}</tspan>`;
+        if (r.match) out += `<tspan fill="${accent}" font-weight="700" font-style="normal">${escXML(r.match)}</tspan>`;
         if (r.after) out += `<tspan>${escXML(r.after)}</tspan>`;
       }
 
-      out += `<tspan fill="${color}" font-size="${dateFontSize}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
+      out += `<tspan fill="${accent}" font-size="${dateFontSize}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
       out += `</text>`;
     }
 
     out += `</svg>`;
-    const blob = new Blob([out], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "timeline.svg"; a.click();
-    URL.revokeObjectURL(url);
+    return { svg: out, w: totalWidth, h };
+  }
+
+  async function exportPNG() {
+    if (!rows.length || exportingPng) return;
+    exportingPng = true;
+    try {
+      const { svg, w, h } = await buildSVGString("light");
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // Target 2× pixel density for sharpness, then clamp to browser canvas limits.
+          // Chrome/Firefox support up to 32767px per side and ~256M total pixels.
+          const TARGET_SCALE = 4;
+          const MAX_DIM = 32767;
+          const MAX_AREA = 512 * 1024 * 1024;
+          const tw = w * TARGET_SCALE;
+          const th = h * TARGET_SCALE;
+          const scaleForDim = Math.min(1, MAX_DIM / tw, MAX_DIM / th);
+          const scaleForArea = Math.sqrt(MAX_AREA / (tw * th));
+          const scale = Math.min(TARGET_SCALE, TARGET_SCALE * scaleForDim, TARGET_SCALE * scaleForArea);
+          const cw = Math.floor(w * scale);
+          const ch = Math.floor(h * scale);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = cw;
+          canvas.height = ch;
+          const ctx = canvas.getContext("2d");
+          ctx.scale(scale, scale);
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          canvas.toBlob((pngBlob) => {
+            if (!pngBlob) { reject(new Error("canvas.toBlob returned null")); return; }
+            const pngUrl = URL.createObjectURL(pngBlob);
+            const a = document.createElement("a");
+            a.href = pngUrl; a.download = "timeline.png"; a.click();
+            URL.revokeObjectURL(pngUrl);
+            resolve(undefined);
+          }, "image/png");
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    } finally {
+      exportingPng = false;
+    }
   }
 </script>
 
@@ -492,13 +563,14 @@
       </svg>
     </div>
 
-    <button class="export" on:click={exportSVG} disabled={exporting}>
-      {exporting ? "translating…" : "↓ SVG"}
-    </button>
-
-    {#if translating}
-      <span class="tl-loading">translating…</span>
-    {/if}
+    <TimelineExport
+      onExportSVG={exportSVG}
+      onExportPNG={exportPNG}
+      {exporting}
+      {exportingPng}
+      {translating}
+      hasRows={rows.length > 0}
+    />
   {/if}
 </section>
 
@@ -556,28 +628,5 @@
     stroke: var(--color-1);
     stroke-dasharray: 4 4;
     shape-rendering: crispEdges;
-  }
-  .export {
-    position: fixed;
-    bottom: 3.5rem;
-    right: 1rem;
-    background: #111;
-    color: #eee;
-    border: none;
-    cursor: pointer;
-    padding: 0.35rem 0.6rem;
-    font-family: Courier, monospace;
-    z-index: 10;
-  }
-  .export:hover { background: white; color: black; }
-  .tl-loading {
-    position: fixed;
-    bottom: 6rem;
-    right: 1rem;
-    font-family: Courier, monospace;
-    font-size: 0.75rem;
-    color: var(--color-1);
-    z-index: 10;
-    opacity: 0.8;
   }
 </style>
