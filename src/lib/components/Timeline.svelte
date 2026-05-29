@@ -246,7 +246,10 @@
         lastActiveIndex = -1;
       }
       // always refresh visible slice when rows rebuild (content may have changed)
-      if (browser) visible = rows.slice(visibleStart, visibleEnd);
+      // use updateVisible() so visibleStart/visibleEnd are recalculated from
+      // current scroll position — otherwise initial async data load renders nothing
+      // because visibleEnd is still 0 when the first real rows arrive
+      if (browser) { measureSectionTop(); updateVisible(); }
     } else {
       start = null;
       end = null;
