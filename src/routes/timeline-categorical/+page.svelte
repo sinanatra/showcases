@@ -4,421 +4,892 @@
   import { articles } from "$lib/stores";
   import { loadArticles } from "$lib/utils/loadArticles";
   import { parseDateLoose } from "$lib/utils/parseDate";
-  import { keywordsGroup } from "$lib/constants/keywords";
+  import { keywordsGroup, getKeywordVariants } from "$lib/constants/keywords";
   import { detectRegion } from "$lib/utils/detectRegion";
+  import { lang, setLang, availableLangs } from "$lib/i18n";
+  import { translateDE_EN } from "$lib/utils/translate";
+  import CatPanel from "./CatPanel.svelte";
+  import TimelineExport from "$lib/components/TimelineExport.svelte";
 
   // ── layout constants ──────────────────────────────────────────
-  const FONT       = "Courier, monospace";
-  const FS         = 10;
-  const CHAR_W     = FS * 0.601;
-  const LINE_H     = 13;
-  const MAX_CHARS  = 36;
-  const AXIS_H     = 50;
-  const TOP_PAD    = 16;
-  const H_PAD      = 20;
+  const FONT = "Arial, Courier, monospace";
+  const FS = 10;
+  const CHAR_W = FS * 0.601;
+  const LINE_H = 13;
+  const TOP_PAD = 16;
+  const H_PAD = 20;
   const PX_PER_DAY = 5;
 
-  const CAT_COLORS = ["#c00","#00c","#070","#e07000","#7000b0","#007b7b","#a00060","#444"];
+  const CAT_COLORS = [
+    "#b52a2a", // red
+    "#1f5fa6", // blue
+    "#1a7a3c", // green
+    "#7a2a8f", // purple
+    "#c96800", // amber
+    "#007070", // teal
+    "#b5006e", // magenta
+    "#444444", // dark gray
+    "#7a4d00", // brown
+    "#3a7a00", // lime
+  ];
 
-  // ── categories ────────────────────────────────────────────────
-  let categories = $state([
-    { id: "antisem",    label: "Antisemitismus",       type: "canonical", query: "antisemitismus",           on: true  },
-    { id: "rechts",     label: "Rechtsextremismus",     type: "canonical", query: "rechtsextremismus",        on: true  },
-    { id: "fremd",      label: "Fremdenfeindlichkeit",  type: "canonical", query: "fremdenfeindlichkeit",     on: false },
-    { id: "islam",      label: "Islamfeindlichkeit",    type: "canonical", query: "islamfeindlichkeit",       on: false },
-    { id: "vv",         label: "Volksverhetzung",       type: "canonical", query: "volksverhetzung",          on: false },
-    { id: "queer",      label: "Queerfeindlichkeit",    type: "canonical", query: "queerfeindlichkeit",       on: false },
-    { id: "frauen",     label: "Frauen / Mädchen",      type: "text",      query: "frau,frauen,mädchen",      on: false },
-    { id: "palaestina", label: "Palästina / Palestine", type: "text",      query: "palästina,palestine,gaza", on: false },
-  ]);
+  // ── default categories ────────────────────────────────────────
+  const DEFAULT_CATEGORIES = [
+    {
+      id: "rechts",
+      label: "Rechtsextremismus",
+      type: "canonical",
+      query: "rechtsextremismus",
+      on: true,
+      desc: "Incidents classified under right-wing extremism (PMK-rechts). The largest single category in the dataset.",
+    },
+    {
+      id: "antisem",
+      label: "Antisemitismus",
+      type: "canonical",
+      query: "antisemitismus",
+      on: true,
+      desc: "Incidents targeting Jewish individuals, communities, or institutions. PMK sometimes also logs Israel/Palestine protests here — see Palestine / Gaza for overlap.",
+    },
+    {
+      id: "fremd",
+      label: "Fremdenfeindlichkeit",
+      type: "canonical",
+      query: "fremdenfeindlichkeit",
+      on: true,
+      desc: "Incidents classified as xenophobic or racially motivated. Classification varies by reporting officer.",
+    },
+    {
+      id: "queer",
+      label: "Queerfeindlichkeit",
+      type: "canonical",
+      query: "queerfeindlichkeit",
+      on: true,
+      desc: "Incidents targeting LGBTQ+ people. A relatively recent PMK subcategory; coverage is uneven across Bundesländer.",
+    },
+    {
+      id: "islam",
+      label: "Islamfeindlichkeit",
+      type: "canonical",
+      query: "islamfeindlichkeit",
+      on: false,
+      desc: "Incidents with an anti-Muslim dimension. Likely under-represented in this dataset relative to other categories.",
+    },
+    {
+      id: "vv",
+      label: "Volksverhetzung",
+      type: "canonical",
+      query: "volksverhetzung",
+      on: false,
+      desc: "Incidents prosecuted under §130 StGB (incitement to hatred). Cuts across all political motives; includes online content.",
+    },
+    {
+      id: "palaestina",
+      label: "Palestine / Gaza",
+      type: "text",
+      query: "palästina,palestine,gaza,pro-palästina",
+      on: false,
+      desc: "Incidents involving pro-Palestinian demonstrations or Gaza-related context. Many are simultaneously logged under Antisemitismus — the same event can appear in both categories.",
+    },
+    {
+      id: "misogyn",
+      label: "Misogynie / Frauenfeindlichkeit",
+      type: "text",
+      query: "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus",
+      on: true,
+      desc: "Misogynistic and women-hostile incidents. Not a PMK category — absent from the official hate crime record.",
+    },
+    {
+      id: "femizid",
+      label: "Femicide / Women",
+      type: "text",
+      query: "femizid,femizide,frauenmord,incel",
+      on: false,
+      desc: "Femicide and incel-related incidents. These are absent from the PMK record — a structural blind spot in Germany's hate crime statistics.",
+    },
+  ];
 
-  // ── filter state ──────────────────────────────────────────────
-  let showBerlin      = $state(false);
-  let showBrandenburg = $state(false);
-  let reversed        = $state(false);
+  // ── persistence ───────────────────────────────────────────────
+  const STORAGE_KEY = "timeline-cat-v6";
 
-  // ── panel ─────────────────────────────────────────────────────
-  let newLabel  = $state("");
-  let newQuery  = $state("");
-  let newType   = $state("text");
+  function loadState() {
+    if (typeof localStorage === "undefined") return null;
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+  function saveState(cats, opts) {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cats, opts }));
+  }
+
+  const saved = loadState();
+  let categories = $state(saved?.cats ?? DEFAULT_CATEGORIES);
+  let showBerlin = $state(saved?.opts?.showBerlin ?? true);
+  let showBrandenburg = $state(saved?.opts?.showBrandenburg ?? false);
+  let reversed = $state(saved?.opts?.reversed ?? false);
+  let displayMode = $state(saved?.opts?.displayMode ?? "title");
   let panelOpen = $state(true);
 
-  function addCategory() {
-    if (!newLabel.trim() || !newQuery.trim()) return;
-    categories = [...categories, {
-      id: crypto.randomUUID(),
-      label: newLabel.trim(), type: newType,
-      query: newQuery.trim(), on: true,
-    }];
-    newLabel = ""; newQuery = "";
-  }
-  function removeCategory(id) { categories = categories.filter(c => c.id !== id); }
+  $effect(() => {
+    saveState(
+      categories.map((c) => ({ ...c })),
+      { showBerlin, showBrandenburg, reversed, displayMode },
+    );
+  });
 
-  // ── region filter ─────────────────────────────────────────────
+  // ── text wrapping ─────────────────────────────────────────────
+  function wrapText(text, maxChars) {
+    const words = text.split(" ");
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? line + " " + word : word;
+      if (candidate.length > maxChars && line) {
+        lines.push(line);
+        line = word;
+      } else line = candidate;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  // ── snippet extraction ────────────────────────────────────────
+  const SNIP_MAX = 120;
+
+  function snippetFor(item) {
+    const cat = categories.find(c => c.id === item.catId);
+    const raw = item.text || item.title || "";
+    if (!raw) return "";
+    if (!cat) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
+
+    let terms;
+    if (cat.type === "canonical") {
+      const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
+      terms = kws
+        .filter(k => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
+        .map(k => String(k));
+      if (!terms.length) terms = [cat.query];
+    } else {
+      terms = cat.query.split(",").map(s => s.trim()).filter(Boolean)
+        .flatMap(t => t.split("+").map(s => s.trim()));
+    }
+
+    const lower = raw.toLowerCase();
+    let pos = -1;
+    for (const term of terms) {
+      const idx = lower.indexOf(term.toLowerCase());
+      if (idx !== -1) { pos = idx; break; }
+    }
+    if (pos === -1) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
+
+    // Find the sentence containing pos (bounded by . ! ? or newline)
+    let sentStart = pos;
+    while (sentStart > 0 && !/[.!?\n]/.test(raw[sentStart - 1])) sentStart--;
+    while (sentStart < pos && raw[sentStart] === " ") sentStart++;
+
+    let sentEnd = pos;
+    while (sentEnd < raw.length && !/[.!?\n]/.test(raw[sentEnd])) sentEnd++;
+    if (sentEnd < raw.length) sentEnd++; // include punctuation
+
+    const sentence = raw.slice(sentStart, sentEnd).trim();
+    if (sentence.length <= SNIP_MAX) return sentence;
+    // Sentence too long: fall back to window centered on keyword
+    const half = Math.floor(SNIP_MAX / 2);
+    const s = Math.max(sentStart, pos - half);
+    const e = Math.min(sentEnd, pos + half);
+    return (s > sentStart ? "…" : "") + raw.slice(s, e).trim() + (e < sentEnd ? "…" : "");
+  }
+
+  // word-boundary characters that end a token
+  const WORD_END = /[\s,;:.!?()[\]"'…–—/\\]/;
+
+  function matchInText(text, terms) {
+    const lower = text.toLowerCase();
+    for (const term of terms) {
+      const idx = lower.indexOf(term.toLowerCase());
+      if (idx === -1) continue;
+      // extend to full word (catches "-isch", "-en", "-e" suffixes, German umlauts, etc.)
+      let end = idx + term.length;
+      while (end < text.length && !WORD_END.test(text[end])) end++;
+      return { idx, pre: text.slice(0, idx), kw: text.slice(idx, end), post: text.slice(end) };
+    }
+    return null;
+  }
+
+  function splitAtKeyword(label, item) {
+    const cat = categories.find(c => c.id === item.catId);
+    if (!cat || !label) return null;
+    let terms;
+    if (cat.type === "canonical") {
+      terms = getKeywordVariants(cat.query);
+    } else {
+      terms = cat.query.split(",").map(s => s.trim()).filter(Boolean)
+        .flatMap(t => t.split("+").map(s => s.trim()));
+    }
+    terms = [...terms].sort((a, b) => b.length - a.length);
+    return matchInText(label, terms);
+  }
+
+  // ── filters ───────────────────────────────────────────────────
   function passesRegion(a) {
     if (!showBerlin && !showBrandenburg) return true;
     const r = detectRegion(a);
-    if (showBerlin      && r === "Berlin")      return true;
+    if (showBerlin && r === "Berlin") return true;
     if (showBrandenburg && r === "Brandenburg") return true;
     return false;
   }
 
-  // ── keyword matching ──────────────────────────────────────────
   function matchesCategory(a, cat) {
     if (cat.type === "canonical") {
       const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
-      return kws.some(k => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query);
+      return kws.some(
+        (k) =>
+          /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] ===
+          cat.query,
+      );
     }
     const hay = `${a.Title || ""} ${a.Text || ""}`.toLowerCase();
-    return cat.query.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
-      .some(term => term.split("+").map(s => s.trim()).every(t => hay.includes(t)));
+    return cat.query
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+      .some((term) =>
+        term
+          .split("+")
+          .map((s) => s.trim())
+          .every((t) => hay.includes(t)),
+      );
   }
 
-  // ── per-category line-based layout (interval scheduling / Gantt) ─
-  // Each row tracks where the last placed item ends.
-  // Items sorted by date; each goes in the lowest row where it fits.
-  // Dense periods → many rows in use → tall stack.
-  // Sparse periods → rows free up → items return to low rows.
-  // sequential row assignment: item[0] → row 0, item[1] → row 1, …
-  // each item gets its own row (monotonically increasing by date order).
-  // dense period = many items close in x = steep staircase.
-  // sparse period = few items spread in x = flat staircase.
-  function buildCatStack(items, xFn, rev) {
-    return [...items]
-      .sort((a, b) => rev ? +b.date - +a.date : +a.date - +b.date)
-      .map((it, i) => {
-        const label = (it.title || it.text || "").slice(0, MAX_CHARS);
-        return { ...it, x: xFn(it.date), y: i * LINE_H, label };
-      });
+  // ── layout ────────────────────────────────────────────────────
+  function placeItems(preItems, xScale, labelFn) {
+    const sorted = [...preItems].sort((a, b) =>
+      a.desiredRow !== b.desiredRow
+        ? a.desiredRow - b.desiredRow
+        : +a.date - +b.date,
+    );
+    const rowEndX = new Map();
+    return sorted.map((it) => {
+      const label = labelFn(it);
+      const x = xScale(it.date);
+      const hw = Math.ceil(label.length * CHAR_W) / 2;
+      const xStart = x - hw;
+      const xEnd = x + hw + 4;
+      let row = it.desiredRow ?? 0;
+      while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
+      rowEndX.set(row, xEnd);
+      return { ...it, x, y: row * LINE_H, label };
+    });
   }
 
-  // ── layout state ──────────────────────────────────────────────
-  /** @type {any[]} */
-  let ticks  = $state([]);
-  /** @type {any[]} */
-  let placed = $state([]);
-  /** @type {Record<string,number>} */
-  let counts = $state({});
+  // ── state ─────────────────────────────────────────────────────
+  let hasInitialFit = false;
+  /** @type {any[]} */ let ticks = $state([]);
+  /** @type {any[]} */ let placed = $state([]);
+  /** @type {any[]} */ let catMarkers = $state([]);
+  /** @type {Record<string,number>} */ let counts = $state({});
+  /** @type {{x:number,label:string,anchor:string}[]} */ let edgeDates = $state([]);
   let dataSvgW = $state(4000);
-  let svgH     = $state(600);
+  let svgH = $state(600);
+  let baselineY = $state(480);
 
-  const baseline = () => svgH - AXIS_H;
+  const baseline = () => baselineY;
 
   function build() {
     const arts = $articles.filter(passesRegion);
-    if (!arts.length) { placed = []; counts = {}; return; }
+    if (!arts.length) {
+      placed = [];
+      counts = {};
+      return;
+    }
+    if (!categories.length) {
+      placed = [];
+      return;
+    }
 
-    const activeCats = categories.filter(c => c.on);
-    if (!activeCats.length) { placed = []; return; }
-
-    const parsed = arts.flatMap(a => {
+    const parsed = arts.flatMap((a) => {
       const d = parseDateLoose(a.ExtractedDate || a.Date);
       if (!d) return [];
-      return [{ date: d, title: (a.Title || "").trim(), text: (a.Text || "").trim(), raw: a }];
+      return [
+        {
+          date: d,
+          title: (a.Title || "").trim(),
+          text: (a.Text || "").trim(),
+          raw: a,
+        },
+      ];
     });
     if (!parsed.length) return;
 
-    const allDates = parsed.map(p => +p.date);
+    const allDates = parsed.map((p) => +p.date);
     const dMin = new Date(Math.min(...allDates));
     const dMax = new Date(Math.max(...allDates));
-    const days  = (+dMax - +dMin) / 86400000;
-    const span  = +dMax - +dMin;
+    const days = (+dMax - +dMin) / 86400000;
+    const span = +dMax - +dMin;
 
-    const minW = typeof window !== "undefined"
-      ? window.innerWidth - (panelOpen ? 252 : 40)
-      : 1200;
+    const minW =
+      typeof window !== "undefined"
+        ? window.innerWidth - (panelOpen ? 252 : 40)
+        : 1200;
     const W = Math.max(minW, Math.ceil(days * PX_PER_DAY) + 2 * H_PAD);
     dataSvgW = W;
 
-    const xScale = d3.scaleTime()
+    const xScale = d3
+      .scaleTime()
       .domain([new Date(+dMin - span * 0.01), new Date(+dMax + span * 0.01)])
       .range(reversed ? [W - H_PAD, H_PAD] : [H_PAD, W - H_PAD]);
 
-    ticks = xScale.ticks(d3.timeMonth.every(3)).map(d => ({
-      x: xScale(d), isYear: d.getMonth() === 0, label: d.getFullYear(),
+    ticks = xScale.ticks(d3.timeMonth.every(1)).map((d) => ({
+      x: xScale(d),
+      isYear: d.getMonth() === 0,
+      isQuarter: d.getMonth() % 3 === 0,
+      month: d.toLocaleString($lang === "de" ? "de-DE" : "en-GB", { month: "short" }),
+      label: d.getFullYear(),
     }));
 
-    const allPlaced = [];
-    /** @type {Record<string,number>} */
-    const newCounts = {};
+    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    const fmtEdge = (d) => d.toLocaleString(locale, { day: "numeric", month: "short", year: "numeric" });
+    edgeDates = [
+      { x: H_PAD,     label: fmtEdge(reversed ? dMax : dMin), anchor: "start" },
+      { x: W - H_PAD, label: fmtEdge(reversed ? dMin : dMax), anchor: "end"   },
+    ];
 
-    for (const cat of activeCats) {
+    const preItems = [];
+    /** @type {Record<string,number>} */ const newCounts = {};
+
+    for (const cat of categories) {
       const colorIdx = categories.indexOf(cat);
       const catItems = parsed
-        .filter(p => matchesCategory(p.raw, cat))
-        .map(p => ({ ...p, catId: cat.id, colorIdx }));
+        .filter((p) => matchesCategory(p.raw, cat))
+        .map((p) => ({ ...p, catId: cat.id, colorIdx, active: cat.on }));
       newCounts[cat.id] = catItems.length;
-      allPlaced.push(...buildCatStack(catItems, d => xScale(d), reversed));
+      [...catItems]
+        .sort((a, b) => (reversed ? +b.date - +a.date : +a.date - +b.date))
+        .forEach((it, i) => preItems.push({ ...it, desiredRow: i }));
     }
+
+    const labelFn =
+      displayMode === "text"
+        ? (it) => snippetFor(it)
+        : (it) => it.title || it.text || "";
+    const allPlaced = placeItems(preItems, xScale, labelFn);
 
     counts = newCounts;
     const maxY = allPlaced.reduce((m, p) => Math.max(m, p.y + LINE_H), 0);
-    svgH   = TOP_PAD + maxY + AXIS_H;
+    const bl = TOP_PAD + maxY;
+    baselineY = bl;
     placed = allPlaced;
+
+    // ── category markers ────────────────────────────────────────
+    const CAT_CW = 9 * 0.601;
+    const DESC_CW = 7 * 0.601;
+    const DESC_LINE_H = 10;
+    const LABEL_H = 13;
+    const ROW_GAP = 10;
+    const WRAP_CHARS = Math.floor(340 / DESC_CW);
+
+    const markers = categories.map((cat) => {
+      const items = allPlaced.filter((p) => p.catId === cat.id);
+      const colorIdx = categories.indexOf(cat);
+      const descLines = cat.desc ? wrapText(cat.desc, WRAP_CHARS) : [];
+      if (!items.length)
+        return { cat, x: H_PAD, colorIdx, hasTick: false, descLines };
+      const first = items.reduce((a, b) => (a.x < b.x ? a : b));
+      return {
+        cat,
+        x: Math.max(H_PAD, first.x),
+        colorIdx,
+        hasTick: true,
+        descLines,
+      };
+    });
+
+    markers.sort((a, b) => a.x - b.x);
+    const rowEndX2 = new Map();
+    const passOne = markers.map((m) => {
+      const xStart = m.x;
+      const maxLen = Math.max(
+        m.cat.label.length * CAT_CW,
+        ...m.descLines.map((l) => l.length * DESC_CW),
+      );
+      const xEnd = xStart + maxLen + 8;
+      let row = 0;
+      while ((rowEndX2.get(row) ?? -Infinity) > xStart) row++;
+      rowEndX2.set(row, xEnd);
+      return { ...m, row };
+    });
+
+    const rowMaxLines = new Map();
+    for (const m of passOne)
+      rowMaxLines.set(
+        m.row,
+        Math.max(rowMaxLines.get(m.row) ?? 0, m.descLines.length),
+      );
+
+    const maxRow = passOne.reduce((mx, m) => Math.max(mx, m.row), 0);
+    const rowY = [0];
+    for (let r = 0; r < maxRow; r++)
+      rowY.push(
+        rowY[r] + LABEL_H + (rowMaxLines.get(r) ?? 0) * DESC_LINE_H + ROW_GAP,
+      );
+
+    catMarkers = passOne.map((m) => ({ ...m, yOff: rowY[m.row] }));
+    const lastRowH = LABEL_H + (rowMaxLines.get(maxRow) ?? 0) * DESC_LINE_H;
+    svgH = bl + 36 + rowY[maxRow] + lastRowH + 20;
+
+    if (!hasInitialFit) { hasInitialFit = true; requestAnimationFrame(fitContent); }
   }
 
   $effect(() => {
-    void categories.map(c => c.on);
+    for (const c of categories) {
+      void c.on;
+      void c.label;
+      void c.query;
+      void c.type;
+    }
+    void categories.length;
     void reversed;
     void showBerlin;
     void showBrandenburg;
+    void displayMode;
+    void $lang;
     if ($articles.length) build();
   });
 
-  onMount(async () => { await loadArticles(); });
+  onMount(() => {
+    loadArticles();
+  });
 
-  // ── tooltip ───────────────────────────────────────────────────
-  /** @type {{ x:number, y:number, title:string, text:string, date:Date, catLabel:string } | null} */
-  let tip = $state(null);
-  function showTip(e, item) {
-    const cat = categories.find(c => c.id === item.catId);
-    tip = { x: e.clientX, y: e.clientY,
-      title: item.title || item.label, text: item.text,
-      date: item.date, catLabel: cat?.label ?? "" };
+  // ── translation ───────────────────────────────────────────────
+  /** @type {Record<string,string>} */ let translatedMap = $state({});
+  let translating = $state(false);
+
+  async function translateLabels() {
+    if ($lang !== "en") return;
+    if (translating) return;
+    const itemLabels   = placed.map(p => p.label);
+    const catLabels    = catMarkers.map(m => m.cat.label);
+    const unique = [...new Set([...itemLabels, ...catLabels].filter(Boolean))];
+    const toAdd = unique.filter(l => !(l in translatedMap));
+    if (!toAdd.length) return;
+    translating = true;
+    const BATCH = 15;
+    try {
+      for (let i = 0; i < toAdd.length; i += BATCH) {
+        const batch = toAdd.slice(i, i + BATCH);
+        const results = await Promise.all(batch.map(async l => [l, await translateDE_EN(l)]));
+        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
+      }
+    } finally {
+      translating = false;
+    }
   }
-  function hideTip() { tip = null; }
-  const fmtDate = d => d
-    ? new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })
-    : "";
+
+  $effect(() => {
+    void placed.length;
+    void catMarkers.length;
+    void $lang;
+    translateLabels();
+  });
+
+  // ── zoom ──────────────────────────────────────────────────────
+  /** @type {SVGSVGElement|null} */ let svgEl = $state(null);
+  let zoomTransform = $state(d3.zoomIdentity);
+  let zoomBehavior = /** @type {any} */ (null);
+
+  $effect(() => {
+    if (!svgEl) return;
+    zoomBehavior = d3
+      .zoom()
+      .scaleExtent([0.1, 10])
+      .on("zoom", (e) => {
+        zoomTransform = e.transform;
+      });
+    d3.select(svgEl).call(zoomBehavior);
+    return () => {
+      d3.select(svgEl).on(".zoom", null);
+    };
+  });
+
+  function fitContent() {
+    if (!svgEl || !zoomBehavior) return;
+    const cW = svgEl.clientWidth;
+    const cH = svgEl.clientHeight;
+    if (!cW || !cH) return;
+    const scale = Math.min(cW / dataSvgW, cH / svgH) * 0.97;
+    const tx = (cW - dataSvgW * scale) / 2;
+    const ty = Math.max(4, (cH - svgH * scale) / 2);
+    d3.select(svgEl).call(
+      zoomBehavior.transform,
+      d3.zoomIdentity.translate(tx, ty).scale(scale),
+    );
+  }
+
+  function resetZoom() {
+    fitContent();
+  }
+
+  // ── export ────────────────────────────────────────────────────
+  let exporting = $state(false);
+  let exportingPng = $state(false);
+
+  function exportSVG() {
+    if (!svgEl) return;
+    exporting = true;
+    const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+    clone.setAttribute("width", String(dataSvgW));
+    clone.setAttribute("height", String(svgH));
+    clone.querySelector(".zoom-group")?.setAttribute("transform", "");
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+      type: "image/svg+xml",
+    });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: "timeline-categories.svg",
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+    exporting = false;
+  }
+
+  async function exportPNG() {
+    if (!svgEl) return;
+    exportingPng = true;
+    const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+    clone.setAttribute("width", String(dataSvgW));
+    clone.setAttribute("height", String(svgH));
+    clone.querySelector(".zoom-group")?.setAttribute("transform", "");
+    const s = new XMLSerializer().serializeToString(clone);
+    const canvas = document.createElement("canvas");
+    canvas.width = dataSvgW;
+    canvas.height = svgH;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    await new Promise((r) => {
+      img.onload = r;
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
+    });
+    if (ctx) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+    }
+    const a = Object.assign(document.createElement("a"), {
+      href: canvas.toDataURL("image/png"),
+      download: "timeline-categories.png",
+    });
+    a.click();
+    exportingPng = false;
+  }
 </script>
 
 <div class="page">
-
-  <!-- scrollable timeline -->
+  <!-- chart -->
   <div class="data-col">
-    <div class="scroll-box">
+    <div class="chart-wrap">
       {#if !$articles.length}
         <p class="loading">Loading…</p>
       {:else}
-        <svg width={dataSvgW} height={svgH}>
+        <svg bind:this={svgEl}>
+          <g class="zoom-group" transform={zoomTransform}>
+            <!-- year bands -->
+            {#each ticks.filter((t) => t.isYear) as t, i}
+              {@const yt = ticks.filter((tt) => tt.isYear)}
+              <rect
+                x={Math.min(
+                  t.x,
+                  yt[i + 1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD),
+                )}
+                y={TOP_PAD}
+                width={Math.abs(
+                  (yt[i + 1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD)) - t.x,
+                )}
+                height={baseline() - TOP_PAD}
+                fill="transparent"
+              />
+            {/each}
 
-          <!-- year bands -->
-          {#each ticks.filter(t => t.isYear) as t, i}
-            {@const yt = ticks.filter(tt => tt.isYear)}
-            <rect
-              x={Math.min(t.x, yt[i+1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD))}
-              y={TOP_PAD}
-              width={Math.abs((yt[i+1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD)) - t.x)}
-              height={baseline() - TOP_PAD}
-              fill={i % 2 === 0 ? "rgba(0,0,0,0.025)" : "transparent"}
+            <!-- grid lines -->
+            {#each ticks as t}
+              <line
+                x1={t.x}
+                y1={TOP_PAD}
+                x2={t.x}
+                y2={baseline()}
+                stroke={t.isYear ? "#222" : "#ccc"}
+                stroke-width="1"
+              />
+            {/each}
+
+            <!-- items -->
+            {#each placed as item}
+              {@const catColor = CAT_COLORS[item.colorIdx % CAT_COLORS.length]}
+              {@const op = item.active ? 1 : 0.18}
+              {@const displayLabel = $lang === "en" ? (translatedMap[item.label] ?? item.label) : item.label}
+              {@const url = item.raw?.URL}
+              {#snippet itemText(x, y)}
+                <text x={x} y={y} font-family={FONT} font-size={FS}
+                      text-anchor="middle" fill={item.active ? catColor : "#ccc"} opacity={op} class="item">
+                  {displayLabel}
+                </text>
+              {/snippet}
+              {#if url}
+                <!-- svelte-ignore a11y_interactive_supports_focus -->
+                <a href={url} target="_blank" rel="noreferrer" class="item-link">
+                  {@render itemText(item.x, baseline() - item.y - 1)}
+                </a>
+              {:else}
+                {@render itemText(item.x, baseline() - item.y - 1)}
+              {/if}
+            {/each}
+
+            <!-- category marker tick lines (rendered first, behind labels) -->
+            {#each catMarkers as m}
+              {#if m.hasTick && (counts[m.cat.id] ?? 0) > 0}
+                {@const color = CAT_COLORS[m.colorIdx % CAT_COLORS.length]}
+                {@const opacity = m.cat.on ? 1 : 0.18}
+                {@const labelY = baseline() + 36 + m.yOff}
+                <line
+                  x1={m.x}
+                  y1={baseline()}
+                  x2={m.x}
+                  y2={labelY - 10}
+                  stroke={color}
+                  stroke-width=".5"
+                  {opacity}
+                />
+              {/if}
+            {/each}
+
+            <!-- category marker labels (rendered on top of tick lines) -->
+            {#each catMarkers as m}
+              {@const hasItems = (counts[m.cat.id] ?? 0) > 0}
+              {#if hasItems}
+              {@const color = CAT_COLORS[m.colorIdx % CAT_COLORS.length]}
+              {@const opacity = m.cat.on ? 1 : 0.18}
+              {@const labelY = baseline() + 36 + m.yOff}
+              {@const labelText = $lang === "en" ? (translatedMap[m.cat.label] ?? m.cat.label) : m.cat.label}
+              {@const labelW = labelText.length * 5.4 + 6}
+              {@const activeDescLines = hasItems ? m.descLines : []}
+              {@const descW = activeDescLines.length ? Math.max(...activeDescLines.map(/** @param {any} l */ l => l.length)) * 4.2 + 6 : 0}
+              {@const bgW = Math.max(labelW, descW)}
+              {@const bgH = 11 + activeDescLines.length * 9.5 + 6}
+              <rect
+                x={m.x - 2}
+                y={labelY - 10}
+                width={bgW}
+                height={bgH}
+                fill="white"
+              />
+              <text
+                x={m.x}
+                y={labelY}
+                font-family={FONT}
+                font-size={9}
+                fill={color}
+                text-anchor="start"
+                {opacity}>{labelText}</text
+              >
+              {#if activeDescLines.length}
+                <text
+                  x={m.x}
+                  y={labelY + 11}
+                  font-family={FONT}
+                  font-size={7}
+                  fill={color}
+                  opacity={m.cat.on ? 0.7 : 0.3}
+                  text-anchor="start"
+                >
+                  {#each activeDescLines as line, i}
+                    <tspan x={m.x} dy={i === 0 ? 0 : "1.3em"}>{line}</tspan>
+                  {/each}
+                </text>
+              {/if}
+              {/if}
+            {/each}
+
+            <!-- baseline -->
+            <line
+              x1={0}
+              y1={baseline()}
+              x2={dataSvgW}
+              y2={baseline()}
+              stroke="#888"
+              stroke-width=".5"
             />
-          {/each}
 
-          <!-- vertical ticks -->
-          {#each ticks as t}
-            <line x1={t.x} y1={TOP_PAD} x2={t.x} y2={baseline()}
-                  stroke={t.isYear ? "#bbb" : "#e8e8e8"} stroke-width="1" />
-          {/each}
+            <!-- axis -->
+            {#each ticks as t}
+              <line
+                x1={t.x}
+                y1={baseline()}
+                x2={t.x}
+                y2={baseline() + (t.isYear ? 10 : t.isQuarter ? 6 : 3)}
+                stroke={t.isYear ? "#555" : t.isQuarter ? "#999" : "#ccc"}
+                stroke-width=".5"
+              />
+              {#if t.isYear}
+                <text
+                  x={t.x}
+                  y={baseline() + 22}
+                  text-anchor="middle"
+                  font-family={FONT}
+                  font-size={FS}
+                  fill="#555">{t.label}</text
+                >
+              {:else if t.isQuarter}
+                <text
+                  x={t.x}
+                  y={baseline() + 16}
+                  text-anchor="middle"
+                  font-family={FONT}
+                  font-size={8}
+                  fill="#aaa">{t.month}</text
+                >
+              {/if}
+            {/each}
 
-          <!-- items — N independent stacks, one per category, same baseline -->
-          {#each placed as item}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <text
-              x={item.x}
-              y={baseline() - item.y - 1}
-              font-family={FONT}
-              font-size={FS}
-              fill={CAT_COLORS[item.colorIdx % CAT_COLORS.length]}
-              class="item"
-              onmouseenter={e => showTip(e, item)}
-              onmouseleave={hideTip}
-            >{item.label}</text>
-          {/each}
-
-          <!-- baseline -->
-          <line x1={0} y1={baseline()} x2={dataSvgW} y2={baseline()}
-                stroke="#888" stroke-width="1" />
-
-          <!-- axis -->
-          {#each ticks as t}
-            <line x1={t.x} y1={baseline()} x2={t.x}
-                  y2={baseline() + (t.isYear ? 8 : 4)}
-                  stroke={t.isYear ? "#666" : "#bbb"} stroke-width="1" />
-            {#if t.isYear}
-              <text x={t.x} y={baseline() + 22}
-                    text-anchor="middle" font-family={FONT}
-                    font-size={FS} fill="#777">{t.label}</text>
-            {/if}
-          {/each}
-
+            <!-- edge date labels -->
+            <!-- {#each edgeDates as e}
+              <line x1={e.x} y1={baseline()} x2={e.x} y2={baseline() + 10}
+                    stroke="#555" stroke-width=".5" />
+              <text x={e.x} y={baseline() + 22}
+                    text-anchor={e.anchor} font-family={FONT}
+                    font-size={FS} fill="#555">{e.label}</text>
+            {/each} -->
+          </g>
         </svg>
       {/if}
     </div>
+
+    <!-- zoom reset / fit -->
+    <button class="zoom-reset" onclick={resetZoom} title="Fit to viewport"
+      >fit</button
+    >
   </div>
 
-  <!-- right panel -->
-  <aside class="panel" class:closed={!panelOpen}>
-    <button class="toggle" onclick={() => { panelOpen = !panelOpen; build(); }}>
-      {panelOpen ? "✕" : "☰"}
-    </button>
-
-    {#if panelOpen}
-      <div class="panel-body">
-
-        <div class="section-title">Categorie</div>
-        {#each categories as cat}
-          {@const color = CAT_COLORS[categories.indexOf(cat) % CAT_COLORS.length]}
-          <button class="leg-row" class:off={!cat.on} onclick={() => { cat.on = !cat.on; }}>
-            <span class="leg-dot" style:color={cat.on ? color : undefined}>{cat.on ? "●" : "○"}</span>
-            <span class="leg-name" style:color={cat.on ? color : undefined}>{cat.label}</span>
-            <span class="leg-n">{counts[cat.id] ?? 0}</span>
-          </button>
-        {/each}
-
-        <div class="section-title" style="margin-top:1rem">Regione</div>
-        <label class="check-row">
-          <input type="checkbox" bind:checked={showBerlin} />
-          Berlin
-        </label>
-        <label class="check-row">
-          <input type="checkbox" bind:checked={showBrandenburg} />
-          Brandenburg
-        </label>
-        {#if showBerlin || showBrandenburg}
-          <div class="filter-note">
-            {showBerlin && showBrandenburg
-              ? "Berlin + Brandenburg"
-              : showBerlin ? "Solo Berlin" : "Solo Brandenburg"}
-          </div>
-        {/if}
-
-        <div class="section-title" style="margin-top:1rem">Ordine</div>
-        <button class="ctrl-btn" onclick={() => { reversed = !reversed; }}>
-          {reversed ? "new → old" : "old → new"}
-        </button>
-
-        <div class="section-title" style="margin-top:1rem">+ Aggiungi</div>
-        <input class="inp" placeholder="Nome" bind:value={newLabel} />
-        <input class="inp" placeholder='Query: "frau,frauen" (,=OR +=AND)' bind:value={newQuery} />
-        <select class="sel" bind:value={newType}>
-          <option value="text">Testo libero</option>
-          <option value="canonical">Keyword canonico</option>
-        </select>
-        <button class="add-btn" onclick={addCategory}>Aggiungi</button>
-
-        <div class="section-title" style="margin-top:1rem">Rimuovi</div>
-        {#each categories as cat (cat.id)}
-          <div class="rm-row">
-            <span>{cat.label}</span>
-            <button class="rm" onclick={() => removeCategory(cat.id)}>✕</button>
-          </div>
-        {/each}
-
-      </div>
-    {/if}
-  </aside>
+  <CatPanel
+    bind:categories
+    {counts}
+    catColors={CAT_COLORS}
+    bind:showBerlin
+    bind:showBrandenburg
+    bind:reversed
+    bind:displayMode
+    bind:panelOpen
+    onRebuild={build}
+  />
 </div>
 
-{#if tip}
-  <div class="tip" style:left="{tip.x + 14}px" style:top="{tip.y - 8}px">
-    <div class="tip-cat">{tip.catLabel} · {fmtDate(tip.date)}</div>
-    <div class="tip-title">{tip.title}</div>
-    {#if tip.text && tip.text !== tip.title}
-      <div class="tip-text">{tip.text.slice(0, 200)}</div>
-    {/if}
-  </div>
-{/if}
+<TimelineExport
+  hasRows={placed.length > 0}
+  {exporting}
+  {exportingPng}
+  {translating}
+  onExportSVG={exportSVG}
+  onExportPNG={exportPNG}
+/>
+
+<div class="lang-switch">
+  {#each availableLangs as l}
+    <button class:active={$lang === l} onclick={() => setLang(l)}>{l.toUpperCase()}</button>
+  {/each}
+</div>
 
 <style>
-  :global(body) { margin: 0; background: #f4f3ef; overflow: hidden; }
-
-  .page { display: flex; width: 100vw; height: 100vh; background: #f4f3ef; overflow: hidden; }
-
-  .data-col  { flex: 1; overflow: hidden; min-width: 0; }
-  .scroll-box { width: 100%; height: 100%; overflow-x: auto; overflow-y: auto; }
-  svg { display: block; }
-
-  .item { cursor: default; }
-  .item:hover { opacity: 0.6; }
-
-  .loading { padding: 2rem; color: #aaa; font-size: 0.8rem; font-family: Courier, monospace; }
-
-  .panel {
-    flex-shrink: 0; width: 252px; height: 100vh;
-    background: rgba(244,243,239,0.97);
-    border-left: 1px solid #ccc;
-    display: flex; flex-direction: column;
-    overflow: hidden; transition: width 0.15s;
-  }
-  .panel.closed { width: 36px; }
-
-  .toggle {
-    align-self: flex-end; background: none; border: none;
-    color: #aaa; font-size: 0.85rem; cursor: pointer;
-    padding: 10px 10px 6px; font-family: Courier, monospace; flex-shrink: 0;
-  }
-  .toggle:hover { color: #111; }
-
-  .panel-body {
-    padding: 0 12px 16px; overflow-y: auto; flex: 1;
-    font-family: Courier, monospace; font-size: 0.7rem; color: #555;
+  :global(body) {
+    margin: 0;
+    background: #fff;
+    overflow: hidden;
   }
 
-  .section-title {
-    font-size: 0.58rem; text-transform: uppercase;
-    letter-spacing: 0.1em; color: #aaa; margin: 6px 0 4px;
+  .page {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    background: #fff;
+    overflow: hidden;
+  }
+  .data-col {
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+    position: relative;
+  }
+  .chart-wrap {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
-  .leg-row {
-    display: flex; align-items: center; gap: 5px;
-    background: none; border: none; cursor: pointer;
-    font-family: Courier, monospace; font-size: 0.68rem;
-    color: #333; padding: 2px 0; text-align: left; width: 100%;
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
-  .leg-row.off .leg-name { color: #ccc !important; text-decoration: line-through; }
-  .leg-row.off .leg-dot  { color: #ccc !important; }
-  .leg-dot  { font-size: 0.7rem; flex-shrink: 0; }
-  .leg-name { flex: 1; }
-  .leg-n    { color: #bbb; font-size: 0.62rem; min-width: 22px; text-align: right; }
 
-  .check-row {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 0.68rem; color: #555; padding: 3px 0; cursor: pointer;
+  .item {
+    cursor: pointer;
   }
-  .check-row input { accent-color: #111; cursor: pointer; }
+  .item:hover {
+    opacity: 0.55 !important;
+  }
+  .item-link {
+    cursor: pointer;
+  }
 
-  .filter-note { font-size: 0.6rem; color: #888; margin-top: 2px; font-style: italic; }
+  .loading {
+    padding: 32px;
+    color: #aaa;
+    font-size: 13px;
+    font-family: Courier, monospace;
+  }
 
-  .ctrl-btn {
-    width: 100%; background: none; border: 1px solid #ccc;
-    font-family: Courier, monospace; font-size: 0.65rem;
-    color: #888; cursor: pointer; padding: 4px 6px; text-align: left; margin-bottom: 4px;
+  .zoom-reset {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 5;
+    background: rgba(244, 243, 239, 0.92);
+    border: 1px solid #ccc;
+    font-family: Courier, monospace;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 3px 8px;
+    color: #666;
   }
-  .ctrl-btn:hover { background: #111; color: #f4f3ef; border-color: #111; }
+  .zoom-reset:hover {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
 
-  .inp {
-    width: 100%; box-sizing: border-box;
-    background: #ebe9e3; border: 1px solid #d8d5ce;
-    font-family: Courier, monospace; font-size: 0.68rem;
-    padding: 4px 6px; color: #333; margin-bottom: 4px; display: block;
+  .lang-switch {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    gap: 0.4rem;
   }
-  .sel {
-    width: 100%; box-sizing: border-box;
-    background: #ebe9e3; border: 1px solid #d8d5ce;
-    font-family: Courier, monospace; font-size: 0.68rem;
-    padding: 4px 4px; color: #333; margin-bottom: 4px; display: block;
+  .lang-switch button {
+    background: #111;
+    color: #eee;
+    border: none;
+    cursor: pointer;
+    padding: 0.35rem 0.6rem;
+    font-family: Courier, monospace;
+    font-size: 11px;
   }
-  .add-btn {
-    width: 100%; background: #111; color: #f4f3ef;
-    border: none; font-family: Courier, monospace; font-size: 0.7rem;
-    cursor: pointer; padding: 5px 0; margin-top: 2px;
+  .lang-switch button.active {
+    background: #fff;
+    color: #000;
+    outline: 1px solid #ccc;
   }
-  .add-btn:hover { background: #000; }
-
-  .rm-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 0.68rem; color: #888; }
-  .rm-row span { flex: 1; }
-  .rm { background: none; border: none; color: #ccc; cursor: pointer; font-size: 0.65rem; }
-  .rm:hover { color: #c00; }
-
-  .tip {
-    position: fixed; z-index: 100;
-    background: #fff; border: 1px solid #ddd; border-left: 3px solid #111;
-    padding: 8px 12px; font-family: Courier, monospace;
-    font-size: 0.7rem; color: #333; max-width: 340px;
-    pointer-events: none; line-height: 1.5;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.07);
+  .lang-switch button:hover:not(.active) {
+    background: #333;
   }
-  .tip-cat   { font-size: 0.6rem; color: #999; margin-bottom: 3px; }
-  .tip-title { color: #111; margin-bottom: 3px; }
-  .tip-text  { color: #999; font-size: 0.63rem; }
 </style>
