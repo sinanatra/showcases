@@ -183,7 +183,7 @@
       const idx = lower.indexOf(term.toLowerCase());
       if (idx !== -1) { pos = idx; break; }
     }
-    if (pos === -1) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
+    if (pos === -1) return item.title || (raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : ""));
 
     // Find the sentence containing pos (bounded by . ! ? or newline)
     let sentStart = pos;
