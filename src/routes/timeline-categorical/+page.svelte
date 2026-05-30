@@ -4,114 +4,21 @@
   import { articles } from "$lib/stores";
   import { loadArticles } from "$lib/utils/loadArticles";
   import { parseDateLoose } from "$lib/utils/parseDate";
-  import { keywordsGroup, getKeywordVariants } from "$lib/constants/keywords";
   import { detectRegion } from "$lib/utils/detectRegion";
   import { lang, setLang, availableLangs } from "$lib/i18n";
   import { translateDE_EN } from "$lib/utils/translate";
   import CatPanel from "./CatPanel.svelte";
   import TimelineExport from "$lib/components/TimelineExport.svelte";
-
-  // ── layout constants ──────────────────────────────────────────
-  const FONT = "Arial, Courier, monospace";
-  const FS = 10;
-  const CHAR_W = FS * 0.601;
-  const LINE_H = 13;
-  const TOP_PAD = 16;
-  const H_PAD = 20;
-  const PX_PER_DAY = 5;
-
-  const CAT_COLORS = [
-    "#b52a2a", // red
-    "#1f5fa6", // blue
-    "#1a7a3c", // green
-    "#7a2a8f", // purple
-    "#c96800", // amber
-    "#007070", // teal
-    "#b5006e", // magenta
-    "#444444", // dark gray
-    "#7a4d00", // brown
-    "#3a7a00", // lime
-  ];
-
-  // ── default categories ────────────────────────────────────────
-  const DEFAULT_CATEGORIES = [
-    {
-      id: "rechts",
-      label: "Rechtsextremismus",
-      type: "canonical",
-      query: "rechtsextremismus",
-      on: true,
-      desc: "Incidents classified under right-wing extremism (PMK-rechts). The largest single category in the dataset.",
-    },
-    {
-      id: "antisem",
-      label: "Antisemitismus",
-      type: "canonical",
-      query: "antisemitismus",
-      on: true,
-      desc: "Incidents targeting Jewish individuals, communities, or institutions. PMK sometimes also logs Israel/Palestine protests here — see Palestine / Gaza for overlap.",
-    },
-    {
-      id: "fremd",
-      label: "Fremdenfeindlichkeit",
-      type: "canonical",
-      query: "fremdenfeindlichkeit",
-      on: true,
-      desc: "Incidents classified as xenophobic or racially motivated. Classification varies by reporting officer.",
-    },
-    {
-      id: "queer",
-      label: "Queerfeindlichkeit",
-      type: "canonical",
-      query: "queerfeindlichkeit",
-      on: true,
-      desc: "Incidents targeting LGBTQ+ people. A relatively recent PMK subcategory; coverage is uneven across Bundesländer.",
-    },
-    {
-      id: "islam",
-      label: "Islamfeindlichkeit",
-      type: "canonical",
-      query: "islamfeindlichkeit",
-      on: false,
-      desc: "Incidents with an anti-Muslim dimension. Likely under-represented in this dataset relative to other categories.",
-    },
-    {
-      id: "vv",
-      label: "Volksverhetzung",
-      type: "canonical",
-      query: "volksverhetzung",
-      on: false,
-      desc: "Incidents prosecuted under §130 StGB (incitement to hatred). Cuts across all political motives; includes online content.",
-    },
-    {
-      id: "palaestina",
-      label: "Palestine / Gaza",
-      type: "text",
-      query: "palästina,palestine,gaza,pro-palästina",
-      on: false,
-      desc: "Incidents involving pro-Palestinian demonstrations or Gaza-related context. Many are simultaneously logged under Antisemitismus — the same event can appear in both categories.",
-    },
-    {
-      id: "misogyn",
-      label: "Misogynie / Frauenfeindlichkeit",
-      type: "text",
-      query: "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus",
-      on: true,
-      desc: "Misogynistic and women-hostile incidents. Not a PMK category — absent from the official hate crime record.",
-    },
-    {
-      id: "femizid",
-      label: "Femicide / Women",
-      type: "text",
-      query: "femizid,femizide,frauenmord,incel",
-      on: false,
-      desc: "Femicide and incel-related incidents. These are absent from the PMK record — a structural blind spot in Germany's hate crime statistics.",
-    },
-  ];
+  import TimelineGrid from "./TimelineGrid.svelte";
+  import TimelineItems from "./TimelineItems.svelte";
+  import CategoryMarkers from "./CategoryMarkers.svelte";
+  import {
+    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H,
+    CAT_COLORS, STORAGE_KEY, DEFAULT_CATEGORIES,
+  } from "./config.js";
+  import { matchesCategory, snippetFor, placeItems, wrapText } from "./catTimeline.js";
 
   // ── persistence ───────────────────────────────────────────────
-  const STORAGE_KEY = "timeline-cat-v6";
-
   function loadState() {
     if (typeof localStorage === "undefined") return null;
     try {
@@ -140,99 +47,6 @@
     );
   });
 
-  // ── text wrapping ─────────────────────────────────────────────
-  function wrapText(text, maxChars) {
-    const words = text.split(" ");
-    const lines = [];
-    let line = "";
-    for (const word of words) {
-      const candidate = line ? line + " " + word : word;
-      if (candidate.length > maxChars && line) {
-        lines.push(line);
-        line = word;
-      } else line = candidate;
-    }
-    if (line) lines.push(line);
-    return lines;
-  }
-
-  // ── snippet extraction ────────────────────────────────────────
-  const SNIP_MAX = 120;
-
-  function snippetFor(item) {
-    const cat = categories.find(c => c.id === item.catId);
-    const raw = item.text || item.title || "";
-    if (!raw) return "";
-    if (!cat) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
-
-    let terms;
-    if (cat.type === "canonical") {
-      const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
-      terms = kws
-        .filter(k => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
-        .map(k => String(k));
-      if (!terms.length) terms = [cat.query];
-    } else {
-      terms = cat.query.split(",").map(s => s.trim()).filter(Boolean)
-        .flatMap(t => t.split("+").map(s => s.trim()));
-    }
-
-    const lower = raw.toLowerCase();
-    let pos = -1;
-    for (const term of terms) {
-      const idx = lower.indexOf(term.toLowerCase());
-      if (idx !== -1) { pos = idx; break; }
-    }
-    if (pos === -1) return item.title || (raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : ""));
-
-    // Find the sentence containing pos (bounded by . ! ? or newline)
-    let sentStart = pos;
-    while (sentStart > 0 && !/[.!?\n]/.test(raw[sentStart - 1])) sentStart--;
-    while (sentStart < pos && raw[sentStart] === " ") sentStart++;
-
-    let sentEnd = pos;
-    while (sentEnd < raw.length && !/[.!?\n]/.test(raw[sentEnd])) sentEnd++;
-    if (sentEnd < raw.length) sentEnd++; // include punctuation
-
-    const sentence = raw.slice(sentStart, sentEnd).trim();
-    if (sentence.length <= SNIP_MAX) return sentence;
-    // Sentence too long: fall back to window centered on keyword
-    const half = Math.floor(SNIP_MAX / 2);
-    const s = Math.max(sentStart, pos - half);
-    const e = Math.min(sentEnd, pos + half);
-    return (s > sentStart ? "…" : "") + raw.slice(s, e).trim() + (e < sentEnd ? "…" : "");
-  }
-
-  // word-boundary characters that end a token
-  const WORD_END = /[\s,;:.!?()[\]"'…–—/\\]/;
-
-  function matchInText(text, terms) {
-    const lower = text.toLowerCase();
-    for (const term of terms) {
-      const idx = lower.indexOf(term.toLowerCase());
-      if (idx === -1) continue;
-      // extend to full word (catches "-isch", "-en", "-e" suffixes, German umlauts, etc.)
-      let end = idx + term.length;
-      while (end < text.length && !WORD_END.test(text[end])) end++;
-      return { idx, pre: text.slice(0, idx), kw: text.slice(idx, end), post: text.slice(end) };
-    }
-    return null;
-  }
-
-  function splitAtKeyword(label, item) {
-    const cat = categories.find(c => c.id === item.catId);
-    if (!cat || !label) return null;
-    let terms;
-    if (cat.type === "canonical") {
-      terms = getKeywordVariants(cat.query);
-    } else {
-      terms = cat.query.split(",").map(s => s.trim()).filter(Boolean)
-        .flatMap(t => t.split("+").map(s => s.trim()));
-    }
-    terms = [...terms].sort((a, b) => b.length - a.length);
-    return matchInText(label, terms);
-  }
-
   // ── filters ───────────────────────────────────────────────────
   function passesRegion(a) {
     if (!showBerlin && !showBrandenburg) return true;
@@ -242,56 +56,12 @@
     return false;
   }
 
-  function matchesCategory(a, cat) {
-    if (cat.type === "canonical") {
-      const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
-      return kws.some(
-        (k) =>
-          /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] ===
-          cat.query,
-      );
-    }
-    const hay = `${a.Title || ""} ${a.Text || ""}`.toLowerCase();
-    return cat.query
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-      .some((term) =>
-        term
-          .split("+")
-          .map((s) => s.trim())
-          .every((t) => hay.includes(t)),
-      );
-  }
-
-  // ── layout ────────────────────────────────────────────────────
-  function placeItems(preItems, xScale, labelFn) {
-    const sorted = [...preItems].sort((a, b) =>
-      a.desiredRow !== b.desiredRow
-        ? a.desiredRow - b.desiredRow
-        : +a.date - +b.date,
-    );
-    const rowEndX = new Map();
-    return sorted.map((it) => {
-      const label = labelFn(it);
-      const x = xScale(it.date);
-      const hw = Math.ceil(label.length * CHAR_W) / 2;
-      const xStart = x - hw;
-      const xEnd = x + hw + 4;
-      let row = it.desiredRow ?? 0;
-      while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
-      rowEndX.set(row, xEnd);
-      return { ...it, x, y: row * LINE_H, label };
-    });
-  }
-
   // ── state ─────────────────────────────────────────────────────
   let hasInitialFit = false;
   /** @type {any[]} */ let ticks = $state([]);
   /** @type {any[]} */ let placed = $state([]);
   /** @type {any[]} */ let catMarkers = $state([]);
   /** @type {Record<string,number>} */ let counts = $state({});
-  /** @type {{x:number,label:string,anchor:string}[]} */ let edgeDates = $state([]);
   let dataSvgW = $state(4000);
   let svgH = $state(600);
   let baselineY = $state(480);
@@ -350,13 +120,6 @@
       label: d.getFullYear(),
     }));
 
-    const locale = $lang === "de" ? "de-DE" : "en-GB";
-    const fmtEdge = (d) => d.toLocaleString(locale, { day: "numeric", month: "short", year: "numeric" });
-    edgeDates = [
-      { x: H_PAD,     label: fmtEdge(reversed ? dMax : dMin), anchor: "start" },
-      { x: W - H_PAD, label: fmtEdge(reversed ? dMin : dMax), anchor: "end"   },
-    ];
-
     const preItems = [];
     /** @type {Record<string,number>} */ const newCounts = {};
 
@@ -373,7 +136,7 @@
 
     const labelFn =
       displayMode === "text"
-        ? (it) => snippetFor(it)
+        ? (it) => snippetFor(it, categories)
         : (it) => it.title || it.text || "";
     const allPlaced = placeItems(preItems, xScale, labelFn);
 
@@ -595,171 +358,9 @@
       {:else}
         <svg bind:this={svgEl}>
           <g class="zoom-group" transform={zoomTransform}>
-            <!-- year bands -->
-            {#each ticks.filter((t) => t.isYear) as t, i}
-              {@const yt = ticks.filter((tt) => tt.isYear)}
-              <rect
-                x={Math.min(
-                  t.x,
-                  yt[i + 1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD),
-                )}
-                y={TOP_PAD}
-                width={Math.abs(
-                  (yt[i + 1]?.x ?? (reversed ? H_PAD : dataSvgW - H_PAD)) - t.x,
-                )}
-                height={baseline() - TOP_PAD}
-                fill="transparent"
-              />
-            {/each}
-
-            <!-- grid lines -->
-            {#each ticks as t}
-              <line
-                x1={t.x}
-                y1={TOP_PAD}
-                x2={t.x}
-                y2={baseline()}
-                stroke={t.isYear ? "#222" : "#ccc"}
-                stroke-width="1"
-              />
-            {/each}
-
-            <!-- items -->
-            {#each placed as item}
-              {@const catColor = CAT_COLORS[item.colorIdx % CAT_COLORS.length]}
-              {@const op = item.active ? 1 : 0.18}
-              {@const displayLabel = $lang === "en" ? (translatedMap[item.label] ?? item.label) : item.label}
-              {@const url = item.raw?.URL}
-              {#snippet itemText(x, y)}
-                <text x={x} y={y} font-family={FONT} font-size={FS}
-                      text-anchor="middle" fill={item.active ? catColor : "#ccc"} opacity={op} class="item">
-                  {displayLabel}
-                </text>
-              {/snippet}
-              {#if url}
-                <!-- svelte-ignore a11y_interactive_supports_focus -->
-                <a href={url} target="_blank" rel="noreferrer" class="item-link">
-                  {@render itemText(item.x, baseline() - item.y - 1)}
-                </a>
-              {:else}
-                {@render itemText(item.x, baseline() - item.y - 1)}
-              {/if}
-            {/each}
-
-            <!-- category marker tick lines (rendered first, behind labels) -->
-            {#each catMarkers as m}
-              {#if m.hasTick && (counts[m.cat.id] ?? 0) > 0}
-                {@const color = CAT_COLORS[m.colorIdx % CAT_COLORS.length]}
-                {@const opacity = m.cat.on ? 1 : 0.18}
-                {@const labelY = baseline() + 36 + m.yOff}
-                <line
-                  x1={m.x}
-                  y1={baseline()}
-                  x2={m.x}
-                  y2={labelY - 10}
-                  stroke={color}
-                  stroke-width=".5"
-                  {opacity}
-                />
-              {/if}
-            {/each}
-
-            <!-- category marker labels (rendered on top of tick lines) -->
-            {#each catMarkers as m}
-              {@const hasItems = (counts[m.cat.id] ?? 0) > 0}
-              {#if hasItems}
-              {@const color = CAT_COLORS[m.colorIdx % CAT_COLORS.length]}
-              {@const opacity = m.cat.on ? 1 : 0.18}
-              {@const labelY = baseline() + 36 + m.yOff}
-              {@const labelText = $lang === "en" ? (translatedMap[m.cat.label] ?? m.cat.label) : m.cat.label}
-              {@const labelW = labelText.length * 5.4 + 6}
-              {@const activeDescLines = hasItems ? m.descLines : []}
-              {@const descW = activeDescLines.length ? Math.max(...activeDescLines.map(/** @param {any} l */ l => l.length)) * 4.2 + 6 : 0}
-              {@const bgW = Math.max(labelW, descW)}
-              {@const bgH = 11 + activeDescLines.length * 9.5 + 6}
-              <rect
-                x={m.x - 2}
-                y={labelY - 10}
-                width={bgW}
-                height={bgH}
-                fill="white"
-              />
-              <text
-                x={m.x}
-                y={labelY}
-                font-family={FONT}
-                font-size={9}
-                fill={color}
-                text-anchor="start"
-                {opacity}>{labelText}</text
-              >
-              {#if activeDescLines.length}
-                <text
-                  x={m.x}
-                  y={labelY + 11}
-                  font-family={FONT}
-                  font-size={7}
-                  fill={color}
-                  opacity={m.cat.on ? 0.7 : 0.3}
-                  text-anchor="start"
-                >
-                  {#each activeDescLines as line, i}
-                    <tspan x={m.x} dy={i === 0 ? 0 : "1.3em"}>{line}</tspan>
-                  {/each}
-                </text>
-              {/if}
-              {/if}
-            {/each}
-
-            <!-- baseline -->
-            <line
-              x1={0}
-              y1={baseline()}
-              x2={dataSvgW}
-              y2={baseline()}
-              stroke="#888"
-              stroke-width=".5"
-            />
-
-            <!-- axis -->
-            {#each ticks as t}
-              <line
-                x1={t.x}
-                y1={baseline()}
-                x2={t.x}
-                y2={baseline() + (t.isYear ? 10 : t.isQuarter ? 6 : 3)}
-                stroke={t.isYear ? "#555" : t.isQuarter ? "#999" : "#ccc"}
-                stroke-width=".5"
-              />
-              {#if t.isYear}
-                <text
-                  x={t.x}
-                  y={baseline() + 22}
-                  text-anchor="middle"
-                  font-family={FONT}
-                  font-size={FS}
-                  fill="#555">{t.label}</text
-                >
-              {:else if t.isQuarter}
-                <text
-                  x={t.x}
-                  y={baseline() + 16}
-                  text-anchor="middle"
-                  font-family={FONT}
-                  font-size={8}
-                  fill="#aaa">{t.month}</text
-                >
-              {/if}
-            {/each}
-
-            <!-- edge date labels -->
-            <!-- {#each edgeDates as e}
-              <line x1={e.x} y1={baseline()} x2={e.x} y2={baseline() + 10}
-                    stroke="#555" stroke-width=".5" />
-              <text x={e.x} y={baseline() + 22}
-                    text-anchor={e.anchor} font-family={FONT}
-                    font-size={FS} fill="#555">{e.label}</text>
-            {/each} -->
+            <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
+            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} catColors={CAT_COLORS} />
+            <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} catColors={CAT_COLORS} />
           </g>
         </svg>
       {/if}
@@ -831,15 +432,9 @@
     height: 100%;
   }
 
-  .item {
-    cursor: pointer;
-  }
-  .item:hover {
-    opacity: 0.55 !important;
-  }
-  .item-link {
-    cursor: pointer;
-  }
+  :global(.item) { cursor: pointer; }
+  :global(.item:hover) { opacity: 0.55 !important; }
+  :global(.item-link) { cursor: pointer; }
 
   .loading {
     padding: 32px;
