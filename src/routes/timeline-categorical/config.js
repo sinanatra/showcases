@@ -13,6 +13,7 @@ export const DEFAULT_SHOW_BERLIN      = true;
 export const DEFAULT_SHOW_BRANDENBURG = false;
 export const DEFAULT_REVERSED         = true;
 export const DEFAULT_DISPLAY_MODE     = "text";
+export const DEFAULT_TEXT_ALIGN       = "start";
 
 export const DEFAULT_CATEGORIES = [
   {
