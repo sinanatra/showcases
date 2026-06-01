@@ -55,7 +55,7 @@ export function matchesCategory(a, cat) {
     );
 }
 
-export function placeItems(preItems, xScale, labelFn) {
+export function placeItems(preItems, xScale, labelFn, textAlign = "middle") {
   const GAP = 6;
 
   // Pre-compute screen x and label for every item
@@ -80,9 +80,14 @@ export function placeItems(preItems, xScale, labelFn) {
   const catFloor = new Map();  // per-category: row never decreases within a category
 
   return withRow.map((it) => {
-    const hw = Math.ceil(it.label.length * CHAR_W) / 2;
-    const xStart = it.x - hw - GAP;
-    const xEnd = it.x + hw + GAP;
+    const tw = Math.ceil(it.label.length * CHAR_W);
+    const hw = tw / 2;
+    const xStart = textAlign === "start" ? it.x - GAP
+                 : textAlign === "end"   ? it.x - tw - GAP
+                 : it.x - hw - GAP;
+    const xEnd   = textAlign === "start" ? it.x + tw + GAP
+                 : textAlign === "end"   ? it.x + GAP
+                 : it.x + hw + GAP;
     let row = Math.max(it.desiredRow, catFloor.get(it.catId) ?? 0);
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
