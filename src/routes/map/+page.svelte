@@ -19,11 +19,11 @@
   let errMsg = $state("");
   let incidents = $state([]);
 
-  const MAP_SIDE_PADDING = 500;
+  const MAP_SIDE_PADDING = 0;
   const SKIP_EMPTY_GAPS = true;
   const GAP_SKIP_THRESHOLD_DAYS = 45;
 
-  let daysPerSecond = $state(7);
+  let daysPerSecond = $state(3);
   let lineScale = $state(0.9);
   let growthSpeed = $state(0.5);
 
