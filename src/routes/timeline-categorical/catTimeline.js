@@ -99,11 +99,16 @@ export function snippetFor(item, categories) {
 
   let terms;
   if (cat.type === "canonical") {
-    const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
-    terms = kws
-      .filter((k) => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
-      .map((k) => String(k));
-    if (!terms.length) terms = [cat.query];
+    // Prefer explicit text terms from config (actual keywords present in scraped text)
+    if (Array.isArray(/** @type {any} */ (cat).terms) && /** @type {any} */ (cat).terms.length) {
+      terms = /** @type {any} */ (cat).terms;
+    } else {
+      const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
+      terms = kws
+        .filter((k) => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
+        .map((k) => String(k));
+      if (!terms.length) terms = [cat.query];
+    }
   } else {
     terms = cat.query
       .split(",")
@@ -121,19 +126,34 @@ export function snippetFor(item, categories) {
   const lower = clean.toLowerCase();
   let pos = -1;
 
-  // German suffix stripping: noun forms → stem shared with adjective/inflected forms
-  const SUFFIXES = ["keit", "heit", "schaft", "ismus", "ierung", "ung", "lich", "isch", "en", "em", "er", "es", "e", "n", "s"];
+  // Compound PMK suffixes first, then standard German inflection/derivation suffixes.
+  // Iterative: islamfeindlichkeit → islam, fremdenfeindlichkeit → fremden → fremd, etc.
+  const SUFFIXES = ["feindlichkeit", "feindlich", "keit", "heit", "schaft", "ismus", "ierung", "ung", "lich", "isch", "en", "em", "er", "es", "e", "n", "s"];
   function stems(term) {
+    const MIN = 5;
     const t = term.toLowerCase();
-    const out = [t];
-    for (const s of SUFFIXES) {
-      if (t.endsWith(s) && t.length - s.length >= 6) out.push(t.slice(0, t.length - s.length));
+    const out = new Set([t]);
+    let cur = t;
+    let found = true;
+    while (found) {
+      found = false;
+      for (const s of SUFFIXES) {
+        if (cur.endsWith(s) && cur.length - s.length >= MIN) {
+          cur = cur.slice(0, cur.length - s.length);
+          out.add(cur);
+          found = true;
+          break;
+        }
+      }
     }
-    return out;
+    return [...out];
   }
 
   outer: for (const term of terms) {
     for (const stem of stems(term)) {
+      // Only accept stems that are at least half the original term length,
+      // to avoid false matches from aggressive stripping (e.g. "islam" from "islamfeindlichkeit")
+      if (stem.length < Math.max(5, Math.ceil(term.length / 2))) continue;
       const idx = lower.indexOf(stem);
       if (idx !== -1) { pos = idx; break outer; }
     }
