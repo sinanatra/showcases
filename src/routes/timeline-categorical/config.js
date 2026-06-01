@@ -45,7 +45,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "queer",
     label: "Anti-LGBTQ+ violence",
-    color: "#9c9c9c",
+    color: "#b1b1b1",
     type: "canonical",
     query: "queerfeindlichkeit",
     on: true,
