@@ -23,39 +23,17 @@ df = pd.concat(dfs, ignore_index=True)
 df_text = (df['Title'].fillna('') + ' ' + df['Text'].fillna('')).str.lower()
 
 keywords = [
-    "volksverhetzung",
-    "hitlergruß",
-    "hakenkreuz",
-    "nazi",
-    "rechtsextremistisch",
-    "rechtsextremisch",
-    "fremdenfeindlich",
-    "islamophobie",
-    "islamfeindlichkeit",
-    "islamfeindlich",
-    "islamophob",
-    "muslimfeindlich",
-    "muslimfeindlichkeit",
-    "antimuslimisch",
-    "anti-muslimisch",
-    "anti muslimisch",
-    "antiislamisch",
-    "anti-islamisch",
-    "anti islamisch",
-    "nationalsozialismus",
-    "nationalsozialistisch",
-    "nationalsozialistische",
-    "rassismus",
-    "rassistisch",
-    "antisemitismus",
-    "antisemitisch",
-    "homophobie",
-    "transphobie",
-    "queerfeindlichkeit",
-    "queerphobie",
-    "sieg heil",
-    "verfassungswidrig",
-    "mit politischem hintergrund"
+    "volksverhetzung", "hitlergruß", "hakenkreuz", "nazi", "rechtsextremistisch",
+    "rechtsextremisch", "fremdenfeindlich", "islamophobie", "islamfeindlichkeit",
+    "islamfeindlich", "islamophob", "muslimfeindlich", "muslimfeindlichkeit",
+    "antimuslimisch", "anti-muslimisch", "anti muslimisch", "antiislamisch",
+    "anti-islamisch", "anti islamisch",
+    "nationalsozialismus", "nationalsozialistisch", "nationalsozialistische",
+    "rassismus", "rassistisch", "antisemitismus", "antisemitisch", "homophobie",
+    "transphobie", "queerfeindlichkeit", "queerphobie", "sieg heil",
+    "verfassungswidrig", "mit politischem hintergrund",
+    "frauenfeindlich", "frauenfeindlichkeit", "misogynie", "misogyn",
+    "sexismus", "sexistisch", "frauenhass", "antifeminismus", "antifeministisch"
 ]
 
 action_terms = [
@@ -69,7 +47,6 @@ time_regex = re.compile(r"\b([0-2]?\d[:\.]?[0-5]?\d)\s*uhr")
 date_regex = re.compile(r"\b(\d{1,2}[\./]\d{1,2}[\./]\d{2,4})\b")
 age_regex = re.compile(r"\b(\d{1,3})(?:[- ]?jährig(?:e[rn]?)?|\sjahre alt)\b")
 gender_regex = re.compile(r"\b(mann|frau|jugendlicher|jugendliche|mädchen|junge)\b")
-street_regex = re.compile(r"\b[a-zäöüß]+(?:straße|platz|allee|ring)\b")
 
 diff_threshold = 0.85
 
@@ -108,6 +85,7 @@ def find_keywords_with_matches(text, terms, threshold):
 
 islam_marker_regex = re.compile(r"\bkopftuch\w*\b")
 hate_context_regex = re.compile(r"\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b")
+misogyny_marker_regex = re.compile(r"\b(schlampe|hure|weibsstück|weib|tussi)\b")
 
 def augment_islamfeindlichkeit(text, kws):
     t = text or ""
@@ -123,10 +101,25 @@ def augment_islamfeindlichkeit(text, kws):
 
     return list(set(hits))
 
+def augment_frauenfeindlichkeit(text, kws):
+    t = text or ""
+    hits = list(kws or [])
+
+    if any(str(k).lower().startswith(("frauenfeind", "misogyn", "sexist")) for k in hits):
+        if "frauenfeindlichkeit" not in hits:
+            hits.append("frauenfeindlichkeit")
+        return list(set(hits))
+
+    if misogyny_marker_regex.search(t) and hate_context_regex.search(t):
+        hits.append("frauenfeindlichkeit")
+
+    return list(set(hits))
+
 for idx, text in df_text.items():
     print(f"Processing row {idx+1} of {len(df)}")
     kws = find_keywords(text, keywords, diff_threshold)
     kws = augment_islamfeindlichkeit(text, kws)
+    kws = augment_frauenfeindlichkeit(text, kws)
     related = bool(kws)
     df.at[idx, 'RightWingRelated'] = related
     df.at[idx, 'KeywordMatch'] = kws
@@ -147,8 +140,6 @@ for idx, text in df_text.items():
 
 
 out_path = os.path.join(output_dir, "merged_parsed_documents_with_topic.csv")
-# df.to_csv(out_path, index=False)
-
 df_filtered = df[df['RightWingRelated'] == True]
 df_filtered.to_csv(out_path, index=False)
 
