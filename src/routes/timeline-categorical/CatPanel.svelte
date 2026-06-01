@@ -4,6 +4,7 @@
   let {
     categories = $bindable([]),
     counts = {},
+    showBilanz = $bindable(false),
     showBerlin = $bindable(true),
     showBrandenburg = $bindable(false),
     reversed = $bindable(false),
@@ -83,6 +84,11 @@
               : $t("cat.brandenburgOnly")}
         </div>
       {/if}
+
+      <div class="section-title" style="margin-top:16px">{$t("cat.filters")}</div>
+      <label class="check-row">
+        <input type="checkbox" bind:checked={showBilanz} /> Bilanz reports
+      </label>
 
       <div class="section-title" style="margin-top:16px">
         {$t("cat.display")}

@@ -15,12 +15,13 @@
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H,
     DEFAULT_CATEGORIES,
-    DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
+    DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE,
   } from "./config.js";
   import { matchesCategory, snippetFor, placeItems, wrapText } from "./catTimeline.js";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
+  let showBilanz    = $state(DEFAULT_SHOW_BILANZ);
   let showBerlin    = $state(DEFAULT_SHOW_BERLIN);
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
   let reversed      = $state(DEFAULT_REVERSED);
@@ -36,6 +37,11 @@
     return false;
   }
 
+  function passesBilanz(a) {
+    if (showBilanz) return true;
+    return !/bilanz/i.test(a.Title || "");
+  }
+
   // ── state ─────────────────────────────────────────────────────
   let hasInitialFit = false;
   /** @type {any[]} */ let ticks = $state([]);
@@ -49,7 +55,7 @@
   const baseline = () => baselineY;
 
   function build() {
-    const arts = $articles.filter(passesRegion);
+    const arts = $articles.filter(a => passesRegion(a) && passesBilanz(a));
     if (!arts.length) {
       placed = [];
       counts = {};
@@ -406,6 +412,7 @@
   <CatPanel
     bind:categories
     {counts}
+    bind:showBilanz
     bind:showBerlin
     bind:showBrandenburg
     bind:reversed
