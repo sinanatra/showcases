@@ -16,7 +16,7 @@
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
-    DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE,
+    DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
   import { matchesCategory, snippetFor, placeItems, wrapText } from "./catTimeline.js";
 
@@ -26,6 +26,7 @@
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
   let reversed      = $state(DEFAULT_REVERSED);
   let displayMode   = $state(DEFAULT_DISPLAY_MODE);
+  let textAlign     = $state(DEFAULT_TEXT_ALIGN);
   let panelOpen     = $state(true);
 
   // ── filters ───────────────────────────────────────────────────
@@ -393,7 +394,7 @@
         <svg bind:this={svgEl}>
           <g class="zoom-group" transform={zoomTransform}>
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
-            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} />
+            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} {textAlign} />
             <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} />
           </g>
         </svg>
@@ -414,6 +415,7 @@
     bind:showBrandenburg
     bind:reversed
     bind:displayMode
+    bind:textAlign
     bind:panelOpen
     onRebuild={build}
   />

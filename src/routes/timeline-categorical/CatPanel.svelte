@@ -9,6 +9,7 @@
     showBrandenburg = $bindable(false),
     reversed = $bindable(false),
     displayMode = $bindable("title"),
+    textAlign = $bindable("start"),
     panelOpen = $bindable(true),
     onRebuild = () => {},
   } = $props();
@@ -107,6 +108,17 @@
           displayMode = "text";
         }}>{$t("cat.displaySnippet")}</button
       >
+
+      <div class="section-title" style="margin-top:16px">Align</div>
+      <div class="align-row">
+        {#each ["start", "middle", "end"] as a}
+          <button
+            class="ctrl-btn"
+            class:active={textAlign === a}
+            onclick={() => { textAlign = a; }}
+          >{a === "start" ? "left" : a === "middle" ? "center" : "right"}</button>
+        {/each}
+      </div>
 
       <div class="section-title" style="margin-top:16px">{$t("cat.order")}</div>
       <button
@@ -258,6 +270,17 @@
     color: #999;
     margin-top: 2px;
     font-style: italic;
+  }
+
+  .align-row {
+    display: flex;
+    gap: 2px;
+  }
+  .align-row .ctrl-btn {
+    flex: 1;
+    padding: 4px 2px;
+    text-align: center;
+    margin-bottom: 0;
   }
 
   .ctrl-btn {
