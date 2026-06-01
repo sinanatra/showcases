@@ -88,7 +88,9 @@ keywords = [
     "nationalsozialismus", "nationalsozialistisch", "nationalsozialistische",
     "rassismus", "rassistisch", "antisemitismus", "antisemitisch", "homophobie",
     "transphobie", "queerfeindlichkeit", "queerphobie", "sieg heil",
-    "verfassungswidrig", "mit politischem hintergrund"
+    "verfassungswidrig", "mit politischem hintergrund",
+    "frauenfeindlich", "frauenfeindlichkeit", "misogynie", "misogyn",
+    "sexismus", "sexistisch", "frauenhass", "antifeminismus", "antifeministisch"
 ]
 
 action_terms = [
@@ -139,6 +141,7 @@ def find_keywords_with_matches(text, terms, threshold):
 
 islam_marker_regex = re.compile(r"\bkopftuch\w*\b")
 hate_context_regex = re.compile(r"\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b")
+misogyny_marker_regex = re.compile(r"\b(schlampe|hure|weibsstück|weib|tussi)\b")
 
 def augment_islamfeindlichkeit(text, kws):
     t = text or ""
@@ -154,10 +157,25 @@ def augment_islamfeindlichkeit(text, kws):
 
     return list(set(hits))
 
+def augment_frauenfeindlichkeit(text, kws):
+    t = text or ""
+    hits = list(kws or [])
+
+    if any(str(k).lower().startswith(("frauenfeind", "misogyn", "sexist")) for k in hits):
+        if "frauenfeindlichkeit" not in hits:
+            hits.append("frauenfeindlichkeit")
+        return list(set(hits))
+
+    if misogyny_marker_regex.search(t) and hate_context_regex.search(t):
+        hits.append("frauenfeindlichkeit")
+
+    return list(set(hits))
+
 for idx, text in df_text.items():
     print(f"Processing row {idx+1} of {len(df_new)}")
     kws = find_keywords(text, keywords, diff_threshold)
     kws = augment_islamfeindlichkeit(text, kws)
+    kws = augment_frauenfeindlichkeit(text, kws)
     related = bool(kws)
     df_new.at[idx, "RightWingRelated"] = related
     df_new.at[idx, "KeywordMatch"] = kws
