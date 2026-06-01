@@ -85,7 +85,6 @@
     const dMin = new Date(Math.min(...allDates));
     const dMax = new Date(Math.max(...allDates));
     const days = (+dMax - +dMin) / 86400000;
-    const span = +dMax - +dMin;
 
     const minW =
       typeof window !== "undefined"
@@ -127,9 +126,7 @@
         .filter((p) => matchesCategory(p.raw, cat))
         .map((p) => ({ ...p, catId: cat.id, color: cat.color, active: cat.on }));
       newCounts[cat.id] = catItems.length;
-      [...catItems]
-        .sort((a, b) => (reversed ? +b.date - +a.date : +a.date - +b.date))
-        .forEach((it, i) => preItems.push({ ...it, desiredRow: i }));
+      catItems.forEach((it) => preItems.push(it));
     }
 
     const labelFn =
