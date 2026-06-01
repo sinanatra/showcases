@@ -1,4 +1,5 @@
-export const FONT = "Arial, Courier, monospace";
+// "Courier Prime, monospace" / "Cutive Mono, monospace"
+export const FONT = "Courier Prime, monospace";
 export const FS = 10;
 export const CHAR_W = FS * 0.601;
 export const LINE_H = 13;
@@ -7,92 +8,82 @@ export const H_PAD = 20;
 export const PX_PER_DAY = 5;
 export const SNIP_MAX = 120;
 
-export const CAT_COLORS = [
-  "#b52a2a", // red
-  "#1f5fa6", // blue
-  "#1a7a3c", // green
-  "#7a2a8f", // purple
-  "#c96800", // amber
-  "#007070", // teal
-  "#b5006e", // magenta
-  "#444444", // dark gray
-  "#7a4d00", // brown
-  "#3a7a00", // lime
-];
-
-export const STORAGE_KEY = "timeline-cat-v7";
+export const DEFAULT_SHOW_BERLIN      = true;
+export const DEFAULT_SHOW_BRANDENBURG = false;
+export const DEFAULT_REVERSED         = true;
+export const DEFAULT_DISPLAY_MODE     = "text";
 
 export const DEFAULT_CATEGORIES = [
   {
     id: "rechts",
-    label: "Rechtsextremismus",
+    label: "Far-right extremism",
+    color: "#A5A5A5",
     type: "canonical",
     query: "rechtsextremismus",
     on: true,
-    desc: "Incidents classified under right-wing extremism (PMK-rechts). The largest single category in the dataset.",
+    desc: "Politically motivated crimes logging extreme right incidents. The largest category in the dataset.",
   },
   {
     id: "antisem",
-    label: "Antisemitismus",
+    label: "Antisemitism",
+    color: "#dddddd",
     type: "canonical",
     query: "antisemitismus",
     on: true,
-    desc: "Incidents targeting Jewish individuals, communities, or institutions. PMK sometimes also logs Israel/Palestine protests here — see Palestine / Gaza for overlap.",
+    desc: "Politically motivated crimes focussed on antisemitic incidents: graffiti, threats, physical attacks.",
   },
   {
     id: "fremd",
-    label: "Fremdenfeindlichkeit",
+    label: "Xenophobia",
+    color: "#E2E2E2",
     type: "canonical",
     query: "fremdenfeindlichkeit",
     on: true,
-    desc: "Incidents classified as xenophobic or racially motivated. Classification varies by reporting officer.",
+    desc: "Politically motivated crimes including xenophobic and racially motivated incidents.",
   },
   {
     id: "queer",
-    label: "Queerfeindlichkeit",
+    label: "Anti-LGBTQ+ violence",
+    color: "#9c9c9c",
     type: "canonical",
     query: "queerfeindlichkeit",
     on: true,
-    desc: "Incidents targeting LGBTQ+ people. A relatively recent PMK subcategory; coverage is uneven across Bundesländer.",
+    desc: "Politically motivated crimes targeting LGBTQ+ people.",
   },
   {
     id: "islam",
-    label: "Islamfeindlichkeit",
+    label: "Islamophobia",
+    color: "#bbbbbb",
     type: "canonical",
     query: "islamfeindlichkeit",
-    on: false,
-    desc: "Incidents with an anti-Muslim dimension. Likely under-represented in this dataset relative to other categories.",
+    on: true,
+    desc: "Politically motivated crimes including incidents targeting Muslims and Muslim institutions.",
   },
   {
     id: "vv",
-    label: "Volksverhetzung",
+    label: "Incitement to hatred",
+    color: "#BDBDBD",
     type: "canonical",
     query: "volksverhetzung",
-    on: false,
-    desc: "Incidents prosecuted under §130 StGB (incitement to hatred). Cuts across all political motives; includes online content.",
+    on: true,
+    desc: "Politically motivated crimes under §130 StGB: incitement to hatred.",
   },
   {
     id: "palaestina",
     label: "Palestine / Gaza",
+    color: "#FAFAFA",
     type: "text",
     query: "palästina,palestine,gaza,pro-palästina",
-    on: false,
-    desc: "Incidents involving pro-Palestinian demonstrations or Gaza-related context. Many are simultaneously logged under Antisemitismus — the same event can appear in both categories.",
+    on: true,
+    desc: "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
   },
   {
     id: "misogyn",
-    label: "Misogynie / Frauenfeindlichkeit",
+    label: "Misogyny",
+    color: "#e7e7e7",
     type: "text",
     query: "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus",
     on: true,
-    desc: "Misogynistic and women-hostile incidents. Not a PMK category — absent from the official hate crime record.",
-  },
-  {
-    id: "femizid",
-    label: "Femicide / Women",
-    type: "text",
-    query: "femizid,femizide,frauenmord,incel",
-    on: false,
-    desc: "Femicide and incel-related incidents. These are absent from the PMK record — a structural blind spot in Germany's hate crime statistics.",
+    desc: "Misogyny is not recognised as a politically motivated crime. It almost never appear in police reports and therefore underrepresented.",
   },
 ];
