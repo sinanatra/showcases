@@ -563,14 +563,14 @@
       </svg>
     </div>
 
-    <TimelineExport
+    <!-- <TimelineExport
       onExportSVG={exportSVG}
       onExportPNG={exportPNG}
       {exporting}
       {exportingPng}
       {translating}
       hasRows={rows.length > 0}
-    />
+    /> -->
   {/if}
 </section>
 
