@@ -134,7 +134,7 @@
       displayMode === "text"
         ? (it) => snippetFor(it, categories)
         : (it) => it.title || it.text || "";
-    const allPlaced = placeItems(preItems, xScale, labelFn);
+    const allPlaced = placeItems(preItems, xScale, labelFn, textAlign);
 
     counts = newCounts;
     const maxY = allPlaced.reduce((m, p) => Math.max(m, p.y + LINE_H), 0);
@@ -209,6 +209,7 @@
     }
     void categories.length;
     void reversed;
+    void textAlign;
     void showBerlin;
     void showBrandenburg;
     void displayMode;
