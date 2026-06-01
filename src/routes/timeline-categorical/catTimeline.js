@@ -98,10 +98,12 @@ export function snippetFor(item, categories) {
   if (!cat) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
 
   let terms;
+  let directTerms = false; // when true: search terms as-is, no stemming or length filter
   if (cat.type === "canonical") {
     // Prefer explicit text terms from config (actual keywords present in scraped text)
     if (Array.isArray(/** @type {any} */ (cat).terms) && /** @type {any} */ (cat).terms.length) {
       terms = /** @type {any} */ (cat).terms;
+      directTerms = true;
     } else {
       const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
       terms = kws
@@ -115,6 +117,7 @@ export function snippetFor(item, categories) {
       .map((s) => s.trim())
       .filter(Boolean)
       .flatMap((t) => t.split("+").map((s) => s.trim()));
+    directTerms = true;
   }
 
   // Strip boilerplate: footer and leading "Nr. XXXX" metadata line
@@ -149,13 +152,21 @@ export function snippetFor(item, categories) {
     return [...out];
   }
 
-  outer: for (const term of terms) {
-    for (const stem of stems(term)) {
-      // Only accept stems that are at least half the original term length,
-      // to avoid false matches from aggressive stripping (e.g. "islam" from "islamfeindlichkeit")
-      if (stem.length < Math.max(5, Math.ceil(term.length / 2))) continue;
-      const idx = lower.indexOf(stem);
+  if (directTerms) {
+    // Config terms are explicit — search directly, no stemming or length filter
+    outer: for (const term of terms) {
+      const idx = lower.indexOf(term.toLowerCase());
       if (idx !== -1) { pos = idx; break outer; }
+    }
+  } else {
+    outer: for (const term of terms) {
+      for (const stem of stems(term)) {
+        // Only accept stems that are at least half the original term length,
+        // to avoid false matches from aggressive stripping (e.g. "islam" from "islamfeindlichkeit")
+        if (stem.length < Math.max(5, Math.ceil(term.length / 2))) continue;
+        const idx = lower.indexOf(stem);
+        if (idx !== -1) { pos = idx; break outer; }
+      }
     }
   }
   if (pos === -1) return item.title || clean.slice(0, SNIP_MAX) + (clean.length > SNIP_MAX ? "…" : "");

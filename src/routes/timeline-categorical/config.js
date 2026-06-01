@@ -51,7 +51,7 @@ export const DEFAULT_CATEGORIES = [
     color: "#a4b1a1",
     type: "canonical",
     query: "queerfeindlichkeit",
-    terms: ["queerfeindlichkeit", "queerfeindlich", "queerphobie", "homophobie", "homophob", "transphobie", "transphob", "transfrau", "transgender", "regenbogenfahne", "homosexuell", "schwul", "lesbisch"],
+    terms: ["homophob", "transphob", "queerfeindlich", "queerphobie", "homophobie", "transphobie", "transfrau", "transgender", "regenbogenfahne", "homosexuell", "schwul", "lesbisch", "csd", "pride", "christopher street"],
     on: true,
     desc: "Politically motivated crimes targeting LGBTQ+ people.",
   },
