@@ -59,6 +59,6 @@
     font-family: Courier, monospace;
     font-size: 0.75rem;
     color: var(--color-1);
-    opacity: 0.8;
+q    opacity: 0.8;
   }
 </style>

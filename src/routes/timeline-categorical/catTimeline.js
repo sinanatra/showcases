@@ -56,23 +56,38 @@ export function matchesCategory(a, cat) {
 }
 
 export function placeItems(preItems, xScale, labelFn) {
-  const sorted = [...preItems].sort((a, b) =>
-    a.desiredRow !== b.desiredRow
-      ? a.desiredRow - b.desiredRow
-      : +a.date - +b.date,
-  );
   const GAP = 6;
-  const rowEndX = new Map();
-  return sorted.map((it) => {
-    const label = labelFn(it);
-    const x = xScale(it.date);
-    const hw = Math.ceil(label.length * CHAR_W) / 2;
-    const xStart = x - hw - GAP;
-    const xEnd = x + hw + GAP;
-    let row = it.desiredRow ?? 0;
+
+  // Pre-compute screen x and label for every item
+  const withX = preItems.map((it) => ({ ...it, x: xScale(it.date), label: labelFn(it) }));
+
+  // Assign desiredRow per category in left-to-right screen order
+  const groups = new Map();
+  for (const it of withX) {
+    if (!groups.has(it.catId)) groups.set(it.catId, []);
+    groups.get(it.catId).push(it);
+  }
+  const withRow = [];
+  for (const items of groups.values()) {
+    items.sort((a, b) => a.x - b.x);
+    items.forEach((it, i) => withRow.push({ ...it, desiredRow: i }));
+  }
+
+  // Wave sort: desiredRow=0 first (one item per category), then 1, etc.
+  withRow.sort((a, b) => a.desiredRow - b.desiredRow || a.x - b.x);
+
+  const rowEndX = new Map();   // global collision map (inter-category avoidance)
+  const catFloor = new Map();  // per-category: row never decreases within a category
+
+  return withRow.map((it) => {
+    const hw = Math.ceil(it.label.length * CHAR_W) / 2;
+    const xStart = it.x - hw - GAP;
+    const xEnd = it.x + hw + GAP;
+    let row = Math.max(it.desiredRow, catFloor.get(it.catId) ?? 0);
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
-    return { ...it, x, y: row * LINE_H, label };
+    catFloor.set(it.catId, Math.max(catFloor.get(it.catId) ?? 0, row));
+    return { ...it, y: row * LINE_H };
   });
 }
 
@@ -97,7 +112,13 @@ export function snippetFor(item, categories) {
       .flatMap((t) => t.split("+").map((s) => s.trim()));
   }
 
-  const lower = raw.toLowerCase();
+  // Strip boilerplate: footer and leading "Nr. XXXX" metadata line
+  let clean = raw
+    .replace(/\nPolizei Berlin\nPressearbeit[\s\S]*/i, "")
+    .replace(/^Nr\.\s*\d+\s*[\n\r]+/i, "")
+    .trim();
+
+  const lower = clean.toLowerCase();
   let pos = -1;
 
   // German suffix stripping: noun forms → stem shared with adjective/inflected forms
@@ -117,22 +138,38 @@ export function snippetFor(item, categories) {
       if (idx !== -1) { pos = idx; break outer; }
     }
   }
-  if (pos === -1) return item.title || raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
+  if (pos === -1) return item.title || clean.slice(0, SNIP_MAX) + (clean.length > SNIP_MAX ? "…" : "");
 
-  // Find the sentence containing pos (bounded by . ! ? or newline)
+  // Sentence boundary: \n always splits; "." only splits if followed by space+uppercase letter
+  // (avoids false breaks on "Nr.", "ca.", "Str.", etc.)
+  function isSentBoundary(text, i) {
+    const ch = text[i];
+    if (ch === "!" || ch === "?" || ch === "\n") return true;
+    if (ch !== ".") return false;
+    return /^\s+[A-ZÄÖÜ]/.test(text.slice(i + 1)) || text.slice(i + 1).trimStart() === "";
+  }
+
+  // Scan backward for sentence start
   let sentStart = pos;
-  while (sentStart > 0 && !/[.!?\n]/.test(raw[sentStart - 1])) sentStart--;
-  while (sentStart < pos && raw[sentStart] === " ") sentStart++;
+  while (sentStart > 0 && !isSentBoundary(clean, sentStart - 1)) sentStart--;
+  while (sentStart < pos && /\s/.test(clean[sentStart])) sentStart++;
 
+  // Scan forward for sentence end
   let sentEnd = pos;
-  while (sentEnd < raw.length && !/[.!?\n]/.test(raw[sentEnd])) sentEnd++;
-  if (sentEnd < raw.length) sentEnd++; // include punctuation
+  while (sentEnd < clean.length && !isSentBoundary(clean, sentEnd)) sentEnd++;
+  if (sentEnd < clean.length) sentEnd++;
 
-  const sentence = raw.slice(sentStart, sentEnd).trim();
+  // Normalise internal whitespace in the extracted sentence
+  const sentence = clean.slice(sentStart, sentEnd).trim().replace(/\s+/g, " ");
   if (sentence.length <= SNIP_MAX) return sentence;
-  // Sentence too long: fall back to window centered on keyword
+
+  // Too long: window centered on keyword, clipped at word boundaries
+  const relPos = pos - sentStart;
   const half = Math.floor(SNIP_MAX / 2);
-  const s = Math.max(sentStart, pos - half);
-  const e = Math.min(sentEnd, pos + half);
-  return (s > sentStart ? "…" : "") + raw.slice(s, e).trim() + (e < sentEnd ? "…" : "");
+  let s = Math.max(0, relPos - half);
+  let e = Math.min(sentence.length, relPos + half);
+  // Snap to word boundaries
+  while (s > 0 && sentence[s] !== " ") s--;
+  while (e < sentence.length && sentence[e] !== " ") e++;
+  return (s > 0 ? "…" : "") + sentence.slice(s, e).trim() + (e < sentence.length ? "…" : "");
 }
