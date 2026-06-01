@@ -8,6 +8,7 @@ export const H_PAD = 20;
 export const PX_PER_DAY = 5;
 export const SNIP_MAX = 120;
 
+export const DEFAULT_SHOW_BILANZ      = false;
 export const DEFAULT_SHOW_BERLIN      = true;
 export const DEFAULT_SHOW_BRANDENBURG = false;
 export const DEFAULT_REVERSED         = true;
