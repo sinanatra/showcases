@@ -61,13 +61,14 @@ export function placeItems(preItems, xScale, labelFn) {
       ? a.desiredRow - b.desiredRow
       : +a.date - +b.date,
   );
+  const GAP = 6;
   const rowEndX = new Map();
   return sorted.map((it) => {
     const label = labelFn(it);
     const x = xScale(it.date);
     const hw = Math.ceil(label.length * CHAR_W) / 2;
-    const xStart = x - hw;
-    const xEnd = x + hw + 4;
+    const xStart = x - hw - GAP;
+    const xEnd = x + hw + GAP;
     let row = it.desiredRow ?? 0;
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
@@ -98,11 +99,22 @@ export function snippetFor(item, categories) {
 
   const lower = raw.toLowerCase();
   let pos = -1;
-  for (const term of terms) {
-    const idx = lower.indexOf(term.toLowerCase());
-    if (idx !== -1) {
-      pos = idx;
-      break;
+
+  // German suffix stripping: noun forms → stem shared with adjective/inflected forms
+  const SUFFIXES = ["keit", "heit", "schaft", "ismus", "ierung", "ung", "lich", "isch", "en", "em", "er", "es", "e", "n", "s"];
+  function stems(term) {
+    const t = term.toLowerCase();
+    const out = [t];
+    for (const s of SUFFIXES) {
+      if (t.endsWith(s) && t.length - s.length >= 6) out.push(t.slice(0, t.length - s.length));
+    }
+    return out;
+  }
+
+  outer: for (const term of terms) {
+    for (const stem of stems(term)) {
+      const idx = lower.indexOf(stem);
+      if (idx !== -1) { pos = idx; break outer; }
     }
   }
   if (pos === -1) return item.title || raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");

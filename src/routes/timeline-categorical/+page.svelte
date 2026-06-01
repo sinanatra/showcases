@@ -14,38 +14,18 @@
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H,
-    CAT_COLORS, STORAGE_KEY, DEFAULT_CATEGORIES,
+    DEFAULT_CATEGORIES,
+    DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
+    DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE,
   } from "./config.js";
   import { matchesCategory, snippetFor, placeItems, wrapText } from "./catTimeline.js";
 
-  // ── persistence ───────────────────────────────────────────────
-  function loadState() {
-    if (typeof localStorage === "undefined") return null;
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    } catch {
-      return null;
-    }
-  }
-  function saveState(cats, opts) {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cats, opts }));
-  }
-
-  const saved = loadState();
-  let categories = $state(saved?.cats ?? DEFAULT_CATEGORIES);
-  let showBerlin = $state(saved?.opts?.showBerlin ?? true);
-  let showBrandenburg = $state(saved?.opts?.showBrandenburg ?? false);
-  let reversed = $state(saved?.opts?.reversed ?? false);
-  let displayMode = $state(saved?.opts?.displayMode ?? "title");
-  let panelOpen = $state(true);
-
-  $effect(() => {
-    saveState(
-      categories.map((c) => ({ ...c })),
-      { showBerlin, showBrandenburg, reversed, displayMode },
-    );
-  });
+  let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
+  let showBerlin    = $state(DEFAULT_SHOW_BERLIN);
+  let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
+  let reversed      = $state(DEFAULT_REVERSED);
+  let displayMode   = $state(DEFAULT_DISPLAY_MODE);
+  let panelOpen     = $state(true);
 
   // ── filters ───────────────────────────────────────────────────
   function passesRegion(a) {
@@ -80,9 +60,10 @@
       return;
     }
 
+    const MIN_DATE = new Date("2020-01-01");
     const parsed = arts.flatMap((a) => {
       const d = parseDateLoose(a.ExtractedDate || a.Date);
-      if (!d) return [];
+      if (!d || d < MIN_DATE) return [];
       return [
         {
           date: d,
@@ -109,25 +90,36 @@
 
     const xScale = d3
       .scaleTime()
-      .domain([new Date(+dMin - span * 0.01), new Date(+dMax + span * 0.01)])
+      .domain([new Date(dMin.getFullYear(), 0, 1), dMax])
       .range(reversed ? [W - H_PAD, H_PAD] : [H_PAD, W - H_PAD]);
 
-    ticks = xScale.ticks(d3.timeMonth.every(1)).map((d) => ({
+    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    const makeTick = (/** @type {Date} */ d) => ({
       x: xScale(d),
       isYear: d.getMonth() === 0,
-      isQuarter: d.getMonth() % 3 === 0,
-      month: d.toLocaleString($lang === "de" ? "de-DE" : "en-GB", { month: "short" }),
-      label: d.getFullYear(),
-    }));
+      month: d.toLocaleString(locale, { month: "short" }),
+      year: d.getFullYear(),
+    });
+    const monthTicks = xScale.ticks(d3.timeMonth.every(1)).map(makeTick);
+    const lastTick = makeTick(dMax);
+    const lastMonthX = monthTicks.at(-1)?.x ?? -Infinity;
+    const allTicks = Math.abs(lastTick.x - lastMonthX) > 4
+      ? [...monthTicks, lastTick]
+      : monthTicks;
+    // mark boundary ticks so the grid can label them with month+year
+    if (allTicks.length) {
+      allTicks[0] = { ...allTicks[0], isFirst: true };
+      allTicks[allTicks.length - 1] = { ...allTicks[allTicks.length - 1], isLast: true };
+    }
+    ticks = allTicks;
 
     const preItems = [];
     /** @type {Record<string,number>} */ const newCounts = {};
 
     for (const cat of categories) {
-      const colorIdx = categories.indexOf(cat);
       const catItems = parsed
         .filter((p) => matchesCategory(p.raw, cat))
-        .map((p) => ({ ...p, catId: cat.id, colorIdx, active: cat.on }));
+        .map((p) => ({ ...p, catId: cat.id, color: cat.color, active: cat.on }));
       newCounts[cat.id] = catItems.length;
       [...catItems]
         .sort((a, b) => (reversed ? +b.date - +a.date : +a.date - +b.date))
@@ -156,15 +148,13 @@
 
     const markers = categories.map((cat) => {
       const items = allPlaced.filter((p) => p.catId === cat.id);
-      const colorIdx = categories.indexOf(cat);
       const descLines = cat.desc ? wrapText(cat.desc, WRAP_CHARS) : [];
       if (!items.length)
-        return { cat, x: H_PAD, colorIdx, hasTick: false, descLines };
+        return { cat, x: H_PAD, hasTick: false, descLines };
       const first = items.reduce((a, b) => (a.x < b.x ? a : b));
       return {
         cat,
         x: Math.max(H_PAD, first.x),
-        colorIdx,
         hasTick: true,
         descLines,
       };
@@ -299,13 +289,52 @@
   let exporting = $state(false);
   let exportingPng = $state(false);
 
+  /** Appends a category legend to a cloned SVG; returns added height. */
+  function appendLegend(clone) {
+    const ns = "http://www.w3.org/2000/svg";
+    const FONT = "Courier, monospace";
+    const activeCats = categories.filter(c => (counts[c.id] ?? 0) > 0);
+    if (!activeCats.length) return 0;
+
+    const chipW = 130; const chipH = 13; const gap = 6; const padX = H_PAD;
+    const cols = Math.max(1, Math.floor((dataSvgW - padX) / (chipW + gap)));
+    const rows = Math.ceil(activeCats.length / cols);
+    const legendY = svgH + 16;
+
+    const g = document.createElementNS(ns, "g");
+    activeCats.forEach((cat, i) => {
+      const color = cat.color ?? "#999";
+      const label = ($lang === "en" ? (translatedMap[cat.label] ?? cat.label) : cat.label);
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = padX + col * (chipW + gap);
+      const y = legendY + row * (chipH + gap);
+
+      const rect = document.createElementNS(ns, "rect");
+      rect.setAttribute("x", String(x)); rect.setAttribute("y", String(y));
+      rect.setAttribute("width", String(chipW)); rect.setAttribute("height", String(chipH));
+      rect.setAttribute("fill", color);
+
+      const text = document.createElementNS(ns, "text");
+      text.setAttribute("x", String(x + 3)); text.setAttribute("y", String(y + chipH - 3));
+      text.setAttribute("font-family", FONT); text.setAttribute("font-size", "9");
+      text.setAttribute("fill", "#000");
+      text.textContent = label;
+
+      g.appendChild(rect); g.appendChild(text);
+    });
+    clone.appendChild(g);
+    return 16 + rows * (chipH + gap) + 10;
+  }
+
   function exportSVG() {
     if (!svgEl) return;
     exporting = true;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
     clone.setAttribute("width", String(dataSvgW));
-    clone.setAttribute("height", String(svgH));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
+    const legendH = appendLegend(clone);
+    clone.setAttribute("height", String(svgH + legendH));
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
       type: "image/svg+xml",
     });
@@ -323,12 +352,14 @@
     exportingPng = true;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
     clone.setAttribute("width", String(dataSvgW));
-    clone.setAttribute("height", String(svgH));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
+    const legendH = appendLegend(clone);
+    const totalH = svgH + legendH;
+    clone.setAttribute("height", String(totalH));
     const s = new XMLSerializer().serializeToString(clone);
     const canvas = document.createElement("canvas");
     canvas.width = dataSvgW;
-    canvas.height = svgH;
+    canvas.height = totalH;
     const ctx = canvas.getContext("2d");
     const img = new Image();
     await new Promise((r) => {
@@ -359,8 +390,8 @@
         <svg bind:this={svgEl}>
           <g class="zoom-group" transform={zoomTransform}>
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
-            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} catColors={CAT_COLORS} />
-            <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} catColors={CAT_COLORS} />
+            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} />
+            <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} />
           </g>
         </svg>
       {/if}
@@ -375,7 +406,6 @@
   <CatPanel
     bind:categories
     {counts}
-    catColors={CAT_COLORS}
     bind:showBerlin
     bind:showBrandenburg
     bind:reversed
