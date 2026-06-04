@@ -15,11 +15,72 @@
   } = $props();
 
   let expandedCats = $state(/** @type {Set<string>} */ (new Set()));
+  let addOpen = $state(false);
+  let newLabel = $state("");
+  let newColor = $state("#dddddd");
+  let newType = $state("text");
+  let newQuery = $state("");
+  let newDesc = $state("");
+  let copyFeedback = $state("");
+  let editingId = $state(/** @type {string|null} */ (null));
+  let editDraft = $state(/** @type {{label:string,color:string,type:string,query:string,desc:string}|null} */ (null));
 
-  function toggleDesc(id) {
+  function toggleDesc(/** @type {string} */ id) {
     const s = new Set(expandedCats);
     s.has(id) ? s.delete(id) : s.add(id);
     expandedCats = s;
+  }
+
+  function slugify(/** @type {string} */ s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 20);
+  }
+
+  function addCategory() {
+    if (!newLabel.trim()) return;
+    const id = slugify(newLabel) || `cat_${Date.now()}`;
+    const cat = { id, label: newLabel.trim(), color: newColor, type: newType, query: newQuery.trim(), on: true, desc: newDesc.trim() };
+    categories = [...categories, cat];
+    newLabel = ""; newColor = "#dddddd"; newType = "text"; newQuery = ""; newDesc = "";
+    onRebuild();
+  }
+
+  function startEdit(/** @type {any} */ cat) {
+    editingId = cat.id;
+    editDraft = { label: cat.label, color: cat.color, type: cat.type, query: cat.query ?? "", desc: cat.desc ?? "" };
+  }
+
+  function saveEdit() {
+    if (!editDraft) return;
+    categories = categories.map((c) => c.id === editingId ? { ...c, ...editDraft } : c);
+    editingId = null; editDraft = null;
+    onRebuild();
+  }
+
+  function cancelEdit() {
+    editingId = null; editDraft = null;
+  }
+
+  function deleteCategory(/** @type {string} */ id) {
+    categories = categories.filter((c) => c.id !== id);
+    onRebuild();
+  }
+
+  async function copyCatJSON(/** @type {any} */ cat) {
+    const safeStr = (/** @type {string|undefined} */ s) => (s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const lines = [
+      `{`,
+      `  id: "${safeStr(cat.id)}",`,
+      `  label: "${safeStr(cat.label)}",`,
+      `  color: "${safeStr(cat.color)}",`,
+      `  type: "${safeStr(cat.type)}",`,
+      `  query: "${safeStr(cat.query)}",`,
+      `  on: true,`,
+    ];
+    if (cat.desc) lines.push(`  desc: "${safeStr(cat.desc)}",`);
+    lines.push(`},`);
+    await navigator.clipboard.writeText(lines.join("\n"));
+    copyFeedback = cat.id;
+    setTimeout(() => { copyFeedback = ""; }, 1400);
   }
 </script>
 
@@ -60,9 +121,46 @@
                 >{open ? "▾" : "▸"}</button
               >
             {/if}
+            <button
+              class="copy-btn"
+              class:copied={copyFeedback === cat.id}
+              title="Copy JSON"
+              onclick={() => copyCatJSON(cat)}
+            >{copyFeedback === cat.id ? "✓" : "⎘"}</button>
+            <button class="copy-btn" title="Edit" onclick={() => startEdit(cat)}>✎</button>
+            <button class="copy-btn del-btn" title="Delete" onclick={() => deleteCategory(cat.id)}>×</button>
           </div>
           {#if open && cat.desc}
             <div class="cat-desc">{cat.desc}</div>
+          {/if}
+          {#if editingId === cat.id && editDraft}
+            <div class="add-form edit-form">
+              <label class="add-label">Label
+                <input class="add-input" bind:value={editDraft.label} />
+              </label>
+              <label class="add-label">Color
+                <div class="color-row">
+                  <input type="color" bind:value={editDraft.color} class="color-swatch" />
+                  <input class="add-input" bind:value={editDraft.color} style="flex:1" />
+                </div>
+              </label>
+              <label class="add-label">Type
+                <select class="add-input" bind:value={editDraft.type}>
+                  <option value="text">text</option>
+                  <option value="canonical">canonical</option>
+                </select>
+              </label>
+              <label class="add-label">Query
+                <input class="add-input" bind:value={editDraft.query} />
+              </label>
+              <label class="add-label">Description
+                <textarea class="add-input add-textarea" bind:value={editDraft.desc}></textarea>
+              </label>
+              <div class="edit-actions">
+                <button class="ctrl-btn add-submit" onclick={saveEdit}>save</button>
+                <button class="ctrl-btn" onclick={cancelEdit}>cancel</button>
+              </div>
+            </div>
           {/if}
         </div>
       {/each}
@@ -129,6 +227,40 @@
       >
         {reversed ? $t("cat.orderNewest") : $t("cat.orderOldest")}
       </button>
+
+      <div class="section-title" style="margin-top:16px">Add category</div>
+      <button class="ctrl-btn" onclick={() => { addOpen = !addOpen; }}>
+        {addOpen ? "▾ cancel" : "▸ new…"}
+      </button>
+      {#if addOpen}
+        <div class="add-form">
+          <label class="add-label">Label
+            <input class="add-input" bind:value={newLabel} placeholder="e.g. Islamophobia" />
+          </label>
+          <label class="add-label">Color
+            <div class="color-row">
+              <input type="color" bind:value={newColor} class="color-swatch" />
+              <input class="add-input" bind:value={newColor} placeholder="#dddddd" style="flex:1" />
+            </div>
+          </label>
+          <label class="add-label">Type
+            <select class="add-input" bind:value={newType}>
+              <option value="text">text</option>
+              <option value="canonical">canonical</option>
+            </select>
+          </label>
+          <label class="add-label">Query (comma-separated)
+            <input class="add-input" bind:value={newQuery} placeholder="term1,term2,…" />
+          </label>
+          <label class="add-label">Description
+            <textarea class="add-input add-textarea" bind:value={newDesc} placeholder="Optional note…"></textarea>
+          </label>
+          {#if newLabel.trim()}
+            <div class="id-preview">id: {slugify(newLabel) || "…"}</div>
+          {/if}
+          <button class="ctrl-btn add-submit" onclick={addCategory}>+ Add to timeline</button>
+        </div>
+      {/if}
     </div>
   {/if}
 </aside>
@@ -300,5 +432,95 @@
     background: #333;
     color: #fff;
     border-color: #333;
+  }
+
+  .copy-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+    font-family: Courier, monospace;
+    line-height: 1;
+  }
+  .copy-btn:hover { color: #555; }
+  .copy-btn.copied { color: #4a4; }
+  .del-btn:hover { color: #c44; }
+
+  .edit-form {
+    margin-top: 4px;
+    padding: 6px;
+    background: #f2f1ed;
+    border-left: 2px solid #ddd;
+  }
+  .edit-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .edit-actions .ctrl-btn {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .add-form {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .add-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #aaa;
+  }
+  .add-input {
+    font-family: Courier, monospace;
+    font-size: 11px;
+    color: #333;
+    background: #f9f9f7;
+    border: 1px solid #ddd;
+    padding: 3px 5px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .add-input:focus { outline: 1px solid #aaa; }
+  .add-textarea {
+    resize: vertical;
+    min-height: 42px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .color-swatch {
+    width: 28px;
+    height: 22px;
+    border: 1px solid #ddd;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .id-preview {
+    font-size: 9px;
+    color: #bbb;
+    font-style: italic;
+    padding-left: 2px;
+  }
+  .add-submit {
+    margin-top: 2px;
+    color: #555;
+    border-color: #aaa;
+  }
+  .add-submit:hover {
+    background: #222;
+    color: #fff;
+    border-color: #222;
   }
 </style>
