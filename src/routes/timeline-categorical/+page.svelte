@@ -13,7 +13,7 @@
   import TimelineItems from "./TimelineItems.svelte";
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
-    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H,
+    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, MARKER_LABEL_FS, MARKER_DESC_FS,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE, DEFAULT_TEXT_ALIGN,
@@ -109,15 +109,20 @@
     const monthTicks = xScale.ticks(d3.timeMonth.every(1)).map(makeTick);
     const lastTick = makeTick(dMax);
     const lastMonthX = monthTicks.at(-1)?.x ?? -Infinity;
-    const allTicks = Math.abs(lastTick.x - lastMonthX) > 4
+    const majorTicks = Math.abs(lastTick.x - lastMonthX) > 4
       ? [...monthTicks, lastTick]
       : monthTicks;
-    // mark boundary ticks so the grid can label them with month+year
-    if (allTicks.length) {
-      allTicks[0] = { ...allTicks[0], isFirst: true };
-      allTicks[allTicks.length - 1] = { ...allTicks[allTicks.length - 1], isLast: true };
+    if (majorTicks.length) {
+      majorTicks[0] = { ...majorTicks[0], isFirst: true };
+      majorTicks[majorTicks.length - 1] = { ...majorTicks[majorTicks.length - 1], isLast: true };
     }
-    ticks = allTicks;
+
+    const midTicks = majorTicks.slice(0, -1).map((t, i) => ({
+      x: (t.x + majorTicks[i + 1].x) / 2,
+      isWeek: true,
+    }));
+
+    ticks = [...majorTicks, ...midTicks];
 
     const preItems = [];
     /** @type {Record<string,number>} */ const newCounts = {};
@@ -130,11 +135,13 @@
       catItems.forEach((it) => preItems.push(it));
     }
 
+    const filteredItems = preItems;
+
     const labelFn =
       displayMode === "text"
         ? (it) => snippetFor(it, categories)
         : (it) => it.title || it.text || "";
-    const allPlaced = placeItems(preItems, xScale, labelFn, textAlign);
+    const allPlaced = placeItems(filteredItems, xScale, labelFn, textAlign);
 
     counts = newCounts;
     const maxY = allPlaced.reduce((m, p) => Math.max(m, p.y + LINE_H), 0);
@@ -143,10 +150,10 @@
     placed = allPlaced;
 
     // ── category markers ────────────────────────────────────────
-    const CAT_CW = 9 * 0.601;
-    const DESC_CW = 7 * 0.601;
-    const DESC_LINE_H = 10;
-    const LABEL_H = 13;
+    const CAT_CW = MARKER_LABEL_FS * 0.601;
+    const DESC_CW = MARKER_DESC_FS * 0.601;
+    const DESC_LINE_H = MARKER_DESC_FS + 2;
+    const LABEL_H = MARKER_LABEL_FS + 4;
     const ROW_GAP = 10;
     const WRAP_CHARS = Math.floor(340 / DESC_CW);
 

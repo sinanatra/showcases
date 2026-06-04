@@ -6,7 +6,9 @@ export const LINE_H = 13;
 export const TOP_PAD = 16;
 export const H_PAD = 20;
 export const PX_PER_DAY = 5;
-export const SNIP_MAX = 100;
+export const SNIP_MAX = 200;
+export const MARKER_LABEL_FS = 24;
+export const MARKER_DESC_FS  = 12;
 
 export const DEFAULT_SHOW_BILANZ      = false;
 export const DEFAULT_SHOW_BERLIN      = true;
@@ -93,5 +95,33 @@ export const DEFAULT_CATEGORIES = [
     query: "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus",
     on: true,
     desc: "Misogyny is not recognised as a politically motivated crime. It almost never appear in police reports and therefore underrepresented.",
+  },
+  {
+    id: "alcohol",
+    label: "Alcohol",
+    color: "#d4c8b0",
+    type: "text",
+    query: "alkohol,betrunken,betrunkener,alkoholisiert,trunkenheit",
+    on: true,
+    desc: "Police reports where alcohol was a factor in the incident.",
+  },
+  {
+    id: "vandalism",
+    label: "Vandalism",
+    color: "#c9c0b0",
+    type: "text",
+    query: "sachbeschädigung,schmiererei,graffiti,beschmiert,sachschaden,hakenkreuz,schmierer",
+    on: true,
+    desc: "Politically motivated vandalism and graffiti. 72% of vandalism cases in the dataset involve swastika symbols. Memorial sites, schools, and residential spaces are frequently targeted.",
+  },
+
+  {
+    id: "youth",
+    label: "Youth",
+    color: "#c5b8a8",
+    type: "text",
+    query: "jugendlich,minderjährig,jugendlicher,heranwachsender,jugend,schüler,jugendliche",
+    on: true,
+    desc: "339 police reports involve people aged 18 or younger — as offenders or victims. They act in groups, share right-extremist beliefs, and are individually targeted by racial aggression.",
   },
 ];
