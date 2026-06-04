@@ -13,7 +13,7 @@
     y1={TOP_PAD}
     x2={t.x}
     y2={baseline}
-    stroke={t.isYear ? "#888" : "#e8e8e8"}
+    stroke={t.isYear ? "#888" : t.isWeek ? "#f0f0f0" : "#e0e0e0"}
     stroke-width=".5"
   />
 {/each}
@@ -28,8 +28,8 @@
   stroke-width=".5"
 />
 
-<!-- axis labels — all identical style -->
-{#each ticks as t}
+<!-- axis labels — month/year only, skip week ticks -->
+{#each ticks.filter(t => !t.isWeek) as t}
   <text
     x={t.x}
     y={baseline + 14}
