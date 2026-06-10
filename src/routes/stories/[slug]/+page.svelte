@@ -111,7 +111,7 @@
   }
 
   :global(.story blockquote) {
-    font-family: "Courier New", Courier, monospace;
+    font-family: var(--font-mono);
   }
 
   .caption {
@@ -125,7 +125,7 @@
   }
 
   .caption p {
-    font-family: "Courier New", Courier, monospace;
+    font-family: var(--font-mono);
     max-width: 400px;
   }
 </style>

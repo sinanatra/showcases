@@ -50,6 +50,7 @@
   // Translation
   let translatedMap = {};
   function snippetKey(item) { return item.before + item.match + item.after; }
+  function origKey(item) { return item.origBefore + item.origMatch + item.origAfter; }
   function splitAround(text, term) {
     if (!term || !text) return null;
     const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -73,6 +74,12 @@
       if (item.match) {
         const kKey = `__k:${item.match}`;
         if (!seen.has(kKey)) toAdd.set(kKey, translateDE_EN(item.match));
+      }
+      const oKey = origKey(item);
+      if (!seen.has(oKey)) toAdd.set(oKey, translateDE_EN(oKey));
+      if (item.origMatch) {
+        const okKey = `__ok:${item.origMatch}`;
+        if (!seen.has(okKey)) toAdd.set(okKey, translateDE_EN(item.origMatch));
       }
     }
     if (!toAdd.size) return;
@@ -193,18 +200,24 @@
         const d = parseDate(a.ExtractedDate || a.Date, t0);
         if (!d) return null;
         const text = a.Text || "";
-        const candidates = [
-          $filters.text,
+        const keywords = [
           ...(Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []),
           ...(Array.isArray(a.KeywordExtracted) ? a.KeywordExtracted : []),
         ].filter(Boolean);
+        const candidates = [$filters.text, ...keywords].filter(Boolean);
         const kw = candidates.find(c => text.toLowerCase().includes(String(c).toLowerCase())) || candidates[0] || "";
         const snippet = shortenAroundKeyword(text, kw, 200);
         const sp = kw ? splitAround(snippet, kw) : null;
         const before = sp ? sp.pre : snippet;
         const match = sp ? sp.hit : "";
         const after = sp ? sp.post : "";
-        return { date: d, before, match, after, url: a.URL };
+        const origKw = keywords[0] || "";
+        const origSnippet = origKw ? shortenAroundKeyword(text, origKw, 200) : text.slice(0, 200);
+        const origSp = origKw ? splitAround(origSnippet, origKw) : null;
+        const origBefore = origSp ? origSp.pre : origSnippet;
+        const origMatch = origSp ? origSp.hit : "";
+        const origAfter = origSp ? origSp.post : "";
+        return { date: d, before, match, after, origBefore, origMatch, origAfter, url: a.URL };
       })
       .filter(Boolean)
       .sort((a, b) => b.date - a.date);
@@ -335,6 +348,8 @@
     if (filteredUnsub) filteredUnsub();
   });
 
+  let showSnippet = true;
+
   // SVG export
   let exporting = false;
 
@@ -393,7 +408,8 @@
     const { accent, bg, textFill } = colors;
 
     const h = rows.length * lineHeight + 50;
-    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:${bg};font-family:Courier,monospace;font-size:${fontSize}px">`;
+    const fontMono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace';
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:${bg};font-family:${fontMono};font-size:${fontSize}px">`;
 
     for (const t of ticks) {
       out += `<line x1="${t.x}" y1="0" x2="${t.x}" y2="${h}" stroke="${accent}" stroke-dasharray="4 4" shape-rendering="crispEdges"/>`;
@@ -536,6 +552,13 @@
               (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
               splitAround(ts, item.match || "")
             ) : null}
+            {@const oKey = origKey(item)}
+            {@const to = translatedMap[oKey]}
+            {@const tok = item.origMatch ? (/** @type {any} */(translatedMap))[`__ok:${item.origMatch}`] : ""}
+            {@const enOrigSplit = isEN && to ? (
+              splitAround(to, tok || "") ||
+              splitAround(to, item.origMatch || "")
+            ) : null}
             <a href={item.url} target="_blank" rel="noopener">
               <text
                 x={normPos(item.date)}
@@ -544,7 +567,15 @@
                 dominant-baseline="middle"
                 text-anchor="start"
               >
-                {#if isEN}
+                {#if !showSnippet}
+                  {#if isEN && enOrigSplit}
+                    <tspan class="text">{enOrigSplit.pre}</tspan><tspan class="highlight">{enOrigSplit.hit}</tspan><tspan class="text">{enOrigSplit.post}</tspan>
+                  {:else if isEN && to}
+                    <tspan class="text">{to}</tspan>
+                  {:else}
+                    <tspan class="text">{item.origBefore}</tspan><tspan class="highlight">{item.origMatch}</tspan><tspan class="text">{item.origAfter}</tspan>
+                  {/if}
+                {:else if isEN}
                   {#if enSplit}
                     <tspan class="text">{enSplit.pre}</tspan><tspan class="highlight">{enSplit.hit}</tspan><tspan class="text">{enSplit.post}</tspan>
                   {:else}
@@ -563,14 +594,20 @@
       </svg>
     </div>
 
-    <!-- <TimelineExport
+    {#if $filters.text}
+      <button class="snippet-toggle" on:click={() => (showSnippet = !showSnippet)}>
+        {showSnippet ? "snippet" : "original"}
+      </button>
+    {/if}
+
+    <TimelineExport
       onExportSVG={exportSVG}
       onExportPNG={exportPNG}
       {exporting}
       {exportingPng}
       {translating}
       hasRows={rows.length > 0}
-    /> -->
+    />
   {/if}
 </section>
 
@@ -605,6 +642,23 @@
     overflow: auto;
     flex-grow: 1;
     will-change: scroll-position;
+  }
+  .snippet-toggle {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--color-1, gainsboro);
+    border: 1px solid var(--color-1, gainsboro);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 8px;
+  }
+  .snippet-toggle:hover {
+    background: var(--color-1, gainsboro);
+    color: black;
   }
   a:hover {
     fill: var(--color-1);

@@ -13,7 +13,7 @@
   import TimelineItems from "./TimelineItems.svelte";
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
-    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, MARKER_LABEL_FS, MARKER_DESC_FS,
+    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, MARKER_LABEL_FS, MARKER_DESC_FS, BASELINE_GAP,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE, DEFAULT_TEXT_ALIGN,
@@ -202,7 +202,7 @@
 
     catMarkers = passOne.map((m) => ({ ...m, yOff: rowY[m.row] }));
     const lastRowH = LABEL_H + (rowMaxLines.get(maxRow) ?? 0) * DESC_LINE_H;
-    svgH = bl + 36 + rowY[maxRow] + lastRowH + 20;
+    svgH = bl + BASELINE_GAP + rowY[maxRow] + lastRowH + 20;
 
     if (!hasInitialFit) { hasInitialFit = true; requestAnimationFrame(fitContent); }
   }
@@ -304,7 +304,7 @@
   /** Appends a category legend to a cloned SVG; returns added height. */
   function appendLegend(clone) {
     const ns = "http://www.w3.org/2000/svg";
-    const FONT = "Courier, monospace";
+    const fontMono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace';
     const activeCats = categories.filter(c => (counts[c.id] ?? 0) > 0);
     if (!activeCats.length) return 0;
 
@@ -329,7 +329,7 @@
 
       const text = document.createElementNS(ns, "text");
       text.setAttribute("x", String(x + 3)); text.setAttribute("y", String(y + chipH - 3));
-      text.setAttribute("font-family", FONT); text.setAttribute("font-size", "9");
+      text.setAttribute("font-family", fontMono); text.setAttribute("font-size", "9");
       text.setAttribute("fill", "#000");
       text.textContent = label;
 
@@ -484,7 +484,7 @@
     padding: 32px;
     color: #aaa;
     font-size: 13px;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
   }
 
   .zoom-reset {
@@ -494,7 +494,7 @@
     z-index: 5;
     background: rgba(244, 243, 239, 0.92);
     border: 1px solid #ccc;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     cursor: pointer;
     padding: 3px 8px;
@@ -520,7 +520,7 @@
     border: none;
     cursor: pointer;
     padding: 0.35rem 0.6rem;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
   }
   .lang-switch button.active {

@@ -1,7 +1,7 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { FONT, TOP_PAD } from "./config.js";
+  import { TOP_PAD } from "./config.js";
 
   let { ticks, baseline, dataSvgW } = $props();
 </script>
@@ -34,7 +34,7 @@
     x={t.x}
     y={baseline + 14}
     text-anchor="middle"
-    font-family={FONT}
+    style="font-family: var(--font-mono)"
     font-size={8}
     fill="#aaa"
   >{t.isFirst || t.isLast
