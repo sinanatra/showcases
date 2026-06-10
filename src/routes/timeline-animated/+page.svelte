@@ -10,6 +10,12 @@
     return unsub;
   });
 
+  let playing = $state(false);
+  let pendingRestart = false;
+
+  function togglePlay() { playing = !playing; }
+  function restart() { pendingRestart = true; playing = true; }
+
   let savedFrames = $state(0);
   let framesToSave = 2000;
 
@@ -250,6 +256,12 @@
     };
 
     p.draw = () => {
+      if (pendingRestart) {
+        pendingRestart = false;
+        resetSketch();
+        return;
+      }
+
       globalBuckets.clear();
 
       if (p.frameCount % 60 === 0) {
@@ -267,7 +279,7 @@
       );
 
       branches.forEach((br) => {
-        if (!isRecording || br.finished || simFrame < br.startFrame) return;
+        if ((!isRecording && !playing) || br.finished || simFrame < br.startFrame) return;
         br.frameCount++;
         if (br.frameCount % growthInterval !== 0 || br.grown >= br.maxSteps)
           return;
@@ -358,7 +370,7 @@
         if (br.grown >= br.maxSteps) br.finished = true;
       });
 
-      if (isRecording) {
+      if (isRecording || playing) {
         simFrame++;
       }
 
@@ -416,7 +428,7 @@
       const allFinished =
         branches.length && branches.every((br) => br.finished);
       if (allFinished) {
-        resetSketch();
+        playing = false;
         return;
       }
 
@@ -429,11 +441,7 @@
       p.image(timelineLayer, -bufferCenter.x, -bufferCenter.y);
       p.pop();
 
-      if (isRecording) {
-        p.frameRate(6);
-      } else {
-        p.frameRate(30);
-      }
+      p.frameRate(isRecording ? 6 : 30);
       if (isRecording && savedFrames < framesToSave) {
         p.saveCanvas("frame-" + p.nf(savedFrames, 4), "png");
         savedFrames++;
@@ -505,6 +513,11 @@
   <P5 {sketch} style="position:absolute; top:0; left:0;" />
 </div>
 
+<div class="controls">
+  <button onclick={togglePlay}>{playing ? "pause" : "play"}</button>
+  <button onclick={restart}>restart</button>
+</div>
+
 <style>
   .viz-container {
     width: 100vw;
@@ -512,5 +525,29 @@
     overflow: hidden;
     background: #000;
     padding: 10px;
+  }
+
+  .controls {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    z-index: 10;
+  }
+
+  .controls button {
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 0.35rem 1rem;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+
+  .controls button:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 </style>
