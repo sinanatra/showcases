@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   import subdivisionsGeo from '$lib/components/map/berlinBrandenburgSubdivisions.json';
+  import streetsGeo from '$lib/components/map/berlinStreets.json';
   import { DEFAULT_CATEGORIES } from '../timeline-categorical/config.js';
   import { matchesCategory } from '../timeline-categorical/catTimeline.js';
   import { parseList } from '$lib/utils/parseList';
@@ -11,7 +12,7 @@
   const BOUNDS     = { minLon: 13.088, maxLon: 13.761, minLat: 52.338, maxLat: 52.677 };
   const ZOOM       = 14;
   const TILE_SCALE = 256;
-  const CELL_PX    = 72;
+  const CELL_PX    = 75;
   const tileUrl    = (z, x, y) =>
     `https://tiles.codefor.de/berlin/geoportal/luftbilder/2025-dop20rgb/${z}/${x}/${y}.png`;
 
@@ -43,6 +44,24 @@
 
   // ── districts ─────────────────────────────────────────────────
   const berlinFeatures = subdivisionsGeo.features.filter(f => f.properties?.region === 'Berlin');
+
+  function pipRing(ring, lon, lat) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi))
+        inside = !inside;
+    }
+    return inside;
+  }
+  function inBerlin(lon, lat) {
+    return berlinFeatures.some(f => {
+      const g = f.geometry;
+      if (g.type === 'Polygon') return pipRing(g.coordinates[0], lon, lat);
+      if (g.type === 'MultiPolygon') return g.coordinates.some(p => pipRing(p[0], lon, lat));
+      return false;
+    });
+  }
   const projection = d3.geoTransform({
     point(lon, lat) { const [x, y] = toCanvas(lon, lat); this.stream.point(x, y); },
   });
@@ -52,6 +71,10 @@
     d:        geoPath(f),
     centroid: geoPath.centroid(f),
   }));
+  const MAJOR_ROADS = new Set(['motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link']);
+  const streetPaths = streetsGeo.features
+    .filter(f => MAJOR_ROADS.has(f.properties?.highway))
+    .map(f => geoPath(f)).filter(Boolean);
 
   // ── tile caching via Cache API ────────────────────────────────
   const CACHE_NAME = 'map-tiles-berlin-2025-v1';
@@ -101,6 +124,78 @@
   let eventIdx      = 0;
   let rafId         = null;
   let zoomBehavior  = null;
+
+  // ── HD tile overlay ──────────────────────────────────────────
+  let hdOverlayEl  = $state(/** @type {HTMLCanvasElement|null} */ (null));
+  let hdRafId      = null;
+  const hdCache    = new Map(); // url → ImageBitmap | null
+
+  function renderHdOverlay() {
+    const oc = hdOverlayEl;
+    if (!oc || !loaded) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    oc.width = vw; oc.height = vh;
+    const ctx = oc.getContext('2d');
+    if (!ctx) return;
+
+    const k = zoomT.k;
+    const targetZ = k >= 4 ? 16 : k >= 2 ? 15 : 0;
+    if (!targetZ || !revealedCells.size) return;
+
+    // clip to revealed cells only — never show the full map
+    ctx.beginPath();
+    for (const key of revealedCells) {
+      const [rx, ry, rw, rh] = cellRect(key);
+      ctx.rect(zoomT.x + rx * k, zoomT.y + ry * k, rw * k, rh * k);
+    }
+    ctx.clip();
+
+    const scale = 2 ** (14 - targetZ); // main-canvas pixels per HD tile
+    const screenTileSize = scale * TILE_SCALE * k;
+
+    const canvasLeft   = -zoomT.x / k, canvasRight  = (vw - zoomT.x) / k;
+    const canvasTop    = -zoomT.y / k, canvasBottom = (vh - zoomT.y) / k;
+
+    const txMin = Math.floor((canvasLeft  / TILE_SCALE + TX0) / scale);
+    const txMax = Math.floor((canvasRight / TILE_SCALE + TX0) / scale);
+    const tyMin = Math.floor((canvasTop   / TILE_SCALE + TY0) / scale);
+    const tyMax = Math.floor((canvasBottom/ TILE_SCALE + TY0) / scale);
+
+    for (let ty = tyMin; ty <= tyMax; ty++) {
+      for (let tx = txMin; tx <= txMax; tx++) {
+        const screenX = zoomT.x + (tx * scale - TX0) * TILE_SCALE * k;
+        const screenY = zoomT.y + (ty * scale - TY0) * TILE_SCALE * k;
+        const url = tileUrl(targetZ, tx, ty);
+        const bmp = hdCache.get(url);
+        if (bmp === null) continue;
+        if (bmp) {
+          ctx.drawImage(bmp, screenX, screenY, screenTileSize, screenTileSize);
+        } else {
+          hdCache.set(url, null);
+          fetchTileCached(url).then(async src => {
+            if (!src) return;
+            const img = new Image();
+            img.src = src;
+            try {
+              await img.decode();
+              const b = await createImageBitmap(img);
+              hdCache.set(url, b);
+            } catch { return; } finally {
+              if (src.startsWith('blob:')) URL.revokeObjectURL(src);
+            }
+            if (hdOverlayEl) renderHdOverlay();
+          });
+        }
+      }
+    }
+  }
+
+  $effect(() => {
+    void zoomT.x; void zoomT.y; void zoomT.k; void loaded;
+    if (!hdOverlayEl) return;
+    if (hdRafId) cancelAnimationFrame(hdRafId);
+    hdRafId = requestAnimationFrame(renderHdOverlay);
+  });
 
   // ── article panel ─────────────────────────────────────────────
   let selectedEvents = $state(/** @type {any[]} */ ([]));
@@ -273,7 +368,7 @@
       allEvents = rows.map(r => {
         const lat = parseFloat(r.latitude), lon = parseFloat(r.longitude);
         if (!lat || !lon) return null;
-        if (!berlinFeatures.some(f => d3.geoContains(f, [lon, lat]))) return null;
+        if (!inBerlin(lon, lat)) return null;
         const s = r.ExtractedDate || r.Date || '';
         const m = s.match(/(\d{2})\.(\d{2})\.(\d{4})/);
         if (!m) return null;
@@ -313,6 +408,9 @@
 
 <main>
 
+  <!-- HD tile overlay: fixed, not inside CSS transform, drawn in screen space -->
+  <canvas bind:this={hdOverlayEl} style="position:fixed;top:0;left:0;pointer-events:none;z-index:1;"></canvas>
+
   <!-- zoom/pan layer: d3.zoom is bound here, isolated from UI overlays -->
   <div class="map-layer" bind:this={viewportEl} onpointerdown={onPD} onpointerup={onPU}>
     <canvas
@@ -327,6 +425,9 @@
       height={CH}
       style="transform-origin:0 0; transform:{transformCss}; position:absolute; top:0; left:0; pointer-events:none; overflow:visible;"
     >
+      {#each streetPaths as d}
+        <path {d} fill="none" stroke="#222" stroke-width={(0.6/zoomT.k)} stroke-linecap="round" stroke-linejoin="round" />
+      {/each}
       {#each districtPaths as dp}
         {#if dp.d}
           <path d={dp.d} fill="none" stroke="#222" stroke-width={(1/zoomT.k)} />
@@ -334,7 +435,7 @@
         {#if dp.centroid?.[0]}
           <text
             x={dp.centroid[0]} y={dp.centroid[1]}
-            font-family="Courier Prime, monospace"
+            style="font-family: var(--font-mono)"
             font-size={(11/zoomT.k)}
             fill="rgba(255,255,255,0.8)"
             text-anchor="middle" dominant-baseline="middle"
@@ -437,7 +538,7 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 12px;
     color: rgba(255,255,255,0.45);
-    font-family: 'Courier Prime', monospace; font-size: 12px;
+    font-family: var(--font-mono); font-size: 12px;
     pointer-events: none; z-index: 20;
   }
   .tile-bar  { width: 200px; height: 2px; background: rgba(255,255,255,0.1); }
@@ -451,7 +552,7 @@
   }
   .chip {
     background: var(--cc); border: none; cursor: pointer;
-    font-family: 'Courier Prime', monospace; font-size: 9px;
+    font-family: var(--font-mono); font-size: 9px;
     padding: 3px 7px; color: #111;
     display: flex; align-items: center; gap: 4px;
     transition: opacity 0.12s;
@@ -463,7 +564,7 @@
   .hud {
     position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px;
-    color: #fff; font-family: 'Courier Prime', monospace; font-size: 12px;
+    color: #fff; font-family: var(--font-mono); font-size: 12px;
     background: rgba(0,0,0,0.72); padding: 7px 14px;
     border: 1px solid rgba(255,255,255,0.1);
     white-space: nowrap; z-index: 10;
@@ -493,7 +594,7 @@
     display: flex; flex-direction: column;
     overflow-y: auto;
     z-index: 20;
-    font-family: 'Courier Prime', monospace;
+    font-family: var(--font-mono);
   }
 
   .panel-header {

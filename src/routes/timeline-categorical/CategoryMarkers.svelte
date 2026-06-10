@@ -1,7 +1,7 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { FONT, MARKER_LABEL_FS, MARKER_DESC_FS } from "./config.js";
+  import { MARKER_LABEL_FS, MARKER_DESC_FS, BASELINE_GAP } from "./config.js";
 
   const LABEL_CW   = MARKER_LABEL_FS * 0.601;
   const DESC_CW    = MARKER_DESC_FS  * 0.601;
@@ -17,7 +17,7 @@
   {#if m.hasTick && (counts[m.cat.id] ?? 0) > 0}
     {@const color = m.cat.color ?? "#999"}
     {@const opacity = m.cat.on ? 1 : 0.18}
-    {@const labelY = baseline + 36 + m.yOff}
+    {@const labelY = baseline + BASELINE_GAP + m.yOff}
     <line
       x1={m.x}
       y1={baseline}
@@ -36,7 +36,7 @@
   {#if hasItems}
   {@const color = m.cat.color ?? "#999"}
   {@const opacity = m.cat.on ? 1 : 0.18}
-  {@const labelY = baseline + 36 + m.yOff}
+  {@const labelY = baseline + BASELINE_GAP + m.yOff}
   {@const labelText = lang === "en" ? (translatedMap[m.cat.label] ?? m.cat.label) : m.cat.label}
   {@const labelW = labelText.length * LABEL_CW + PAD * 2}
   {@const activeDescLines = hasItems ? m.descLines : []}
@@ -66,7 +66,7 @@
   <text
     x={m.x + PAD}
     y={labelY}
-    font-family={FONT}
+    style="font-family: var(--font-mono)"
     font-size={MARKER_LABEL_FS}
     fill="#000"
     text-anchor="start"
@@ -76,7 +76,7 @@
     <text
       x={m.x + PAD}
       y={labelY - MARKER_LABEL_FS + LABEL_H + MARKER_DESC_FS + 2}
-      font-family={FONT}
+      style="font-family: var(--font-mono)"
       font-size={MARKER_DESC_FS}
       fill="#000"
       opacity={m.cat.on ? 0.7 : 0.3}

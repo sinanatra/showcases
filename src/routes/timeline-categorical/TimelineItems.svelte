@@ -1,7 +1,7 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { FONT, FS, CHAR_W } from "./config.js";
+  import { FS, CHAR_W } from "./config.js";
 
   let { placed, baseline, translatedMap, lang, textAlign = "start" } = $props();
 </script>
@@ -20,7 +20,7 @@
       <rect x={rectX} y={textY - FS} width={tw + 4} height={FS + 3}
             fill={catColor} fill-opacity={fillOp}
             stroke="none" stroke-width={0} />
-      <text x={item.x} y={textY} font-family={FONT} font-size={FS}
+      <text x={item.x} y={textY} style="font-family: var(--font-mono)"font-size={FS}
             text-anchor={textAlign} fill="#000" opacity={textOp} class="item">
         {displayLabel}
       </text>
@@ -29,7 +29,7 @@
     <rect x={rectX} y={textY - FS} width={tw + 4} height={FS + 3}
           fill={catColor} fill-opacity={fillOp}
           stroke="none" stroke-width={0} />
-    <text x={item.x} y={textY} font-family={FONT} font-size={FS}
+    <text x={item.x} y={textY} style="font-family: var(--font-mono)"font-size={FS}
           text-anchor={textAlign} fill="#000" opacity={textOp} class="item">
       {displayLabel}
     </text>

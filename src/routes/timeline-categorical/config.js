@@ -1,14 +1,14 @@
-// "Courier Prime, monospace" / "Cutive Mono, monospace"
-export const FONT = "Courier Prime, monospace";
+// font is defined by --font-mono in static/style.css
 export const FS = 10;
-export const CHAR_W = FS * 0.601;
+export const CHAR_W = FS * 0.615;
 export const LINE_H = 13;
 export const TOP_PAD = 16;
 export const H_PAD = 20;
-export const PX_PER_DAY = 5;
+export const PX_PER_DAY = 10;
 export const SNIP_MAX = 200;
 export const MARKER_LABEL_FS = 24;
 export const MARKER_DESC_FS  = 12;
+export const BASELINE_GAP    = 120;
 
 export const DEFAULT_SHOW_BILANZ      = false;
 export const DEFAULT_SHOW_BERLIN      = true;

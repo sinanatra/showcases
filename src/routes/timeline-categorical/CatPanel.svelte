@@ -289,7 +289,7 @@
     font-size: 14px;
     cursor: pointer;
     padding: 10px 10px 6px;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     flex-shrink: 0;
   }
   .toggle:hover {
@@ -300,7 +300,7 @@
     padding: 0 12px 16px;
     overflow-y: auto;
     flex: 1;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: #555;
   }
@@ -333,7 +333,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: #333;
     padding: 2px 0;
@@ -368,7 +368,7 @@
     cursor: pointer;
     font-size: 10px;
     padding: 2px 4px;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
   }
   .desc-toggle:hover {
     color: #555;
@@ -419,7 +419,7 @@
     width: 100%;
     background: none;
     border: 1px solid #ddd;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 10px;
     color: #999;
     cursor: pointer;
@@ -442,7 +442,7 @@
     cursor: pointer;
     font-size: 11px;
     padding: 2px 4px;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     line-height: 1;
   }
   .copy-btn:hover { color: #555; }
@@ -480,7 +480,7 @@
     color: #aaa;
   }
   .add-input {
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: #333;
     background: #f9f9f7;
