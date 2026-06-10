@@ -21,7 +21,7 @@
     right: 1.8vw;
     z-index: 1;
     pointer-events: none;
-    font-family: "Courier New", Courier, monospace;
+    font-family: var(--font-mono);
     color: rgba(255, 255, 255, 0.95);
     background: rgba(0, 0, 0, 0.62);
     border-radius: 6px;

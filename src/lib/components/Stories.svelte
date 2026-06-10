@@ -106,11 +106,12 @@
     line-height: 1.3;
     margin: 0 0 0.4rem;
   }
+
   .excerpt {
-    font-family: "Courier New", Courier, monospace;
+    font-family: var(--font-mono);
     margin: 0;
     font-size: 1em;
-    /* line-height: 1.2rem; */
+    line-height: 1.2rem;
   }
   .nav {
     position: absolute;

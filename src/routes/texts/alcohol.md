@@ -1,7 +1,7 @@
 ---
 title: "Blood Alcohol Level"
 date: "2025-11-26"
-excerpt: "In 345 of 2.132 police reports, the consumption of alcohol is mentioned in relation to right-wing extremists, xenophobic and queerphobic crimes.
+excerpt: In 345 of 2.132 police reports, the consumption of alcohol is mentioned in relation to right-wing extremists, xenophobic and queerphobic crimes.
 This deep dive shows the despicable ideas alcohol brings to the surface."
 caption: "The visualisation shows all reports that mention alcohol, from 2019 to November 2025"
 viz: fungal

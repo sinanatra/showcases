@@ -89,7 +89,7 @@
     ctx.save();
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.font = `${titleSize}px "Courier New", Courier, monospace`;
+    ctx.font = `${titleSize}px ${getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace'}`;
     const labelW = ctx.measureText(label).width;
 
     const cardW = Math.ceil(labelW + 24);

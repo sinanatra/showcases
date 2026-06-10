@@ -41,7 +41,7 @@
     border: none;
     cursor: pointer;
     padding: 0.35rem 0.6rem;
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: inherit;
   }
 
@@ -56,7 +56,7 @@
   }
 
   .status {
-    font-family: Courier, monospace;
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--color-1);
 q    opacity: 0.8;
