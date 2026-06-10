@@ -92,7 +92,7 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle") {
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
     catFloor.set(it.catId, Math.max(catFloor.get(it.catId) ?? 0, row));
-    return { ...it, y: row * LINE_H };
+    return { ...it, y: (row + 0.2) * LINE_H };
   });
 }
 
