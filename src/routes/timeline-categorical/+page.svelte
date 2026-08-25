@@ -5,6 +5,7 @@
   import { loadArticles } from "$lib/utils/loadArticles";
   import { parseDateLoose } from "$lib/utils/parseDate";
   import { detectRegion } from "$lib/utils/detectRegion";
+  import { normalizeDistrict } from "$lib/constants/districts";
   import { lang, setLang, availableLangs } from "$lib/i18n";
   import { translateDE_EN } from "$lib/utils/translate";
   import CatPanel from "./CatPanel.svelte";
@@ -14,7 +15,7 @@
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, MARKER_LABEL_FS, MARKER_DESC_FS, BASELINE_GAP,
-    DEFAULT_CATEGORIES,
+    DEFAULT_CATEGORIES, DISTRICT_ICONS,
     DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
@@ -130,7 +131,7 @@
     for (const cat of categories) {
       const catItems = parsed
         .filter((p) => matchesCategory(p.raw, cat))
-        .map((p) => ({ ...p, catId: cat.id, color: cat.color, active: cat.on }));
+        .map((p) => ({ ...p, catId: cat.id, color: cat.color, active: cat.on, icon: cat.icon ?? "", district: normalizeDistrict(p.raw.ExtractedDistrict, detectRegion(p.raw)) }));
       newCounts[cat.id] = catItems.length;
       catItems.forEach((it) => preItems.push(it));
     }
@@ -301,6 +302,35 @@
   let exporting = $state(false);
   let exportingPng = $state(false);
 
+  /** Cached base64 font data so we only fetch once per session. */
+  let _fontB64 = /** @type {string|null} */ (null);
+
+  async function injectFontStyle(clone) {
+    if (!_fontB64) {
+      const buf = await (await fetch('/fonts/Pitch_Semibold.otf')).arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (const b of bytes) bin += String.fromCharCode(b);
+      _fontB64 = btoa(bin);
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    let defs = clone.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS(ns, 'defs');
+      clone.insertBefore(defs, clone.firstChild);
+    }
+    const style = document.createElementNS(ns, 'style');
+    style.textContent = [
+      ':root, svg { --font-mono: "Pitch Sans", Courier, monospace; }',
+      '@font-face {',
+      '  font-family: "Pitch Sans";',
+      `  src: url("data:font/otf;base64,${_fontB64}") format("opentype");`,
+      '  font-weight: 600; font-style: normal;',
+      '}',
+    ].join('\n');
+    defs.insertBefore(style, defs.firstChild);
+  }
+
   /** Appends a category legend to a cloned SVG; returns added height. */
   function appendLegend(clone) {
     const ns = "http://www.w3.org/2000/svg";
@@ -339,7 +369,7 @@
     return 16 + rows * (chipH + gap) + 10;
   }
 
-  function exportSVG() {
+  async function exportSVG() {
     if (!svgEl) return;
     exporting = true;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
@@ -347,6 +377,7 @@
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
     const legendH = appendLegend(clone);
     clone.setAttribute("height", String(svgH + legendH));
+    await injectFontStyle(clone);
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
       type: "image/svg+xml",
     });
@@ -368,26 +399,66 @@
     const legendH = appendLegend(clone);
     const totalH = svgH + legendH;
     clone.setAttribute("height", String(totalH));
+
+    // For PNG we only need the CSS variable resolved — the browser already has
+    // Pitch Sans cached from the page, so we skip the heavy base64 font blob.
+    {
+      const ns = "http://www.w3.org/2000/svg";
+      let defs = clone.querySelector("defs");
+      if (!defs) { defs = document.createElementNS(ns, "defs"); clone.insertBefore(defs, clone.firstChild); }
+      const style = document.createElementNS(ns, "style");
+      style.textContent = ':root, svg { --font-mono: "Pitch Sans", Courier, monospace; }';
+      defs.insertBefore(style, defs.firstChild);
+    }
+
+    // Scale up to 3× but stay within Chrome's canvas limits:
+    // 32 767 px per side, 268 M px total area.
+    const MAX_DIM  = 32767;
+    const MAX_AREA = 268_000_000;
+    const scale = Math.min(
+      3,
+      MAX_DIM / dataSvgW,
+      MAX_DIM / totalH,
+      Math.sqrt(MAX_AREA / (dataSvgW * totalH)),
+    );
+    const outW = Math.round(dataSvgW * scale);
+    const outH = Math.round(totalH   * scale);
+    clone.setAttribute("viewBox", `0 0 ${dataSvgW} ${totalH}`);
+    clone.setAttribute("width",  String(outW));
+    clone.setAttribute("height", String(outH));
+
     const s = new XMLSerializer().serializeToString(clone);
-    const canvas = document.createElement("canvas");
-    canvas.width = dataSvgW;
-    canvas.height = totalH;
-    const ctx = canvas.getContext("2d");
+    const svgBlob = new Blob([s], { type: "image/svg+xml" });
+    const svgUrl = URL.createObjectURL(svgBlob);
     const img = new Image();
-    await new Promise((r) => {
-      img.onload = r;
-      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = svgUrl;
     });
+    URL.revokeObjectURL(svgUrl);
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.drawImage(img, 0, 0, outW, outH);
     }
-    const a = Object.assign(document.createElement("a"), {
-      href: canvas.toDataURL("image/png"),
-      download: "timeline-categories.png",
+
+    await new Promise((resolve) => {
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) { resolve(); return; }
+        const pngUrl = URL.createObjectURL(pngBlob);
+        Object.assign(document.createElement("a"), {
+          href: pngUrl, download: "timeline-categories.png",
+        }).click();
+        setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+        resolve();
+      }, "image/png");
     });
-    a.click();
     exportingPng = false;
   }
 </script>
@@ -402,7 +473,7 @@
         <svg bind:this={svgEl}>
           <g class="zoom-group" transform={zoomTransform}>
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
-            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} {textAlign} />
+            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} {textAlign} locationIcons={DISTRICT_ICONS} />
             <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} />
           </g>
         </svg>
