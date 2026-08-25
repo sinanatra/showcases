@@ -1,20 +1,19 @@
 <script>
-  import { filtered, filters, isMobile } from "$lib/stores";
+  import { filtered, filters } from "$lib/stores";
   import { onMount, onDestroy, tick } from "svelte";
   import { browser } from "$app/environment";
   import { lang } from "$lib/i18n";
   import { translateDE_EN } from "$lib/utils/translate";
   import { shortenAroundKeyword } from "$lib/utils/textUtils";
-  import TimelineExport from "$lib/components/TimelineExport.svelte";
 
   function typescale(size) {
     return { fontSize: size, lineHeight: Math.round(size * 1.4), dateFontSize: Math.round(size * 0.8) };
   }
   const { fontSize, lineHeight, dateFontSize } = typescale(16);
   const yOffset = 0;
-  const leftPad = 120;
-  const rightPad = 2500;
-  const tickPx = 500;
+  const leftPad = 0;
+  const rightPad = 600;
+  const tickPx = 300;
   const bufferRows = 60;
 
   let sectionEl;
@@ -64,7 +63,6 @@
     }
     return null;
   }
-  let translating = false;
   async function translateVisible() {
     const seen = new Set(Object.keys(translatedMap));
     const toAdd = new Map();
@@ -83,10 +81,8 @@
       }
     }
     if (!toAdd.size) return;
-    translating = true;
     const results = await Promise.all([...toAdd.entries()].map(async ([k, p]) => [k, await p]));
     translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
-    translating = false;
   }
   $: if ($lang === "en" && visible.length) translateVisible();
 
@@ -97,58 +93,42 @@
   let timelineWidth = 2400;
   let totalWidth = 2400 + leftPad + rightPad;
 
-  function makeRowsSig(arr) {
-    if (!Array.isArray(arr) || !arr.length) return "0";
-    const first = arr[0]?.date ? +arr[0].date : 0;
-    const last = arr[arr.length - 1]?.date ? +arr[arr.length - 1].date : 0;
-    return `${arr.length}|${first}|${last}`;
-  }
-
-  let lastRowsSig = "";
   let visibleStart = 0;
   let visibleEnd = 0;
   let visible = [];
-  let syncing = false;
-  let lastActiveIndex = -1;
-  let hScrollActive = false;
-  let hScrollSettleFrames = 0;
-  let hScrollLast = 0;
-  let hScrollRaf = 0;
+  let syncingScroll = false;
   let scheduleResetX = false;
   let filteredUnsub;
 
-  function beginHScrollMonitor() {
-    if (hScrollActive) return;
-    hScrollActive = true;
-    hScrollSettleFrames = 0;
-    hScrollLast = timelineContainer ? timelineContainer.scrollLeft : 0;
-    hScrollRaf = requestAnimationFrame(hScrollTick);
+  // The date header must stay pinned to the viewport while the page scrolls
+  // vertically, which requires it to NOT be inside a container that
+  // establishes its own vertical scrollport (position:sticky only sticks to
+  // the nearest scrolling ancestor — and per the CSS overflow spec, giving
+  // an element overflow-x without overflow-y forces overflow-y to "auto"
+  // too, silently turning it into one). So the header and the row content
+  // stay two siblings, each independently horizontally scrollable, with
+  // their scrollLeft kept in sync here. Vertical and horizontal scrolling
+  // are otherwise fully independent — nothing auto-scrolls the timeline
+  // horizontally as you scroll the page vertically.
+  function syncScrollLeft(/** @type {HTMLElement} */ from, /** @type {HTMLElement} */ to) {
+    if (syncingScroll) return;
+    syncingScroll = true;
+    to.scrollLeft = from.scrollLeft;
+    syncingScroll = false;
   }
 
-  function hScrollTick() {
-    const cur = timelineContainer ? timelineContainer.scrollLeft : 0;
-    if (Math.abs(cur - hScrollLast) < 0.25) {
-      hScrollSettleFrames += 1;
-    } else {
-      hScrollSettleFrames = 0;
-      hScrollLast = cur;
-    }
-    if (hScrollSettleFrames >= 1) {
-      hScrollActive = false;
-      hScrollRaf = 0;
-      return;
-    }
-    hScrollRaf = requestAnimationFrame(hScrollTick);
+  function onBarScroll() {
+    if (!datesBar || !timelineContainer) return;
+    syncScrollLeft(datesBar, timelineContainer);
+  }
+
+  function onContainerHScroll() {
+    if (!datesBar || !timelineContainer) return;
+    syncScrollLeft(timelineContainer, datesBar);
   }
 
   function updateVisible() {
-    const cursorY = window.scrollY + window.innerHeight / 2;
     const rowsStartY = sectionTop + yOffset;
-    const rel = cursorY - rowsStartY;
-    const idx = Math.max(
-      0,
-      Math.min(rows.length - 1, Math.floor(rel / lineHeight))
-    );
     const first = Math.max(
       0,
       Math.floor((window.scrollY - rowsStartY) / lineHeight) - bufferRows
@@ -164,24 +144,13 @@
       visibleEnd = last;
       visible = rows.slice(visibleStart, visibleEnd);
     }
-    if (!hScrollActive && idx !== lastActiveIndex) {
-      scrollToCenterForIndex(idx);
-      lastActiveIndex = idx;
-    }
   }
 
   async function resetX() {
-    if (!browser) return;
+    if (!browser || !timelineContainer) return;
     await tick();
-    const prev = timelineContainer
-      ? timelineContainer.style.scrollBehavior
-      : "";
-    if (timelineContainer) timelineContainer.style.scrollBehavior = "auto";
-    datesBar && (datesBar.scrollLeft = 0);
-    timelineContainer &&
-      timelineContainer.scrollTo({ left: 0, behavior: "auto" });
-    if (timelineContainer) timelineContainer.style.scrollBehavior = prev || "";
-    lastActiveIndex = -1;
+    timelineContainer.scrollTo({ left: 0, behavior: "auto" });
+    if (datesBar) datesBar.scrollLeft = 0;
   }
 
   $: if (scheduleResetX) {
@@ -238,11 +207,11 @@
       const spanWeeks = Math.max(1, Math.round((+end - +start) / msWeek));
       const density = rows.length / spanWeeks;
       const pxPerWeek = Math.min(
-        40,
-        Math.max(8, 20 / Math.max(0.5, Math.log10(density + 1)))
+        16,
+        Math.max(3, 10 / Math.max(0.5, Math.log10(density + 1)))
       );
       const byTime = spanWeeks * pxPerWeek;
-      const byCount = rows.length * 80;
+      const byCount = rows.length * 40;
       const targetWidth = Math.max(viewportW, Math.min(byTime, byCount));
       timelineWidth = Math.min(10000, Math.round(targetWidth));
       totalWidth = leftPad + timelineWidth + rightPad;
@@ -254,11 +223,6 @@
         const t = +end - frac * (+end - +start);
         ticks.push({ x, d: new Date(t) });
       }
-      const sig = makeRowsSig(rows);
-      if (browser && sig !== lastRowsSig) {
-        lastRowsSig = sig;
-        lastActiveIndex = -1;
-      }
       // always refresh visible slice when rows rebuild (content may have changed)
       // use updateVisible() so visibleStart/visibleEnd are recalculated from
       // current scroll position — otherwise initial async data load renders nothing
@@ -268,7 +232,6 @@
       start = null;
       end = null;
       ticks = [];
-      lastRowsSig = "0";
       visible = [];
       visibleStart = 0;
       visibleEnd = 0;
@@ -280,43 +243,10 @@
     return leftPad + ((+end - +date) / (+end - +start)) * timelineWidth;
   }
 
-  function scrollToCenterForIndex(i) {
-    if (!timelineContainer || !rows[i]) return;
-    const x = normPos(rows[i].date);
-    const padd = $isMobile ? 10 : 400;
-    const target = Math.max(0, x - padd);
-    timelineContainer.scrollTo({ left: target, behavior: "auto" });
-  }
-
-  function syncFromTimeline() {
-    if (!datesBar || !timelineContainer || syncing) return;
-    syncing = true;
-    const want = timelineContainer.scrollLeft;
-    if (Math.abs(datesBar.scrollLeft - want) > 1) datesBar.scrollLeft = want;
-    syncing = false;
-    beginHScrollMonitor();
-  }
-
-  function syncFromBar() {
-    if (!datesBar || !timelineContainer || syncing) return;
-    syncing = true;
-    const want = datesBar.scrollLeft;
-    if (Math.abs(timelineContainer.scrollLeft - want) > 1)
-      timelineContainer.scrollLeft = want;
-    syncing = false;
-    beginHScrollMonitor();
-  }
-
   function rafSync() {
     rafId = null;
     if (!timelineContainer) return;
     updateVisible();
-    if (
-      datesBar &&
-      Math.abs(datesBar.scrollLeft - timelineContainer.scrollLeft) > 1
-    ) {
-      datesBar.scrollLeft = timelineContainer.scrollLeft;
-    }
   }
 
   function onWinScroll() {
@@ -344,159 +274,11 @@
     window.removeEventListener("scroll", onWinScroll);
     window.removeEventListener("resize", onWinResize);
     if (rafId !== null) cancelAnimationFrame(rafId);
-    if (hScrollRaf) cancelAnimationFrame(hScrollRaf);
     if (filteredUnsub) filteredUnsub();
   });
 
   let showSnippet = true;
 
-  // SVG export
-  let exporting = false;
-
-  function escXML(s) {
-    return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  async function exportSVG() {
-    if (!rows.length || exporting) return;
-    exporting = true;
-    try {
-      const { svg } = await buildSVGString();
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "timeline.svg"; a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      exporting = false;
-    }
-  }
-
-  let exportingPng = false;
-
-  function readPageColors() {
-    const style = getComputedStyle(sectionEl);
-    const accent = style.getPropertyValue("--color-1").trim() || "rgb(231,233,91)";
-    const bg = style.backgroundColor || "black";
-    const textFill = style.color || "gainsboro";
-    return { accent, bg, textFill };
-  }
-
-  async function buildSVGString(colors = readPageColors()) {
-    if ($lang === "en") {
-      const seen = new Set(Object.keys(translatedMap));
-      const toTranslate = [];
-      for (const r of rows) {
-        const sKey = snippetKey(r);
-        if (!seen.has(sKey)) toTranslate.push([sKey, sKey]);
-        if (r.match) {
-          const kKey = `__k:${r.match}`;
-          if (!seen.has(kKey)) toTranslate.push([kKey, r.match]);
-        }
-      }
-      // batch to avoid saturating the browser connection pool
-      const BATCH = 6;
-      for (let i = 0; i < toTranslate.length; i += BATCH) {
-        const batch = toTranslate.slice(i, i + BATCH);
-        const results = await Promise.all(
-          batch.map(async ([k, text]) => [k, await translateDE_EN(text)])
-        );
-        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
-      }
-    }
-
-    const { accent, bg, textFill } = colors;
-
-    const h = rows.length * lineHeight + 50;
-    const fontMono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace';
-    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${h}" style="background:${bg};font-family:${fontMono};font-size:${fontSize}px">`;
-
-    for (const t of ticks) {
-      out += `<line x1="${t.x}" y1="0" x2="${t.x}" y2="${h}" stroke="${accent}" stroke-dasharray="4 4" shape-rendering="crispEdges"/>`;
-      out += `<text x="${t.x}" y="${lineHeight}" fill="${accent}" font-size="${fontSize}" dominant-baseline="middle">${escXML(fmtDate(t.d))}</text>`;
-    }
-
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      const x = normPos(r.date);
-      const y = (i + 2) * lineHeight + lineHeight / 2;
-      out += `<text x="${x}" y="${y}" dominant-baseline="middle" fill="${textFill}" font-style="italic">`;
-
-      if ($lang === "en") {
-        const ts = translatedMap[snippetKey(r)];
-        const tk = r.match ? translatedMap[`__k:${r.match}`] : "";
-        const sp = ts ? (
-          splitAround(ts, tk || "") ||
-          (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
-          splitAround(ts, r.match || "")
-        ) : null;
-        if (sp) {
-          if (sp.pre) out += `<tspan>${escXML(sp.pre)}</tspan>`;
-          if (sp.hit) out += `<tspan fill="${accent}" font-weight="700" font-style="normal">${escXML(sp.hit)}</tspan>`;
-          if (sp.post) out += `<tspan>${escXML(sp.post)}</tspan>`;
-        } else {
-          out += `<tspan>${escXML(ts ?? snippetKey(r))}</tspan>`;
-        }
-      } else {
-        if (r.before) out += `<tspan>${escXML(r.before)}</tspan>`;
-        if (r.match) out += `<tspan fill="${accent}" font-weight="700" font-style="normal">${escXML(r.match)}</tspan>`;
-        if (r.after) out += `<tspan>${escXML(r.after)}</tspan>`;
-      }
-
-      out += `<tspan fill="${accent}" font-size="${dateFontSize}" dx="2"> ${escXML(fmtDate(r.date))} ↗</tspan>`;
-      out += `</text>`;
-    }
-
-    out += `</svg>`;
-    return { svg: out, w: totalWidth, h };
-  }
-
-  async function exportPNG() {
-    if (!rows.length || exportingPng) return;
-    exportingPng = true;
-    try {
-      const { svg, w, h } = await buildSVGString("light");
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          // Target 2× pixel density for sharpness, then clamp to browser canvas limits.
-          // Chrome/Firefox support up to 32767px per side and ~256M total pixels.
-          const TARGET_SCALE = 4;
-          const MAX_DIM = 32767;
-          const MAX_AREA = 512 * 1024 * 1024;
-          const tw = w * TARGET_SCALE;
-          const th = h * TARGET_SCALE;
-          const scaleForDim = Math.min(1, MAX_DIM / tw, MAX_DIM / th);
-          const scaleForArea = Math.sqrt(MAX_AREA / (tw * th));
-          const scale = Math.min(TARGET_SCALE, TARGET_SCALE * scaleForDim, TARGET_SCALE * scaleForArea);
-          const cw = Math.floor(w * scale);
-          const ch = Math.floor(h * scale);
-
-          const canvas = document.createElement("canvas");
-          canvas.width = cw;
-          canvas.height = ch;
-          const ctx = canvas.getContext("2d");
-          ctx.scale(scale, scale);
-          ctx.drawImage(img, 0, 0);
-          URL.revokeObjectURL(url);
-          canvas.toBlob((pngBlob) => {
-            if (!pngBlob) { reject(new Error("canvas.toBlob returned null")); return; }
-            const pngUrl = URL.createObjectURL(pngBlob);
-            const a = document.createElement("a");
-            a.href = pngUrl; a.download = "timeline.png"; a.click();
-            URL.revokeObjectURL(pngUrl);
-            resolve(undefined);
-          }, "image/png");
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-    } finally {
-      exportingPng = false;
-    }
-  }
 </script>
 
 <section bind:this={sectionEl}>
@@ -506,92 +288,80 @@
     <div
       class="datesBar"
       bind:this={datesBar}
-      aria-hidden="false"
-      on:scroll|passive={syncFromBar}
+      on:scroll|passive={onBarScroll}
     >
-      <svg width={totalWidth} height="36" class="datesSvg">
-        <g class="dates">
-          {#each ticks as t}
-            <text
-              class="date"
-              x={t.x}
-              y={18}
-              font-size={dateFontSize}
-              dominant-baseline="middle"
-              text-anchor="start">{fmtDate(t.d)}</text
-            >
-          {/each}
-        </g>
-      </svg>
+      <div class="datesInner" style:width="{totalWidth}px">
+        {#each ticks as t}
+          <div class="date tick" style:left="{t.x}px" style:font-size="{dateFontSize}px">{fmtDate(t.d)}</div>
+        {/each}
+      </div>
     </div>
 
     <div
       class="timelineContainer"
       bind:this={timelineContainer}
-      on:scroll|passive={syncFromTimeline}
+      on:scroll|passive={onContainerHScroll}
     >
-      <svg width={totalWidth} height={yOffset + rows.length * lineHeight + 40}>
-        <g class="dates">
-          {#each ticks as t}
-            <line
-              x1={t.x}
-              y1={yOffset - 0.5 * lineHeight}
-              x2={t.x}
-              y2={yOffset + rows.length * lineHeight + 40}
-            />
-          {/each}
-        </g>
-        <g>
-          {#each visible as item, i (visibleStart + i)}
-            {@const isEN = $lang === "en"}
-            {@const sKey = snippetKey(item)}
-            {@const ts = translatedMap[sKey]}
-            {@const tk = item.match ? translatedMap[`__k:${item.match}`] : ""}
-            {@const enSplit = isEN && ts ? (
-              splitAround(ts, tk || "") ||
-              (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
-              splitAround(ts, item.match || "")
-            ) : null}
-            {@const oKey = origKey(item)}
-            {@const to = translatedMap[oKey]}
-            {@const tok = item.origMatch ? (/** @type {any} */(translatedMap))[`__ok:${item.origMatch}`] : ""}
-            {@const enOrigSplit = isEN && to ? (
-              splitAround(to, tok || "") ||
-              splitAround(to, item.origMatch || "")
-            ) : null}
-            <a href={item.url} target="_blank" rel="noopener">
-              <text
-                x={normPos(item.date)}
-                y={yOffset + (visibleStart + i) * lineHeight + lineHeight / 2}
-                font-size={fontSize}
-                dominant-baseline="middle"
-                text-anchor="start"
-              >
-                {#if !showSnippet}
-                  {#if isEN && enOrigSplit}
-                    <tspan class="text">{enOrigSplit.pre}</tspan><tspan class="highlight">{enOrigSplit.hit}</tspan><tspan class="text">{enOrigSplit.post}</tspan>
-                  {:else if isEN && to}
-                    <tspan class="text">{to}</tspan>
-                  {:else}
-                    <tspan class="text">{item.origBefore}</tspan><tspan class="highlight">{item.origMatch}</tspan><tspan class="text">{item.origAfter}</tspan>
-                  {/if}
-                {:else if isEN}
-                  {#if enSplit}
-                    <tspan class="text">{enSplit.pre}</tspan><tspan class="highlight">{enSplit.hit}</tspan><tspan class="text">{enSplit.post}</tspan>
-                  {:else}
-                    <tspan class="text">{ts ?? sKey}</tspan>
-                  {/if}
-                {:else}
-                  <tspan class="text">{item.before}</tspan>
-                  <tspan class="highlight">{item.match}</tspan>
-                  <tspan class="text">{item.after}</tspan>
-                {/if}
-                <tspan class="date" font-size={dateFontSize} dx="2"> {fmtDate(item.date)} ↗</tspan>
-              </text>
-            </a>
-          {/each}
-        </g>
-      </svg>
+      <div
+        class="rows"
+        style:width="{totalWidth}px"
+        style:height="{yOffset + rows.length * lineHeight + 40}px"
+      >
+        {#each ticks as t}
+          <div class="tickline" style:left="{t.x}px"></div>
+        {/each}
+
+        {#each visible as item, i (visibleStart + i)}
+          {@const isEN = $lang === "en"}
+          {@const sKey = snippetKey(item)}
+          {@const ts = translatedMap[sKey]}
+          {@const tk = item.match ? translatedMap[`__k:${item.match}`] : ""}
+          {@const enSplit = isEN && ts ? (
+            splitAround(ts, tk || "") ||
+            (tk && tk.includes(" ") ? tk.split(" ").reduce((acc, w) => acc || splitAround(ts, w), null) : null) ||
+            splitAround(ts, item.match || "")
+          ) : null}
+          {@const oKey = origKey(item)}
+          {@const to = translatedMap[oKey]}
+          {@const tok = item.origMatch ? (/** @type {any} */(translatedMap))[`__ok:${item.origMatch}`] : ""}
+          {@const enOrigSplit = isEN && to ? (
+            splitAround(to, tok || "") ||
+            splitAround(to, item.origMatch || "")
+          ) : null}
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener"
+            class="row"
+            style:left="{normPos(item.date)}px"
+            style:top="{yOffset + (visibleStart + i) * lineHeight}px"
+            style:height="{lineHeight}px"
+            style:line-height="{lineHeight}px"
+            style:font-size="{fontSize}px"
+          >
+            {#if !showSnippet}
+              {#if isEN && enOrigSplit}
+                <span class="text">{enOrigSplit.pre}</span><span class="highlight">{enOrigSplit.hit}</span><span class="text">{enOrigSplit.post}</span>
+              {:else if isEN && to}
+                <span class="text">{to}</span>
+              {:else}
+                <span class="text">{item.origBefore}</span><span class="highlight">{item.origMatch}</span><span class="text">{item.origAfter}</span>
+              {/if}
+            {:else if isEN}
+              {#if enSplit}
+                <span class="text">{enSplit.pre}</span><span class="highlight">{enSplit.hit}</span><span class="text">{enSplit.post}</span>
+              {:else}
+                <span class="text">{ts ?? sKey}</span>
+              {/if}
+            {:else}
+              <span class="text">{item.before}</span>
+              <span class="highlight">{item.match}</span>
+              <span class="text">{item.after}</span>
+            {/if}
+            <span class="date" style:font-size="{dateFontSize}px"> {fmtDate(item.date)} ↗</span>
+          </a>
+        {/each}
+      </div>
     </div>
 
     {#if $filters.text}
@@ -599,15 +369,6 @@
         {showSnippet ? "snippet" : "original"}
       </button>
     {/if}
-
-    <TimelineExport
-      onExportSVG={exportSVG}
-      onExportPNG={exportPNG}
-      {exporting}
-      {exportingPng}
-      {translating}
-      hasRows={rows.length > 0}
-    />
   {/if}
 </section>
 
@@ -618,30 +379,66 @@
     color: white;
     background-color: black;
     min-height: 100vh;
+    padding: 16px 20px 0;
+    box-sizing: border-box;
     text-rendering: geometricPrecision;
-  }
-  .datesBar {
-    position: sticky;
-    top: 0;
-    background-color: black;
-    fill: white;
-    overflow-x: auto;
-    overflow-y: hidden;
-    height: 35px;
-    will-change: scroll-position;
-  }
-  .datesBar::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-  .datesSvg {
-    display: block;
   }
   .timelineContainer {
     overflow: auto;
     flex-grow: 1;
     will-change: scroll-position;
+  }
+  .datesBar {
+    /* a sibling of .timelineContainer (not nested inside it) so it isn't
+       itself inside a vertical scroll container — that's what lets
+       position:sticky pin it to the viewport as the page scrolls. Its own
+       horizontal scroll position is kept in sync with .timelineContainer
+       via JS (see onBarScroll/onContainerHScroll). */
+    position: sticky;
+    top: 0;
+    background-color: black;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 36px;
+    will-change: scroll-position;
+    z-index: 2;
+  }
+  .datesBar::-webkit-scrollbar {
+    height: 0;
+    display: none;
+  }
+  .datesInner {
+    position: relative;
+    height: 36px;
+  }
+  .tick {
+    position: absolute;
+    top: 0;
+    line-height: 36px;
+    white-space: nowrap;
+  }
+  .rows {
+    position: relative;
+  }
+  .tickline {
+    /* top/height tied exactly to .rows's own box (100%), not computed in px —
+       any mismatch here inflates .timelineContainer's scrollable area past
+       its visible box and produces a second, almost-invisible scrollbar */
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    border-left: 1px dashed var(--color-1);
+  }
+  .row {
+    /* plain inline flow, not flex — flex would make each <span> its own
+       flex item, and each item's own leading/trailing whitespace gets
+       trimmed at its box edge, silently eating the spaces around the
+       highlighted word */
+    position: absolute;
+    white-space: nowrap;
+    font-style: italic;
+    text-decoration: none;
   }
   .snippet-toggle {
     position: fixed;
@@ -660,27 +457,21 @@
     background: var(--color-1, gainsboro);
     color: black;
   }
-  a:hover {
-    fill: var(--color-1);
+  .row:hover {
+    color: var(--color-1);
     text-decoration: underline;
-  }
-  .text {
-    font-style: italic;
   }
   .highlight {
     font-weight: 400;
-    fill: var(--color-1);
+    font-style: normal;
+    color: var(--color-1);
   }
   .date,
-  a {
-    fill: gainsboro;
+  .row {
+    color: gainsboro;
   }
   .date {
-    fill: var(--color-1);
-  }
-  line {
-    stroke: var(--color-1);
-    stroke-dasharray: 4 4;
-    shape-rendering: crispEdges;
+    color: var(--color-1);
+    font-style: normal;
   }
 </style>
