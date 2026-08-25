@@ -32,9 +32,11 @@ keywords = [
     "rassismus", "rassistisch", "antisemitismus", "antisemitisch", "homophobie",
     "transphobie", "queerfeindlichkeit", "queerphobie", "sieg heil",
     "verfassungswidrig", "mit politischem hintergrund",
-    "frauenfeindlich", "frauenfeindlichkeit", "misogynie", "misogyn",
+    "frauenfeindlich", "frauenfeindlichkeit", "misogynie", "misogyn", "sexuelle belästigung" "sexuelle beleidigung",
     "sexismus", "sexistisch", "frauenhass", "antifeminismus", "antifeministisch"
 ]
+
+
 
 action_terms = [
     "graffiti", "angriff", "schlagen", "treten", "schubsen",
