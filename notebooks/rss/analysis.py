@@ -89,17 +89,15 @@ if df_new.empty:
 df_text = (df_new["Title"].fillna("") + " " + df_new["Text"].fillna("")).str.lower()
 
 keywords = [
-    "volksverhetzung", "hitlergruß", "hakenkreuz", "nazi", "rechtsextremistisch",
-    "rechtsextremisch", "fremdenfeindlich", "islamophobie", "islamfeindlichkeit",
-    "islamfeindlich", "islamophob", "muslimfeindlich", "muslimfeindlichkeit",
-    "antimuslimisch", "anti-muslimisch", "anti muslimisch", "antiislamisch",
-    "anti-islamisch", "anti islamisch",
-    "nationalsozialismus", "nationalsozialistisch", "nationalsozialistische",
-    "rassismus", "rassistisch", "antisemitismus", "antisemitisch", "homophobie",
-    "transphobie", "queerfeindlichkeit", "queerphobie", "sieg heil",
-    "verfassungswidrig", "mit politischem hintergrund",
-    "frauenfeindlich", "frauenfeindlichkeit", "misogynie", "misogyn", "sexuelle belästigung" "sexuelle beleidigung",
-    "sexismus", "sexistisch", "frauenhass", "antifeminismus", "antifeministisch"
+    "volksverhetz", "verfassungswidrig", "mit politischem hintergrund",
+    "hitlergruß", "hakenkreuz", "nazi", "nationalsozial", "rechtsextrem", "sieg heil", "heil hitler",
+    "fremdenfeind", "rassis", "hautfarbe",
+    "islamophob", "islamfeind", "muslimfeind", "antimuslim", "anti muslim", "antiislam",
+    "anti-islam", "anti islam",
+    "antisemit", "anti-semit", "anti semit", "judenfeind", "homophob", "transphob", "queerfeind", "queerphob", "transfeind",
+    "frauenfeind", "misogyn", "sexuell", "sexist", "frauenhass", "antifem", "anti-fem",
+    "behindertenfeind", "körperliche behind", "geistige behind", "physische behind", "psychische behind",
+    "körperliche beein", "geistige beein", "physische beein", "psychische beein",
 ]
 
 action_terms = [
@@ -126,7 +124,7 @@ def find_keywords(text, terms, threshold):
     hits = []
     for term in terms:
         low = term.lower()
-        if re.search(rf"\b{re.escape(low)}\b", text):
+        if re.search(rf"\b{re.escape(low)}\w*", text):
             hits.append(term)
         else:
             for tok in tokens:
@@ -140,7 +138,7 @@ def find_keywords_with_matches(text, terms, threshold):
     hits = []
     for term in terms:
         low = term.lower()
-        for m in re.finditer(rf"\b{re.escape(low)}\b", text):
+        for m in re.finditer(rf"\b{re.escape(low)}\w*", text):
             hits.append(m.group(0))
         for tok in tokens:
             if abs(len(tok) - len(low)) <= 3 and difflib.SequenceMatcher(None, tok, low).ratio() >= threshold:
