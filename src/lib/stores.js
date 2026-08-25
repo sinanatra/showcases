@@ -215,7 +215,7 @@ export const isMobile = readable(false, (set) => {
 });
 
 export const recentCount = derived(isMobile, ($isMobile) =>
-  $isMobile ? 50 : 350
+  $isMobile ? 50 : 450
 );
 
 export const recent = derived([articles, recentCount], ([$articles, n]) => {

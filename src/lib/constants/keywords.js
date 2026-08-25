@@ -1,39 +1,59 @@
 export const keywordsGroup = {
+  // Current analysis.py `keywords` stems (what KeywordMatch actually contains
+  // after a rescore) plus the older full-word variants, kept for data scored
+  // before the stem-based matching switch.
   antisem: "antisemitismus",
+  antisemit: "antisemitismus",
+  "anti-semit": "antisemitismus",
+  "anti semit": "antisemitismus",
   antisemitisch: "antisemitismus",
   antisemitismus: "antisemitismus",
+  judenfeind: "antisemitismus",
 
   islamophobie: "islamfeindlichkeit",
   islamfeindlichkeit: "islamfeindlichkeit",
   islamfeindlich: "islamfeindlichkeit",
+  islamfeind: "islamfeindlichkeit",
   islamophobia: "islamfeindlichkeit",
   islamophob: "islamfeindlichkeit",
   islamophobe: "islamfeindlichkeit",
   islamophoben: "islamfeindlichkeit",
   muslimfeindlich: "islamfeindlichkeit",
   muslimfeindlichkeit: "islamfeindlichkeit",
+  muslimfeind: "islamfeindlichkeit",
   antimuslimisch: "islamfeindlichkeit",
+  antimuslim: "islamfeindlichkeit",
   "anti-muslimisch": "islamfeindlichkeit",
   "anti muslimisch": "islamfeindlichkeit",
+  "anti muslim": "islamfeindlichkeit",
   antiislamisch: "islamfeindlichkeit",
+  antiislam: "islamfeindlichkeit",
   "anti-islamisch": "islamfeindlichkeit",
   "anti islamisch": "islamfeindlichkeit",
+  "anti-islam": "islamfeindlichkeit",
+  "anti islam": "islamfeindlichkeit",
 
   rassistisch: "fremdenfeindlichkeit",
   rassismus: "fremdenfeindlichkeit",
+  rassis: "fremdenfeindlichkeit",
   fremdenfeindlich: "fremdenfeindlichkeit",
   fremdenfeindlichkeit: "fremdenfeindlichkeit",
+  fremdenfeind: "fremdenfeindlichkeit",
+  hautfarbe: "fremdenfeindlichkeit",
 
   rechtsextremisch: "rechtsextremismus",
   rechtsextremistisch: "rechtsextremismus",
+  rechtsextrem: "rechtsextremismus",
   rechtsextremismus: "rechtsextremismus",
   hakenkreuz: "rechtsextremismus",
   hitlergruß: "rechtsextremismus",
   "sieg heil": "rechtsextremismus",
+  "heil hitler": "rechtsextremismus",
   nazi: "rechtsextremismus",
   nationalsozialismus: "rechtsextremismus",
   nationalsozialistisch: "rechtsextremismus",
   nationalsozialistische: "rechtsextremismus",
+  nationalsozial: "rechtsextremismus",
 
   verfassungswidrig: "rechtsextremismus",
   "mit politischem hintergrund": "rechtsextremismus",
@@ -42,19 +62,43 @@ export const keywordsGroup = {
   homophobie: "queerfeindlichkeit",
   queerfeindlichkeit: "queerfeindlichkeit",
   queerfeindlich: "queerfeindlichkeit",
+  queerfeind: "queerfeindlichkeit",
   queerphobie: "queerfeindlichkeit",
   queerphobia: "queerfeindlichkeit",
+  queerphob: "queerfeindlichkeit",
   transphobie: "queerfeindlichkeit",
   transphob: "queerfeindlichkeit",
+  transfeind: "queerfeindlichkeit",
 
   volksverhetzung: "volksverhetzung",
+  volksverhetz: "volksverhetzung",
 
   frauenfeindlich: "frauenfeindlichkeit",
   frauenfeindlichkeit: "frauenfeindlichkeit",
+  frauenfeind: "frauenfeindlichkeit",
   sexistisch: "frauenfeindlichkeit",
   sexismus: "frauenfeindlichkeit",
+  sexist: "frauenfeindlichkeit",
+  sexuell: "frauenfeindlichkeit",
   misogyn: "frauenfeindlichkeit",
   misogynie: "frauenfeindlichkeit",
+  frauenhass: "frauenfeindlichkeit",
+  antifeminismus: "frauenfeindlichkeit",
+  antifeministisch: "frauenfeindlichkeit",
+  antifem: "frauenfeindlichkeit",
+  "anti-fem": "frauenfeindlichkeit",
+
+  behindertenfeindlich: "behindertenfeindlichkeit",
+  behindertenfeindlichkeit: "behindertenfeindlichkeit",
+  behindertenfeind: "behindertenfeindlichkeit",
+  "körperliche behind": "behindertenfeindlichkeit",
+  "geistige behind": "behindertenfeindlichkeit",
+  "physische behind": "behindertenfeindlichkeit",
+  "psychische behind": "behindertenfeindlichkeit",
+  "körperliche beein": "behindertenfeindlichkeit",
+  "geistige beein": "behindertenfeindlichkeit",
+  "physische beein": "behindertenfeindlichkeit",
+  "psychische beein": "behindertenfeindlichkeit",
 };
 
 export const canonicalKeywords = [
@@ -65,6 +109,7 @@ export const canonicalKeywords = [
   "volksverhetzung",
   "queerfeindlichkeit",
   "frauenfeindlichkeit",
+  "behindertenfeindlichkeit",
 ];
 
 export const KEYWORD_LABELS = {
@@ -75,6 +120,7 @@ export const KEYWORD_LABELS = {
   volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
   queerfeindlichkeit: { en: "Anti-queer (LGBTQ*)", de: "Queerfeindlichkeit" },
   frauenfeindlichkeit: { en: "Misogyny", de: "Frauenfeindlichkeit" },
+  behindertenfeindlichkeit: { en: "Ableism", de: "Behindertenfeindlichkeit" },
 };
 
 export function getKeywordVariants(canon) {
