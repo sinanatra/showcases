@@ -85,32 +85,40 @@ export function getKeywordVariants(canon) {
   return Array.from(new Set([...variants, canon]));
 }
 
-export function augmentKeywordMatch(keywordMatch, text) {
+// A term is "context-only" when it implies a canonical category solely in
+// combination with a hateful framing, not on its own (e.g. "kopftuch" alone
+// is neutral; "kopftuch" + "rassistisch" reads as islamophobic).
+const AUGMENT_RULES = [
+  {
+    canon: "islamfeindlichkeit",
+    terms: /\b(islamfeind|muslimfeind|islamophob)\w*\b/,
+    contextOnlyTerms: /\bkopftuch\w*\b/,
+    hateContext: /\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b/,
+  },
+];
+
+function groupIncludes(/** @type {string[]} */ kws, /** @type {string} */ canon) {
+  return kws.some(
+    (k) => (keywordsGroup[/** @type {keyof typeof keywordsGroup} */ (String(k || "").toLowerCase())] || "") === canon
+  );
+}
+
+export function augmentKeywordMatch(/** @type {string[]} */ keywordMatch, /** @type {string} */ text) {
   const kws = Array.isArray(keywordMatch) ? [...keywordMatch] : [];
   const hay = String(text || "").toLowerCase();
 
-  const hasIslamophobiaTerm =
-    /\b(islamfeind|muslimfeind|islamophob)\w*\b/.test(hay) ||
-    kws.some(
-      (k) =>
-        (keywordsGroup[String(k || "").toLowerCase()] || "") ===
-        "islamfeindlichkeit"
-    );
+  for (const rule of AUGMENT_RULES) {
+    if (kws.includes(rule.canon)) continue;
 
-  const hasHeadscarfMarker = /\bkopftuch\w*\b/.test(hay);
-  const hasHateContext =
-    /\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b/.test(hay) ||
-    kws.some((k) =>
-      /\b(rassist|fremdenfeind|volksverhetz)\w*\b/.test(
-        String(k || "").toLowerCase()
-      )
-    );
+    const hasTerm = rule.terms.test(hay) || groupIncludes(kws, rule.canon);
+    const hasContextOnlyTerm = rule.contextOnlyTerms?.test(hay) ?? false;
+    const hasHateContext =
+      rule.hateContext.test(hay) ||
+      kws.some((k) => rule.hateContext.test(String(k || "").toLowerCase()));
 
-  if (
-    (hasIslamophobiaTerm || (hasHeadscarfMarker && hasHateContext)) &&
-    !kws.includes("islamfeindlichkeit")
-  ) {
-    kws.push("islamfeindlichkeit");
+    if (hasTerm || (hasContextOnlyTerm && hasHateContext)) {
+      kws.push(rule.canon);
+    }
   }
 
   return Array.from(new Set(kws)).filter(Boolean);
