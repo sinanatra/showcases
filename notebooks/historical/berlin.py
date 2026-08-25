@@ -8,7 +8,7 @@ import os
 import datetime
 
 base_url = "https://www.berlin.de"
-years = list(range(2014, 2026))
+years = list(range(datetime.date.today().year, 2013, -1))
 file_path = 'data/berlin_police_results.csv'
 
 existing_urls = set()
@@ -36,9 +36,10 @@ for year in years:
         continue
 
     page = 1
-    stop_scraping = False
+    consecutive_duplicate_pages = 0
+    max_consecutive_duplicate_pages = 3
 
-    while not stop_scraping:
+    while consecutive_duplicate_pages < max_consecutive_duplicate_pages:
         page_url = year_url if page == 1 else f"{year_url}?page_at_1_0={page}#headline_1_0"
         print(f"🔎 Fetching: {page_url}")
         try:
@@ -56,6 +57,8 @@ for year in years:
             print("📭 No more list items found.")
             break
 
+        new_found_this_page = 0
+
         for item in items:
             date_div = item.find("div", class_="date")
             text_div = item.find("div", class_="text")
@@ -65,9 +68,10 @@ for year in years:
             url_rel = text_div.find("a")["href"]
             article_url = urljoin(base_url, url_rel)
             if article_url in existing_urls:
-                stop_scraping = True
-                print("🛑 Reached already-saved article, stopping.")
-                break
+                # Listing order isn't strictly chronological, so a duplicate
+                # here doesn't mean the rest of the page/site is duplicates too.
+                print(f"⏭️ Already saved: {article_url}")
+                continue
 
             title = text_div.find("a").get_text(strip=True)
             date_str = date_div.get_text(strip=True).split(" ")[0]
@@ -100,6 +104,13 @@ for year in years:
                 "Text": text,
                 "URL": article_url
             })
+            existing_urls.add(article_url)
+            new_found_this_page += 1
+
+        consecutive_duplicate_pages = 0 if new_found_this_page > 0 else consecutive_duplicate_pages + 1
+        if consecutive_duplicate_pages >= max_consecutive_duplicate_pages:
+            print(f"🛑 {max_consecutive_duplicate_pages} pages in a row with no new articles, stopping.")
+            break
 
         page += 1
         time.sleep(2)

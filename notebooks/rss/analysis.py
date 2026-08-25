@@ -10,8 +10,17 @@ input_dir = "data"
 output_dir = "output"
 os.makedirs(output_dir, exist_ok=True)
 
+# Opt-in flags for local full backfill runs (CI leaves both unset, so its
+# incremental behavior against notebooks/rss/data is unchanged).
+include_historical = os.environ.get("INCLUDE_HISTORICAL") == "1"
+force_rescore = os.environ.get("FORCE_RESCORE") == "1"
+
+input_dirs = [input_dir]
+if include_historical:
+    input_dirs.append(os.path.join("..", "historical", "data"))
+
 master_file = os.path.join(output_dir, "all_merged.csv")
-if os.path.exists(master_file):
+if os.path.exists(master_file) and not force_rescore:
     df_all = pd.read_csv(master_file)
 else:
     df_all = pd.DataFrame()
@@ -51,9 +60,9 @@ def source_rank(name):
         return 1
     return 2
 
-csv_files = glob.glob(os.path.join(input_dir, "*.csv"))
+csv_files = [f for d in input_dirs for f in glob.glob(os.path.join(d, "*.csv"))]
 if not csv_files:
-    raise FileNotFoundError(f"No CSV files found in {input_dir}")
+    raise FileNotFoundError(f"No CSV files found in {input_dirs}")
 
 dfs = []
 for file in csv_files:
