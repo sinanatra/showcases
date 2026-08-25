@@ -48,6 +48,13 @@ export const keywordsGroup = {
   transphob: "queerfeindlichkeit",
 
   volksverhetzung: "volksverhetzung",
+
+  frauenfeindlich: "frauenfeindlichkeit",
+  frauenfeindlichkeit: "frauenfeindlichkeit",
+  sexistisch: "frauenfeindlichkeit",
+  sexismus: "frauenfeindlichkeit",
+  misogyn: "frauenfeindlichkeit",
+  misogynie: "frauenfeindlichkeit",
 };
 
 export const canonicalKeywords = [
@@ -57,6 +64,7 @@ export const canonicalKeywords = [
   "rechtsextremismus",
   "volksverhetzung",
   "queerfeindlichkeit",
+  "frauenfeindlichkeit",
 ];
 
 export const KEYWORD_LABELS = {
@@ -66,6 +74,7 @@ export const KEYWORD_LABELS = {
   rechtsextremismus: { en: "Right-wing extremism", de: "Rechtsextremismus" },
   volksverhetzung: { en: "Incitement of the people", de: "Volksverhetzung" },
   queerfeindlichkeit: { en: "Anti-queer (LGBTQ*)", de: "Queerfeindlichkeit" },
+  frauenfeindlichkeit: { en: "Misogyny", de: "Frauenfeindlichkeit" },
 };
 
 export function getKeywordVariants(canon) {
