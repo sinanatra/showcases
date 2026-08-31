@@ -50,11 +50,30 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", line
   const GAP = 6;
 
   const withX = preItems.map((it) => ({ ...it, x: xScale(it.date), label: labelFn(it) }));
-  const sorted = [...withX].sort((a, b) => a.x - b.x);
 
-  const rowEndX = new Map();
+  const groups = new Map();
+  for (const it of withX) {
+    const cats = it.catIds?.length ? it.catIds : [it.catId];
+    for (const cid of cats) {
+      if (!groups.has(cid)) groups.set(cid, []);
+      groups.get(cid).push(it);
+    }
+  }
+  for (const items of groups.values()) {
+    items.sort((a, b) => a.x - b.x);
+    items.forEach((it, i) => {
+      it.desiredRow = Math.max(it.desiredRow ?? 0, i);
+    });
+  }
 
-  return sorted.map((it) => {
+  // Wave sort: desiredRow=0 first (one item per category), then 1, etc.
+  const withRow = [...withX].sort((a, b) => a.desiredRow - b.desiredRow || a.x - b.x);
+
+  const rowEndX = new Map();   // global collision map (inter-category avoidance)
+  const catFloor = new Map();  // per-category: row never decreases within a category
+
+  return withRow.map((it) => {
+    const cats = it.catIds?.length ? it.catIds : [it.catId];
     const tw = widthFn ? widthFn(it) : Math.ceil(it.label.length * CHAR_W);
     const hw = tw / 2;
     const xStart = textAlign === "start" ? it.x - GAP
@@ -63,9 +82,10 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", line
     const xEnd   = textAlign === "start" ? it.x + tw + GAP
                  : textAlign === "end"   ? it.x + GAP
                  : it.x + hw + GAP;
-    let row = 0;
+    let row = Math.max(it.desiredRow, ...cats.map((c) => catFloor.get(c) ?? 0));
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
+    for (const c of cats) catFloor.set(c, Math.max(catFloor.get(c) ?? 0, row));
     return { ...it, y: (row + 0.2) * lineH };
   });
 }
