@@ -1,65 +1,34 @@
-// font is defined by --font-mono in static/style.css
 export const FS = 10;
 
-// ── district legend ───────────────────────────────────────────
-// Berlin Bezirke
-export const DISTRICT_ICONS = {
-  Mitte: "Mi",
-  "Friedrichshain-Kreuzberg": "FK",
-  Pankow: "Pa",
-  "Charlottenburg-Wilmersdorf": "CW",
-  Spandau: "Sp",
-  "Steglitz-Zehlendorf": "SZ",
-  "Tempelhof-Schöneberg": "TS",
-  Neukölln: "Nk",
-  "Treptow-Köpenick": "TK",
-  "Marzahn-Hellersdorf": "MH",
-  Lichtenberg: "Li",
-  Reinickendorf: "Re",
-  // Brandenburg Städte
-  Potsdam: "Pd",
-  "Brandenburg an der Havel": "BH",
-  Cottbus: "Co",
-  "Frankfurt (Oder)": "FF",
-  // Brandenburg Landkreise
-  Barnim: "Bn",
-  "Dahme-Spreewald": "DS",
-  "Elbe-Elster": "EE",
-  Havelland: "Hv",
-  "Märkisch-Oderland": "MO",
-  Oberhavel: "OH",
-  "Oberspreewald-Lausitz": "OL",
-  "Oder-Spree": "OS",
-  "Ostprignitz-Ruppin": "OR",
-  "Potsdam-Mittelmark": "PM",
-  Prignitz: "Pr",
-  "Spree-Neiße": "SN",
-  Uckermark: "Um",
-};
-
 export const CHAR_W = FS * 0.615;
-export const LINE_H = 23;
+export const ITEM_ROW_GAP = 0;
+export const LINE_H = FS + 3 + ITEM_ROW_GAP;
+export const LINE_H_BOTH = 2 * FS + 6 + ITEM_ROW_GAP;
+export const DIST_FS = 6;
+export const DIST_CW = DIST_FS * 0.615;
+export const DIST_GAP = 3;
+export const STACK_GAP = 3;
 export const TOP_PAD = 16;
 export const H_PAD = 20;
-export const PX_PER_DAY = 20;
-export const SNIP_MAX = 200;
-export const MARKER_LABEL_FS = 24;
-export const MARKER_DESC_FS = 12;
-export const BASELINE_GAP = 220;
+export const PX_PER_DAY = 10;
 
-export const DEFAULT_SHOW_BILANZ = false;
+export const SEGMENT_SNIP_MAX = 140;
+export const MAX_SEGMENTS_PER_ITEM = 2;
+export const MARKER_LABEL_FS = 100;
+export const DATE_FS = 30;
+export const AXIS_LABEL_GAP = 70;
+export const AXIS_PAD = AXIS_LABEL_GAP + DATE_FS + 20;
+
 export const DEFAULT_SHOW_BERLIN = true;
 export const DEFAULT_SHOW_BRANDENBURG = false;
 export const DEFAULT_REVERSED = true;
-export const DEFAULT_DISPLAY_MODE = "text";
 export const DEFAULT_TEXT_ALIGN = "start";
 
 export const DEFAULT_CATEGORIES = [
   {
     id: "rechts",
-    icon: "■",
     label: "Far-right extremism",
-    color: "#A5A5A5",
+    color: "#8c8c8c",
     type: "canonical",
     query: "rechtsextremismus",
     terms: [
@@ -81,9 +50,8 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: "antisem",
-    icon: "●",
     label: "Antisemitism",
-    color: "#dddddd",
+    color: "#9b9b9b",
     type: "canonical",
     query: "antisemitismus",
     terms: [
@@ -100,9 +68,8 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: "fremd",
-    icon: "▲",
     label: "Xenophobia",
-    color: "#E2E2E2",
+    color: "#ababab",
     type: "canonical",
     query: "fremdenfeindlichkeit",
     terms: [
@@ -117,9 +84,8 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: "queer",
-    icon: "◆",
     label: "Anti-LGBTQ+ violence",
-    color: "#a4b1a1",
+    color: "#bababa",
     type: "canonical",
     query: "queerfeindlichkeit",
     terms: [
@@ -145,9 +111,8 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: "islam",
-    icon: "★",
     label: "Islamophobia",
-    color: "#a2a1b1",
+    color: "#c9c9c9",
     type: "canonical",
     query: "islamfeindlichkeit",
     terms: [
@@ -173,9 +138,8 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: "vv",
-    icon: "▼",
     label: "Incitement to hatred",
-    color: "#eaeaea",
+    color: "#d8d8d8",
     type: "canonical",
     query: "volksverhetzung",
     terms: ["volksverhetz", "verfassungswidrig", "volksverhetzend", "hetze"],
@@ -183,32 +147,9 @@ export const DEFAULT_CATEGORIES = [
     desc: "Politically motivated crimes under §130 StGB: incitement to hatred.",
   },
   {
-    id: "palaestina",
-    icon: "◇",
-    label: "Palestine / Gaza",
-    color: "#FAFAFA",
-    type: "text",
-    query:
-      "palästina,palestine,gaza,pro-palästina,palästinensischer,palestinian",
-    on: true,
-    desc: "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
-  },
-  {
-    id: "misogyn",
-    icon: "▮",
-    label: "Misogyny",
-    color: "#e7e7e7",
-    type: "text",
-    query:
-      "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus,frauenhass,antifeminismus,antifeministisch",
-    on: true,
-    desc: "Misogyny is not recognised as a politically motivated crime. It almost never appear in police reports and therefore underrepresented.",
-  },
-  {
     id: "ableism",
-    icon: "◧",
     label: "Ableism",
-    color: "#c9c9c9",
+    color: "#e8e8e8",
     type: "canonical",
     query: "behindertenfeindlichkeit",
     terms: [
@@ -226,32 +167,32 @@ export const DEFAULT_CATEGORIES = [
     on: true,
     desc: "Politically motivated crimes targeting people with disabilities.",
   },
-  // {
-  //   id: "alcohol",
-  //   label: "Alcohol",
-  //   color: "#d4c8b0",
-  //   type: "text",
-  //   query: "alkohol,betrunken,betrunkener,alkoholisiert,trunkenheit",
-  //   on: true,
-  //   desc: "Police reports where alcohol was a factor in the incident.",
-  // },
-  // {
-  //   id: "vandalism",
-  //   label: "Vandalism",
-  //   color: "#c9c0b0",
-  //   type: "text",
-  //   query: "sachbeschädigung,schmiererei,graffiti,beschmiert,sachschaden,hakenkreuz,schmierer",
-  //   on: true,
-  //   desc: "Politically motivated vandalism and graffiti. 72% of vandalism cases in the dataset involve swastika symbols. Memorial sites, schools, and residential spaces are frequently targeted.",
-  // },
-
-  // {
-  //   id: "youth",
-  //   label: "Youth",
-  //   color: "#c5b8a8",
-  //   type: "text",
-  //   query: "jugendlich,minderjährig,jugendlicher,heranwachsender,jugend,schüler,jugendliche",
-  //   on: true,
-  //   desc: "339 police reports involve people aged 18 or younger — as offenders or victims. They act in groups, share right-extremist beliefs, and are individually targeted by racial aggression.",
-  // },
+  {
+    id: "palaestina",
+    label: "Palestine / Gaza",
+    color: "#6fff00",
+    type: "text",
+    query:
+      "palästina,palestine,gaza,pro-palästina,palästinensischer,palestinian",
+    on: true,
+    desc: "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
+  },
+  {
+    id: "misogyn",
+    label: "Misogyny",
+    color: "orangered",
+    type: "text",
+    query:
+      "misogyn,frauenfeindlich,frauenfeindlichkeit,sexistisch,sexismus,frauenhass,antifeminismus,antifeministisch",
+    on: true,
+    desc: "Misogyny is not recognised as a politically motivated crime. It almost never appear in police reports and therefore underrepresented.",
+  },
+  {
+    id: "Ukraine",
+    label: "Ukraine",
+    color: "red",
+    type: "text",
+    on: true,
+    query: "ukraine,ukrainisch,ukrainian,russland,putin,russisch,russian",
+  },
 ];
