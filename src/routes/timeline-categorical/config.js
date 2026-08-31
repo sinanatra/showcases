@@ -14,7 +14,7 @@ export const PX_PER_DAY = 10;
 
 export const SEGMENT_SNIP_MAX = 140;
 export const MAX_SEGMENTS_PER_ITEM = 2;
-export const MARKER_LABEL_FS = 100;
+export const MARKER_LABEL_FS = 60;
 export const DATE_FS = 30;
 export const AXIS_LABEL_GAP = 70;
 export const AXIS_PAD = AXIS_LABEL_GAP + DATE_FS + 20;
