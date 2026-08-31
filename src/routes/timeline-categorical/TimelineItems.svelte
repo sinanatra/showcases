@@ -70,18 +70,17 @@
     ? Math.ceil(districtLabel.length * DIST_CW) + DIST_GAP
     : 0}
   {@const itemTw = sized.reduce((sum, s) => sum + s.tw, 0)}
-  {@const totalTw = districtW + itemTw}
   {@const groupX =
     textAlign === "middle"
-      ? item.x - totalTw / 2
+      ? item.x - itemTw / 2
       : textAlign === "end"
-        ? item.x - totalTw
+        ? item.x - itemTw
         : item.x}
-  {@const districtX = groupX}
+  {@const districtX = groupX - districtW}
   {@const segs = sized.reduce((acc, s) => {
     const prevEnd = acc.length
       ? acc[acc.length - 1].x + acc[acc.length - 1].tw
-      : groupX + districtW;
+      : groupX;
     acc.push({ ...s, x: prevEnd });
     return acc;
   }, [])}
