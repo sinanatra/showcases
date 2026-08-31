@@ -236,7 +236,7 @@
     const LABEL_CW = MARKER_LABEL_FS * 1.1;
     const LABEL_HALF_H = MARKER_LABEL_FS * 0.9;
     const RUN_JUMP_PX = 140;
-    const MAX_TILT_DEG = 190;
+    const MAX_TILT_DEG = 40;
     const JITTER_FRACS = [0, 0.03, -0.03, 0.06, -0.06];
 
     const pointInRect = (/** @type {number} */ px, /** @type {number} */ py, /** @type {any} */ r, /** @type {number} */ pad) => {
