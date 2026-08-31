@@ -1,7 +1,7 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { TOP_PAD } from "./config.js";
+  import { TOP_PAD, DATE_FS, AXIS_LABEL_GAP } from "./config.js";
 
   let { ticks, baseline, dataSvgW } = $props();
 </script>
@@ -32,14 +32,11 @@
 {#each ticks.filter(t => !t.isWeek) as t}
   <text
     x={t.x}
-    y={baseline + 14}
+    y={baseline + AXIS_LABEL_GAP}
     text-anchor="middle"
     style="font-family: var(--font-mono)"
-    font-size={8}
-    fill="#aaa"
-  >{t.isFirst || t.isLast
-      ? `${t.month} ${t.year}`
-      : t.isYear
-        ? t.year
-        : t.month}</text>
+    font-size={DATE_FS}
+    font-weight={700}
+    fill="#333"
+  >{t.label}</text>
 {/each}

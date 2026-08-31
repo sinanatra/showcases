@@ -1,23 +1,6 @@
-import { keywordsGroup } from "$lib/constants/keywords";
-import { CHAR_W, LINE_H, SNIP_MAX } from "./config.js";
+import { keywordsGroup } from "../../lib/constants/keywords.js";
+import { CHAR_W, LINE_H, SEGMENT_SNIP_MAX, MAX_SEGMENTS_PER_ITEM } from "./config.js";
 
-// ── text wrapping ─────────────────────────────────────────────
-export function wrapText(text, maxChars) {
-  const words = text.split(" ");
-  const lines = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? line + " " + word : word;
-    if (candidate.length > maxChars && line) {
-      lines.push(line);
-      line = word;
-    } else line = candidate;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-// word-boundary characters that end a token
 const WORD_END = /[\s,;:.!?()[\]"'…–—/\\]/;
 
 export function matchInText(text, terms) {
@@ -42,45 +25,37 @@ export function matchesCategory(a, cat) {
         cat.query,
     );
   }
-  const hay = `${a.Title || ""} ${a.Text || ""}`.toLowerCase();
-  return cat.query
+  const terms = cat.query
     .split(",")
     .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-    .some((term) =>
-      term
-        .split("+")
-        .map((s) => s.trim())
-        .every((t) => hay.includes(t)),
-    );
+    .filter(Boolean);
+
+  const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
+  const matchedViaKeywordGroup = kws.some((k) =>
+    terms.includes(/** @type {any} */ (keywordsGroup)[String(k).toLowerCase()]),
+  );
+  if (matchedViaKeywordGroup) return true;
+
+  const hay = `${a.Title || ""} ${a.Text || ""}`.toLowerCase();
+  return terms.some((term) =>
+    term
+      .split("+")
+      .map((s) => s.trim())
+      .every((t) => hay.includes(t)),
+  );
 }
 
-export function placeItems(preItems, xScale, labelFn, textAlign = "middle") {
+/** @param {((it: any) => number)|null} [widthFn] */
+export function placeItems(preItems, xScale, labelFn, textAlign = "middle", lineH = LINE_H, widthFn = null) {
   const GAP = 6;
 
-  // Pre-compute screen x and label for every item
   const withX = preItems.map((it) => ({ ...it, x: xScale(it.date), label: labelFn(it) }));
+  const sorted = [...withX].sort((a, b) => a.x - b.x);
 
-  // Assign desiredRow per category in left-to-right screen order
-  const groups = new Map();
-  for (const it of withX) {
-    if (!groups.has(it.catId)) groups.set(it.catId, []);
-    groups.get(it.catId).push(it);
-  }
-  const withRow = [];
-  for (const items of groups.values()) {
-    items.sort((a, b) => a.x - b.x);
-    items.forEach((it, i) => withRow.push({ ...it, desiredRow: i }));
-  }
+  const rowEndX = new Map();
 
-  // Wave sort: desiredRow=0 first (one item per category), then 1, etc.
-  withRow.sort((a, b) => a.desiredRow - b.desiredRow || a.x - b.x);
-
-  const rowEndX = new Map();   // global collision map (inter-category avoidance)
-  const catFloor = new Map();  // per-category: row never decreases within a category
-
-  return withRow.map((it) => {
-    const tw = Math.ceil(it.label.length * CHAR_W);
+  return sorted.map((it) => {
+    const tw = widthFn ? widthFn(it) : Math.ceil(it.label.length * CHAR_W);
     const hw = tw / 2;
     const xStart = textAlign === "start" ? it.x - GAP
                  : textAlign === "end"   ? it.x - tw - GAP
@@ -88,54 +63,61 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle") {
     const xEnd   = textAlign === "start" ? it.x + tw + GAP
                  : textAlign === "end"   ? it.x + GAP
                  : it.x + hw + GAP;
-    let row = Math.max(it.desiredRow, catFloor.get(it.catId) ?? 0);
+    let row = 0;
     while ((rowEndX.get(row) ?? -Infinity) > xStart) row++;
     rowEndX.set(row, xEnd);
-    catFloor.set(it.catId, Math.max(catFloor.get(it.catId) ?? 0, row));
-    return { ...it, y: (row + 0.2) * LINE_H };
+    return { ...it, y: (row + 0.2) * lineH };
   });
 }
 
-export function snippetFor(item, categories) {
-  const cat = categories.find((c) => c.id === item.catId);
+function stripBoilerplate(raw) {
+  return raw
+    .replace(/\nPolizei Berlin\nPressearbeit[\s\S]*/i, "")
+    .replace(/^Nr\.\s*\d+\s*[\n\r]+/i, "")
+    // "•" is reserved as the DE/EN separator in the "both" language display —
+    // strip any that appear in the source Meldung text so it can't collide.
+    .replace(/•/g, "")
+    .trim();
+}
+
+/** Extracts the sentence around this category's matched keyword, or "" if none is found. */
+function sentenceForCategory(item, cat) {
   const raw = item.text || item.title || "";
   if (!raw) return "";
-  if (!cat) return raw.slice(0, SNIP_MAX) + (raw.length > SNIP_MAX ? "…" : "");
 
-  let terms;
-  let directTerms = false; // when true: search terms as-is, no stemming or length filter
+
+  /** @type {[string[], boolean][]} */ const sources = [];
   if (cat.type === "canonical") {
-    // Prefer explicit text terms from config (actual keywords present in scraped text)
+    const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
+    const matchedKws = kws
+      .filter((k) => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
+      .map((k) => String(k));
+    if (matchedKws.length) sources.push([matchedKws, false]);
     if (Array.isArray(/** @type {any} */ (cat).terms) && /** @type {any} */ (cat).terms.length) {
-      terms = /** @type {any} */ (cat).terms;
-      directTerms = true;
-    } else {
-      const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
-      terms = kws
-        .filter((k) => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.query)
-        .map((k) => String(k));
-      if (!terms.length) terms = [cat.query];
+      sources.push([/** @type {any} */ (cat).terms, true]);
     }
+    if (!sources.length) sources.push([[cat.query], false]);
   } else {
-    terms = cat.query
+    const literalTerms = cat.query
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
       .flatMap((t) => t.split("+").map((s) => s.trim()));
-    directTerms = true;
+
+    const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
+    const lowerLiteralTerms = literalTerms.map((t) => t.toLowerCase());
+    const matchedKws = kws
+      .filter((k) => lowerLiteralTerms.includes(/** @type {any} */ (keywordsGroup)[String(k).toLowerCase()]))
+      .map((k) => String(k));
+
+    if (matchedKws.length) sources.push([matchedKws, false]);
+    sources.push([literalTerms, true]);
   }
 
-  // Strip boilerplate: footer and leading "Nr. XXXX" metadata line
-  let clean = raw
-    .replace(/\nPolizei Berlin\nPressearbeit[\s\S]*/i, "")
-    .replace(/^Nr\.\s*\d+\s*[\n\r]+/i, "")
-    .trim();
-
+  const clean = stripBoilerplate(raw);
   const lower = clean.toLowerCase();
   let pos = -1;
 
-  // Compound PMK suffixes first, then standard German inflection/derivation suffixes.
-  // Iterative: islamfeindlichkeit → islam, fremdenfeindlichkeit → fremden → fremd, etc.
   const SUFFIXES = ["feindlichkeit", "feindlich", "keit", "heit", "schaft", "ismus", "ierung", "ung", "lich", "isch", "en", "em", "er", "es", "e", "n", "s"];
   function stems(term) {
     const MIN = 5;
@@ -157,24 +139,24 @@ export function snippetFor(item, categories) {
     return [...out];
   }
 
-  if (directTerms) {
-    // Config terms are explicit — search directly, no stemming or length filter
-    outer: for (const term of terms) {
-      const idx = lower.indexOf(term.toLowerCase());
-      if (idx !== -1) { pos = idx; break outer; }
-    }
-  } else {
-    outer: for (const term of terms) {
-      for (const stem of stems(term)) {
-        // Only accept stems that are at least half the original term length,
-        // to avoid false matches from aggressive stripping (e.g. "islam" from "islamfeindlichkeit")
-        if (stem.length < Math.max(5, Math.ceil(term.length / 2))) continue;
-        const idx = lower.indexOf(stem);
-        if (idx !== -1) { pos = idx; break outer; }
+  sourceLoop: for (const [terms, directTerms] of sources) {
+    if (directTerms) {
+      // Config terms are explicit — search directly, no stemming or length filter
+      for (const term of terms) {
+        const idx = lower.indexOf(term.toLowerCase());
+        if (idx !== -1) { pos = idx; break sourceLoop; }
+      }
+    } else {
+      for (const term of terms) {
+        for (const stem of stems(term)) {
+          if (stem.length < Math.max(5, Math.ceil(term.length / 2))) continue;
+          const idx = lower.indexOf(stem);
+          if (idx !== -1) { pos = idx; break sourceLoop; }
+        }
       }
     }
   }
-  if (pos === -1) return item.title || clean.slice(0, SNIP_MAX) + (clean.length > SNIP_MAX ? "…" : "");
+  if (pos === -1) return null;
 
   // Sentence boundary: \n always splits; "." only splits if followed by space+uppercase letter
   // (avoids false breaks on "Nr.", "ca.", "Str.", etc.)
@@ -195,17 +177,81 @@ export function snippetFor(item, categories) {
   while (sentEnd < clean.length && !isSentBoundary(clean, sentEnd)) sentEnd++;
   if (sentEnd < clean.length) sentEnd++;
 
-  // Normalise internal whitespace in the extracted sentence
-  const sentence = clean.slice(sentStart, sentEnd).trim().replace(/\s+/g, " ");
-  if (sentence.length <= SNIP_MAX) return sentence;
+  const key = `${sentStart}-${sentEnd}`;
 
-  // Too long: window centered on keyword, clipped at word boundaries
+  const sentence = clean.slice(sentStart, sentEnd).trim().replace(/\s+/g, " ");
+  if (sentence.length <= SEGMENT_SNIP_MAX) return { text: sentence, key };
+
   const relPos = pos - sentStart;
-  const half = Math.floor(SNIP_MAX / 2);
+  const half = Math.floor(SEGMENT_SNIP_MAX / 2);
   let s = Math.max(0, relPos - half);
   let e = Math.min(sentence.length, relPos + half);
   // Snap to word boundaries
   while (s > 0 && sentence[s] !== " ") s--;
   while (e < sentence.length && sentence[e] !== " ") e++;
-  return (s > 0 ? "…" : "") + sentence.slice(s, e).trim() + (e < sentence.length ? "…" : "");
+  const text = (s > 0 ? "…" : "") + sentence.slice(s, e).trim() + (e < sentence.length ? "…" : "");
+  return { text, key };
+}
+
+
+export function groupBranchesBySentence(item, branchCats) {
+  const groups = [];
+  const byKey = new Map();
+  for (const cat of branchCats) {
+    const result = sentenceForCategory(item, cat);
+    const key = result ? result.key : undefined;
+    if (key && byKey.has(key)) {
+      byKey.get(key).push(cat.id);
+    } else {
+      const group = [cat.id];
+      groups.push(group);
+      if (key) byKey.set(key, group);
+    }
+  }
+  return groups;
+}
+
+
+export function snippetSegments(item, categories) {
+  const raw = item.text || item.title || "";
+  if (!raw) return [];
+
+  const catIds = item.catIds?.length ? item.catIds : [item.catId];
+  const canonicalCats = catIds
+    .map((id) => categories.find((c) => c.id === id))
+    .filter(Boolean);
+  const highlightCat = item.highlightId
+    ? categories.find((c) => c.id === item.highlightId)
+    : null;
+  const cats = highlightCat ? [...canonicalCats, highlightCat] : canonicalCats;
+  if (!cats.length) {
+    const text = raw.slice(0, SEGMENT_SNIP_MAX) + (raw.length > SEGMENT_SNIP_MAX ? "…" : "");
+    return [{ color: item.color, text, on: true }];
+  }
+
+  const seenKeys = new Set();
+  const segments = [];
+
+  const canonicalBudget = highlightCat ? MAX_SEGMENTS_PER_ITEM - 1 : MAX_SEGMENTS_PER_ITEM;
+  for (const cat of canonicalCats) {
+    if (segments.length >= canonicalBudget) break;
+    const result = sentenceForCategory(item, cat);
+    if (!result) continue;
+    if (seenKeys.has(result.key)) continue;
+    seenKeys.add(result.key);
+    segments.push({ color: cat.color, text: result.text, on: cat.on });
+  }
+
+  if (highlightCat) {
+    const result = sentenceForCategory(item, highlightCat);
+    if (result) {
+      segments.push({ color: highlightCat.color, text: result.text, on: highlightCat.on });
+    }
+  }
+  if (!segments.length) {
+    const clean = stripBoilerplate(raw);
+    const text = item.title || clean.slice(0, SEGMENT_SNIP_MAX) + (clean.length > SEGMENT_SNIP_MAX ? "…" : "");
+    segments.push({ color: item.color, text, on: cats.some((c) => c.on) });
+  }
+  return segments;
 }

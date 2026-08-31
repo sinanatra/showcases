@@ -6,29 +6,42 @@
   import { parseDateLoose } from "$lib/utils/parseDate";
   import { detectRegion } from "$lib/utils/detectRegion";
   import { normalizeDistrict } from "$lib/constants/districts";
-  import { lang, setLang, availableLangs } from "$lib/i18n";
-  import { translateDE_EN } from "$lib/utils/translate";
   import CatPanel from "./CatPanel.svelte";
   import TimelineExport from "$lib/components/TimelineExport.svelte";
   import TimelineGrid from "./TimelineGrid.svelte";
   import TimelineItems from "./TimelineItems.svelte";
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
-    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, MARKER_LABEL_FS, MARKER_DESC_FS, BASELINE_GAP,
-    DEFAULT_CATEGORIES, DISTRICT_ICONS,
-    DEFAULT_SHOW_BILANZ, DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
-    DEFAULT_REVERSED, DEFAULT_DISPLAY_MODE, DEFAULT_TEXT_ALIGN,
+    TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, LINE_H_BOTH, CHAR_W, DIST_CW, DIST_GAP,
+    AXIS_PAD, MARKER_LABEL_FS,
+    DEFAULT_CATEGORIES,
+    DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
+    DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
-  import { matchesCategory, snippetFor, placeItems, wrapText } from "./catTimeline.js";
+  import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence } from "./catTimeline.js";
 
+  // Categories are only added/edited in config.js — the UI just toggles
+  // which ones are shown, it doesn't create or modify them.
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
-  let showBilanz    = $state(DEFAULT_SHOW_BILANZ);
   let showBerlin    = $state(DEFAULT_SHOW_BERLIN);
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
-  let reversed      = $state(DEFAULT_REVERSED);
-  let displayMode   = $state(DEFAULT_DISPLAY_MODE);
-  let textAlign     = $state(DEFAULT_TEXT_ALIGN);
   let panelOpen     = $state(true);
+  /** @type {"de"|"en"|"both"} */ let langMode = $state("both");
+
+  const reversed = DEFAULT_REVERSED;
+  const textAlign = DEFAULT_TEXT_ALIGN;
+
+  // Translations are precomputed offline (scripts/precompute-translations.mjs)
+  // and shipped as a static file — the app never calls a translation API
+  // itself. Missing entries just fall back to German.
+  /** @type {Record<string,string>} */ let translatedMap = $state({});
+  async function loadTranslations() {
+    try {
+      const res = await fetch("/translations.json");
+      if (!res.ok) return;
+      translatedMap = await res.json();
+    } catch {}
+  }
 
   // ── filters ───────────────────────────────────────────────────
   function passesRegion(a) {
@@ -39,8 +52,8 @@
     return false;
   }
 
+  // Bilanz (summary) reports are always excluded from the timeline.
   function passesBilanz(a) {
-    if (showBilanz) return true;
     return !/bilanz/i.test(a.Title || "");
   }
 
@@ -48,7 +61,7 @@
   let hasInitialFit = false;
   /** @type {any[]} */ let ticks = $state([]);
   /** @type {any[]} */ let placed = $state([]);
-  /** @type {any[]} */ let catMarkers = $state([]);
+  /** @type {any[]} */ let branchPaths = $state([]);
   /** @type {Record<string,number>} */ let counts = $state({});
   let dataSvgW = $state(4000);
   let svgH = $state(600);
@@ -56,15 +69,19 @@
 
   const baseline = () => baselineY;
 
-  function build() {
+  // Cache of matched-and-snippeted items — expensive (parses every article,
+  // runs matchesCategory + regex-heavy sentence extraction over the whole
+  // dataset). Only recomputed when the dataset, categories, or region filter
+  // actually change. Translation arriving is cheap by comparison — it only
+  // needs a re-layout (see layout() below), not a full re-match.
+  /** @type {any[]} */ let builtItems = [];
+  /** @type {any[]} */ let branchCats = [];
+
+  function computeItems() {
     const arts = $articles.filter(a => passesRegion(a) && passesBilanz(a));
-    if (!arts.length) {
-      placed = [];
+    if (!arts.length || !categories.length) {
+      builtItems = [];
       counts = {};
-      return;
-    }
-    if (!categories.length) {
-      placed = [];
       return;
     }
 
@@ -78,12 +95,95 @@
           title: (a.Title || "").trim(),
           text: (a.Text || "").trim(),
           raw: a,
+          district: normalizeDistrict(a.ExtractedDistrict, detectRegion(a)),
         },
       ];
     });
-    if (!parsed.length) return;
+    if (!parsed.length) {
+      builtItems = [];
+      return;
+    }
 
-    const allDates = parsed.map((p) => +p.date);
+    // Only official PMK categories ("canonical") form timeline branches.
+    // Everything else ("text") is a highlight: a search that recolors items
+    // already sitting on a canonical branch, it never creates its own branch.
+    branchCats = categories.filter((c) => c.type === "canonical");
+    const highlightCats = categories.filter((c) => c.type !== "canonical");
+
+    const items = [];
+    /** @type {Record<string,number>} */ const newCounts = {};
+    for (const cat of categories) newCounts[cat.id] = 0;
+
+    for (const p of parsed) {
+      const matchedBranches = branchCats.filter((cat) => matchesCategory(p.raw, cat));
+      if (!matchedBranches.length) continue; // no PMK category → not shown
+
+      const matchedHighlight = highlightCats.find(
+        (cat) => cat.on && matchesCategory(p.raw, cat),
+      );
+      if (matchedHighlight) newCounts[matchedHighlight.id]++;
+
+      // An incident matching one PMK category is one item. An incident
+      // matching several becomes several independent items, one per branch
+      // it genuinely belongs to — each placed and row-synced only within
+      // its own branch, never merged into a shared row with the others. The
+      // highlight layer rides along on each, since it's a property of the
+      // incident, not of any one branch.
+      //
+      // Exception: two branches whose keywords land in the exact same
+      // sentence (e.g. "volksverhetzenden, antisemitischen Ausrufen" trips
+      // both Incitement and Antisemitism at once) would otherwise render as
+      // two rows with identical visible text — indistinguishable from a
+      // plain duplicate. Those collapse into one item carrying both catIds.
+      for (const catIds of groupBranchesBySentence(p, matchedBranches)) {
+        for (const id of catIds) newCounts[id]++;
+        const primaryCat = matchedBranches.find((c) => c.id === catIds[0]);
+        const pre = {
+          ...p,
+          catId: catIds[0],
+          catIds,
+          color: matchedHighlight ? matchedHighlight.color : primaryCat.color,
+          highlightId: matchedHighlight?.id ?? null,
+        };
+        items.push({ ...pre, segments: snippetSegments(pre, categories) });
+      }
+    }
+
+    builtItems = items;
+    counts = newCounts;
+  }
+
+  // Layout only — placement, ticks, markers. Cheap enough to re-run whenever
+  // translations arrive, so bilingual widths stay accounted for without
+  // redoing the expensive matching/snippet pass above.
+  function layout() {
+    if (!builtItems.length) {
+      placed = [];
+      ticks = [];
+      branchPaths = [];
+      return;
+    }
+
+    // Toggling a category off removes it from the timeline outright — not
+    // just dims it — so drop its segments (and any item left with none)
+    // before computing the date range, or the timeline stays as long as it
+    // was even after the items that justified that length are gone.
+    const onCatIds = new Set(categories.filter((c) => c.on).map((c) => c.id));
+    const visibleItems = [];
+    for (const it of builtItems) {
+      const segs = it.segments.filter((s) => s.on !== false);
+      if (!segs.length) continue;
+      const catIds = it.catIds.filter((id) => onCatIds.has(id));
+      visibleItems.push({ ...it, segments: segs, catIds: catIds.length ? catIds : it.catIds });
+    }
+    if (!visibleItems.length) {
+      placed = [];
+      ticks = [];
+      branchPaths = [];
+      return;
+    }
+
+    const allDates = visibleItems.map((p) => +p.date);
     const dMin = new Date(Math.min(...allDates));
     const dMax = new Date(Math.max(...allDates));
     const days = (+dMax - +dMin) / 86400000;
@@ -100,12 +200,11 @@
       .domain([new Date(dMin.getFullYear(), 0, 1), dMax])
       .range(reversed ? [W - H_PAD, H_PAD] : [H_PAD, W - H_PAD]);
 
-    const locale = $lang === "de" ? "de-DE" : "en-GB";
+    const pad2 = (/** @type {number} */ n) => String(n).padStart(2, "0");
     const makeTick = (/** @type {Date} */ d) => ({
       x: xScale(d),
       isYear: d.getMonth() === 0,
-      month: d.toLocaleString(locale, { month: "short" }),
-      year: d.getFullYear(),
+      label: `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${pad2(d.getFullYear() % 100)}`,
     });
     const monthTicks = xScale.ticks(d3.timeMonth.every(1)).map(makeTick);
     const lastTick = makeTick(dMax);
@@ -113,10 +212,6 @@
     const majorTicks = Math.abs(lastTick.x - lastMonthX) > 4
       ? [...monthTicks, lastTick]
       : monthTicks;
-    if (majorTicks.length) {
-      majorTicks[0] = { ...majorTicks[0], isFirst: true };
-      majorTicks[majorTicks.length - 1] = { ...majorTicks[majorTicks.length - 1], isLast: true };
-    }
 
     const midTicks = majorTicks.slice(0, -1).map((t, i) => ({
       x: (t.x + majorTicks[i + 1].x) / 2,
@@ -125,87 +220,280 @@
 
     ticks = [...majorTicks, ...midTicks];
 
-    const preItems = [];
-    /** @type {Record<string,number>} */ const newCounts = {};
+    // Fallback render text for items with no segments — plain concatenation
+    // is fine here since it's not used for width/collision math (see
+    // itemWidth below, which mirrors TimelineItems.svelte's real px layout).
+    const labelFn = (it) =>
+      it.segments
+        .map((s) => {
+          const translated = translatedMap[s.text];
+          const de = langMode !== "en" || !translated ? s.text : "";
+          const en = langMode !== "de" && translated ? translated : "";
+          return `${de}${en}`;
+        })
+        .join(" ");
+    // Mirrors TimelineItems.svelte's own width computation exactly, so
+    // collision spacing matches the real render — a char-count estimate
+    // drifts once the (smaller-font) district prefix or "both"-mode
+    // stacking (width = wider of DE/EN, not their sum) are involved.
+    const itemWidth = (it) => {
+      const districtW = it.district ? Math.ceil(it.district.length * DIST_CW) + DIST_GAP : 0;
+      const itemTw = (it.segments?.length ? it.segments : [{ text: it.label }]).reduce((sum, s) => {
+        const translated = translatedMap[s.text];
+        const showEn = langMode !== "de" && !!translated;
+        const showDe = langMode !== "en" || !translated;
+        const de = showDe ? s.text : "";
+        const en = showEn ? translated : "";
+        const stacked = langMode === "both" && !!de && !!en;
+        const tw = stacked
+          ? Math.ceil(Math.max(de.length, en.length) * CHAR_W)
+          : Math.ceil((de.length + en.length) * CHAR_W);
+        return sum + tw;
+      }, 0);
+      return districtW + itemTw;
+    };
+    const rowH = langMode === "both" ? LINE_H_BOTH : LINE_H;
+    const placedRaw = placeItems(visibleItems, xScale, labelFn, textAlign, rowH, itemWidth);
 
-    for (const cat of categories) {
-      const catItems = parsed
-        .filter((p) => matchesCategory(p.raw, cat))
-        .map((p) => ({ ...p, catId: cat.id, color: cat.color, active: cat.on, icon: cat.icon ?? "", district: normalizeDistrict(p.raw.ExtractedDistrict, detectRegion(p.raw)) }));
-      newCounts[cat.id] = catItems.length;
-      catItems.forEach((it) => preItems.push(it));
-    }
+    // Row numbers from placeItems' collision avoidance aren't contiguous —
+    // a wide item can force the next one several rows up while the skipped
+    // rows stay empty, showing up as an uneven gap between item lines that
+    // otherwise sit right next to each other. Re-rank to only the rows
+    // actually in use so the vertical pitch stays even.
+    const usedRows = [...new Set(placedRaw.map((p) => Math.round(p.y / rowH - 0.2)))].sort((a, b) => a - b);
+    const rowRank = new Map(usedRows.map((r, i) => [r, i]));
+    const allPlaced = placedRaw.map((p) => ({
+      ...p,
+      y: (/** @type {number} */ (rowRank.get(Math.round(p.y / rowH - 0.2))) + 0.2) * rowH,
+    }));
 
-    const filteredItems = preItems;
-
-    const labelFn =
-      displayMode === "text"
-        ? (it) => snippetFor(it, categories)
-        : (it) => it.title || it.text || "";
-    const allPlaced = placeItems(filteredItems, xScale, labelFn, textAlign);
-
-    counts = newCounts;
-    const maxY = allPlaced.reduce((m, p) => Math.max(m, p.y + LINE_H), 0);
+    const maxY = allPlaced.reduce((m, p) => Math.max(m, p.y + rowH), 0);
     const bl = TOP_PAD + maxY;
     baselineY = bl;
     placed = allPlaced;
 
-    // ── category markers ────────────────────────────────────────
-    const CAT_CW = MARKER_LABEL_FS * 0.601;
-    const DESC_CW = MARKER_DESC_FS * 0.601;
-    const DESC_LINE_H = MARKER_DESC_FS + 2;
-    const LABEL_H = MARKER_LABEL_FS + 4;
-    const ROW_GAP = 10;
-    const WRAP_CHARS = Math.floor(340 / DESC_CW);
+    // ── branch labels ────────────────────────────────────────────
+    const MAX_LABELS_PER_BRANCH = 5;
+    const LABEL_CLEARANCE = MARKER_LABEL_FS * 0.5;
+    const LABEL_LIFT_STEP = MARKER_LABEL_FS * 0.2;
+    const MAX_LIFTS = 20;
+    const LABEL_CW = MARKER_LABEL_FS * 1.1;
+    const LABEL_HALF_H = MARKER_LABEL_FS * 0.9;
+    const RUN_JUMP_PX = 140;
+    const MAX_TILT_DEG = 190;
+    const JITTER_FRACS = [0, 0.03, -0.03, 0.06, -0.06];
 
-    const markers = categories.map((cat) => {
-      const items = allPlaced.filter((p) => p.catId === cat.id);
-      const descLines = cat.desc ? wrapText(cat.desc, WRAP_CHARS) : [];
-      if (!items.length)
-        return { cat, x: H_PAD, hasTick: false, descLines };
-      const first = items.reduce((a, b) => (a.x < b.x ? a : b));
-      return {
-        cat,
-        x: Math.max(H_PAD, first.x),
-        hasTick: true,
-        descLines,
+    const pointInRect = (/** @type {number} */ px, /** @type {number} */ py, /** @type {any} */ r, /** @type {number} */ pad) => {
+      const dx = px - r.x, dy = py - r.y;
+      const u = dx * r.ux + dy * r.uy;
+      const v = dx * -r.uy + dy * r.ux;
+      return Math.abs(u) <= r.halfW + pad && Math.abs(v) <= r.halfH + pad;
+    };
+    const rectCorners = (/** @type {any} */ r) => {
+      const px = -r.uy, py = r.ux;
+      return [
+        { x: r.x + r.ux * r.halfW + px * r.halfH, y: r.y + r.uy * r.halfW + py * r.halfH },
+        { x: r.x - r.ux * r.halfW + px * r.halfH, y: r.y - r.uy * r.halfW + py * r.halfH },
+        { x: r.x - r.ux * r.halfW - px * r.halfH, y: r.y - r.uy * r.halfW - py * r.halfH },
+        { x: r.x + r.ux * r.halfW - px * r.halfH, y: r.y + r.uy * r.halfW - py * r.halfH },
+      ];
+    };
+    const rectsOverlap = (/** @type {any} */ a, /** @type {any} */ b) => {
+      const cornersA = rectCorners(a), cornersB = rectCorners(b);
+      const axes = [{ x: a.ux, y: a.uy }, { x: -a.uy, y: a.ux }, { x: b.ux, y: b.uy }, { x: -b.uy, y: b.ux }];
+      for (const ax of axes) {
+        const projA = cornersA.map((c) => c.x * ax.x + c.y * ax.y);
+        const projB = cornersB.map((c) => c.x * ax.x + c.y * ax.y);
+        if (Math.max(...projA) < Math.min(...projB) || Math.max(...projB) < Math.min(...projA)) return false;
+      }
+      return true;
+    };
+
+    /** @param {any[]} runItems */
+    const prepareRun = (runItems) => {
+      const n = runItems.length;
+      if (n < 2) return null;
+      const samples = Math.max(2, Math.min(10, n));
+
+      /** @type {any[]} */ const trend = [];
+      for (let i = 0; i < samples; i++) {
+        const idx = Math.round((i * (n - 1)) / (samples - 1));
+        const lo = Math.max(0, idx - 4), hi = Math.min(n - 1, idx + 4);
+        let sum = 0, cnt = 0;
+        for (let k = lo; k <= hi; k++) { sum += bl - runItems[k].y; cnt++; }
+        trend.push({ x: runItems[idx].x, y: sum / cnt });
+      }
+      for (let pass = 0; pass < 4; pass++) {
+        const smoothed = trend.map((p, i) => {
+          if (i === 0 || i === trend.length - 1) return p;
+          return { x: p.x, y: 0.3 * trend[i - 1].y + 0.4 * p.y + 0.3 * trend[i + 1].y };
+        });
+        for (let i = 0; i < trend.length; i++) trend[i] = smoothed[i];
+      }
+
+      /** @type {number[]} */ const segLens = [];
+      let length = 0;
+      for (let i = 1; i < trend.length; i++) {
+        const l = Math.hypot(trend[i].x - trend[i - 1].x, trend[i].y - trend[i - 1].y);
+        segLens.push(l);
+        length += l;
+      }
+      if (!length) return null;
+
+      const pointAt = (/** @type {number} */ offset) => {
+        let acc = 0;
+        for (let i = 0; i < segLens.length; i++) {
+          if (acc + segLens[i] >= offset || i === segLens.length - 1) {
+            const t = segLens[i] ? (offset - acc) / segLens[i] : 0;
+            const a = trend[i], b = trend[i + 1];
+            return {
+              x: a.x + (b.x - a.x) * Math.min(1, Math.max(0, t)),
+              y: a.y + (b.y - a.y) * Math.min(1, Math.max(0, t)),
+              dx: b.x - a.x, dy: b.y - a.y,
+            };
+          }
+          acc += segLens[i];
+        }
+        const a = trend[trend.length - 2], b = trend[trend.length - 1];
+        return { x: b.x, y: b.y, dx: b.x - a.x, dy: b.y - a.y };
       };
-    });
 
-    markers.sort((a, b) => a.x - b.x);
-    const rowEndX2 = new Map();
-    const passOne = markers.map((m) => {
-      const xStart = m.x;
-      const maxLen = Math.max(
-        m.cat.label.length * CAT_CW,
-        ...m.descLines.map((l) => l.length * DESC_CW),
-      );
-      const xEnd = xStart + maxLen + 8;
-      let row = 0;
-      while ((rowEndX2.get(row) ?? -Infinity) > xStart) row++;
-      rowEndX2.set(row, xEnd);
-      return { ...m, row };
-    });
+      const pointAtExt = (/** @type {number} */ offset) => {
+        if (offset < 0) {
+          const a = trend[0], b = trend[1];
+          const segLen0 = segLens[0] || 1;
+          const t = offset / segLen0;
+          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+        }
+        if (offset > length) {
+          const a = trend[trend.length - 2], b = trend[trend.length - 1];
+          const segLenLast = segLens[segLens.length - 1] || 1;
+          const t = 1 + (offset - length) / segLenLast;
+          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+        }
+        return pointAt(offset);
+      };
 
-    const rowMaxLines = new Map();
-    for (const m of passOne)
-      rowMaxLines.set(
-        m.row,
-        Math.max(rowMaxLines.get(m.row) ?? 0, m.descLines.length),
-      );
+      const offsetForX = (/** @type {number} */ targetX) => {
+        if (targetX <= trend[0].x) return 0;
+        if (targetX >= trend[trend.length - 1].x) return length;
+        let acc = 0;
+        for (let i = 0; i < trend.length - 1; i++) {
+          const a = trend[i], b = trend[i + 1];
+          if (targetX <= b.x) {
+            const t = b.x === a.x ? 0 : (targetX - a.x) / (b.x - a.x);
+            return acc + t * segLens[i];
+          }
+          acc += segLens[i];
+        }
+        return length;
+      };
 
-    const maxRow = passOne.reduce((mx, m) => Math.max(mx, m.row), 0);
-    const rowY = [0];
-    for (let r = 0; r < maxRow; r++)
-      rowY.push(
-        rowY[r] + LABEL_H + (rowMaxLines.get(r) ?? 0) * DESC_LINE_H + ROW_GAP,
-      );
+      return { xStart: trend[0].x, xEnd: trend[trend.length - 1].x, length, pointAt, pointAtExt, offsetForX };
+    };
 
-    catMarkers = passOne.map((m) => ({ ...m, yOff: rowY[m.row] }));
-    const lastRowH = LABEL_H + (rowMaxLines.get(maxRow) ?? 0) * DESC_LINE_H;
-    svgH = bl + BASELINE_GAP + rowY[maxRow] + lastRowH + 20;
+    /** @param {any} run */
+    const tryCandidate = (/** @type {any} */ cat, /** @type {any} */ run, /** @type {number} */ baseOffset) => {
+      const halfW = (cat.label.length * LABEL_CW) / 2;
+      for (const j of JITTER_FRACS) {
+        const offset = Math.min(run.length, Math.max(0, baseOffset + j * run.length));
+        const p = run.pointAt(offset);
+        const norm = Math.hypot(p.dx, p.dy) || 1;
+        const ux = p.dx / norm, uy = p.dy / norm;
+        const tiltDeg = Math.abs(Math.atan2(p.dy, p.dx) * 180 / Math.PI);
+        if (tiltDeg > MAX_TILT_DEG) continue;
+
+        let clearance = LABEL_CLEARANCE;
+        for (let lift = 0; lift <= MAX_LIFTS; lift++) {
+          const cy = p.y - clearance;
+          const rect = { x: p.x, y: cy, ux, uy, halfW, halfH: LABEL_HALF_H };
+          const blocked = allPlaced.some((it) => pointInRect(it.x, bl - it.y, rect, 6));
+          if (!blocked) {
+            const segStart = offset - halfW * 1.15;
+            const segEnd = offset + halfW * 1.15;
+            const SUB_SAMPLES = 6;
+            /** @type {any[]} */ const subPts = [];
+            for (let s = 0; s < SUB_SAMPLES; s++) {
+              const off = segStart + ((segEnd - segStart) * s) / (SUB_SAMPLES - 1);
+              const sp = run.pointAtExt(off);
+              subPts.push({ x: sp.x, y: sp.y - clearance });
+            }
+            const d = d3.line()
+              .x(/** @param {any} sp */ (sp) => sp.x)
+              .y(/** @param {any} sp */ (sp) => sp.y)
+              .curve(d3.curveMonotoneX)(subPts);
+            let pathLen = 0;
+            for (let s = 1; s < subPts.length; s++)
+              pathLen += Math.hypot(subPts[s].x - subPts[s - 1].x, subPts[s].y - subPts[s - 1].y);
+            return { ...rect, d, pathLen };
+          }
+          clearance += LABEL_LIFT_STEP;
+        }
+      }
+      return null;
+    };
+
+    /** @type {any[]} */ const branches = branchCats.filter((cat) => cat.on).map((cat) => {
+      const items = allPlaced
+        .filter((p) => p.catIds.includes(cat.id))
+        .sort((a, b) => a.x - b.x);
+      if (!items.length) return null;
+
+      /** @type {any[][]} */ const runGroups = [[items[0]]];
+      for (let i = 1; i < items.length; i++) {
+        const dy = Math.abs((bl - items[i].y) - (bl - items[i - 1].y));
+        if (dy > RUN_JUMP_PX) runGroups.push([]);
+        runGroups[runGroups.length - 1].push(items[i]);
+      }
+      /** @type {any[]} */ const runs = runGroups.map(prepareRun).filter(Boolean);
+      if (!runs.length) return null;
+
+      const xMin = items[0].x, xMax = items[items.length - 1].x;
+      const xRange = xMax - xMin || 1;
+
+      /** @type {any[]} */ const candidates = [];
+      for (let k = 0; k < MAX_LABELS_PER_BRANCH; k++) {
+        const targetX = xMin + (xRange * (k + 0.5)) / MAX_LABELS_PER_BRANCH;
+        let run = runs.find((r) => targetX >= r.xStart && targetX <= r.xEnd);
+        if (!run) {
+          run = runs.reduce((best, r) => {
+            const d = targetX < r.xStart ? r.xStart - targetX : targetX - r.xEnd;
+            return !best || d < best.d ? { r, d } : best;
+          }, /** @type {any} */ (null))?.r;
+        }
+        if (!run) continue;
+        const found = tryCandidate(cat, run, run.offsetForX(targetX));
+        if (found) candidates.push(found);
+      }
+      if (!candidates.length) return null;
+
+      return { cat, items, candidates };
+    }).filter(Boolean);
+
+    branches.sort((a, b) => b.items.length - a.items.length);
+    /** @type {any[]} */ const acceptedRects = [];
+    /** @type {any[]} */ const labels = [];
+    for (let round = 0; round < MAX_LABELS_PER_BRANCH; round++) {
+      for (const br of branches) {
+        const c = br.candidates[round];
+        if (!c) continue;
+        const overlaps = acceptedRects.some((r) => rectsOverlap(c, r));
+        if (overlaps) continue;
+        acceptedRects.push(c);
+        labels.push({ cat: br.cat, id: `branch-label-${br.cat.id}-${labels.length}`, d: c.d, startOffset: c.pathLen / 2 });
+      }
+    }
+
+    branchPaths = labels;
+
+    svgH = bl + AXIS_PAD;
 
     if (!hasInitialFit) { hasInitialFit = true; requestAnimationFrame(fitContent); }
+  }
+
+  function build() {
+    computeItems();
+    layout();
   }
 
   $effect(() => {
@@ -216,49 +504,22 @@
       void c.type;
     }
     void categories.length;
-    void reversed;
-    void textAlign;
     void showBerlin;
     void showBrandenburg;
-    void displayMode;
-    void $lang;
     if ($articles.length) build();
+  });
+
+  // Language mode / translations change the width of every box on screen,
+  // so re-layout (not a full re-match) is enough to keep spacing correct.
+  $effect(() => {
+    void langMode;
+    void translatedMap;
+    if (builtItems.length) layout();
   });
 
   onMount(() => {
     loadArticles();
-  });
-
-  // ── translation ───────────────────────────────────────────────
-  /** @type {Record<string,string>} */ let translatedMap = $state({});
-  let translating = $state(false);
-
-  async function translateLabels() {
-    if ($lang !== "en") return;
-    if (translating) return;
-    const itemLabels   = placed.map(p => p.label);
-    const catLabels    = catMarkers.map(m => m.cat.label);
-    const unique = [...new Set([...itemLabels, ...catLabels].filter(Boolean))];
-    const toAdd = unique.filter(l => !(l in translatedMap));
-    if (!toAdd.length) return;
-    translating = true;
-    const BATCH = 15;
-    try {
-      for (let i = 0; i < toAdd.length; i += BATCH) {
-        const batch = toAdd.slice(i, i + BATCH);
-        const results = await Promise.all(batch.map(async l => [l, await translateDE_EN(l)]));
-        translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
-      }
-    } finally {
-      translating = false;
-    }
-  }
-
-  $effect(() => {
-    void placed.length;
-    void catMarkers.length;
-    void $lang;
-    translateLabels();
+    loadTranslations();
   });
 
   // ── zoom ──────────────────────────────────────────────────────
@@ -286,6 +547,13 @@
     const cH = svgEl.clientHeight;
     if (!cW || !cH) return;
     const scale = Math.min(cW / dataSvgW, cH / svgH) * 0.97;
+    // dataSvgW can run into the tens of thousands of px for a multi-year
+    // timeline, so the fit scale is often well below the zoom behavior's
+    // scaleExtent floor. d3 silently clamps transform() to that floor, which
+    // desyncs the applied scale from the (tx, ty) computed for the intended
+    // one — the visible jump/offset right after clicking "fit". Widen the
+    // floor to always include the fit scale before applying it.
+    zoomBehavior.scaleExtent([Math.min(0.1, scale), 10]);
     const tx = (cW - dataSvgW * scale) / 2;
     const ty = Math.max(4, (cH - svgH * scale) / 2);
     d3.select(svgEl).call(
@@ -338,7 +606,7 @@
     const activeCats = categories.filter(c => (counts[c.id] ?? 0) > 0);
     if (!activeCats.length) return 0;
 
-    const chipW = 130; const chipH = 13; const gap = 6; const padX = H_PAD;
+    const chipW = 220; const chipH = 13; const gap = 6; const padX = H_PAD;
     const cols = Math.max(1, Math.floor((dataSvgW - padX) / (chipW + gap)));
     const rows = Math.ceil(activeCats.length / cols);
     const legendY = svgH + 16;
@@ -346,7 +614,13 @@
     const g = document.createElementNS(ns, "g");
     activeCats.forEach((cat, i) => {
       const color = cat.color ?? "#999";
-      const label = ($lang === "en" ? (translatedMap[cat.label] ?? cat.label) : cat.label);
+      const translated = translatedMap[cat.label];
+      const label =
+        langMode === "en" && translated
+          ? translated
+          : langMode === "both" && translated
+            ? `${cat.label} • ${translated}`
+            : cat.label;
       const col = i % cols;
       const row = Math.floor(i / cols);
       const x = padX + col * (chipW + gap);
@@ -473,8 +747,8 @@
         <svg bind:this={svgEl}>
           <g class="zoom-group" transform={zoomTransform}>
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
-            <TimelineItems {placed} baseline={baseline()} {translatedMap} lang={$lang} {textAlign} locationIcons={DISTRICT_ICONS} />
-            <CategoryMarkers {catMarkers} {counts} baseline={baseline()} {translatedMap} lang={$lang} />
+            <CategoryMarkers {branchPaths} />
+            <TimelineItems {placed} baseline={baseline()} {textAlign} {translatedMap} {langMode} />
           </g>
         </svg>
       {/if}
@@ -488,14 +762,11 @@
 
   <CatPanel
     bind:categories
-    {counts}
-    bind:showBilanz
     bind:showBerlin
     bind:showBrandenburg
-    bind:reversed
-    bind:displayMode
-    bind:textAlign
     bind:panelOpen
+    bind:langMode
+    {counts}
     onRebuild={build}
   />
 </div>
@@ -504,16 +775,9 @@
   hasRows={placed.length > 0}
   {exporting}
   {exportingPng}
-  {translating}
   onExportSVG={exportSVG}
   onExportPNG={exportPNG}
 />
-
-<div class="lang-switch">
-  {#each availableLangs as l}
-    <button class:active={$lang === l} onclick={() => setLang(l)}>{l.toUpperCase()}</button>
-  {/each}
-</div>
 
 <style>
   :global(body) {
@@ -575,31 +839,5 @@
     background: #111;
     color: #fff;
     border-color: #111;
-  }
-
-  .lang-switch {
-    position: fixed;
-    bottom: 1rem;
-    right: 1rem;
-    z-index: 10;
-    display: flex;
-    gap: 0.4rem;
-  }
-  .lang-switch button {
-    background: #111;
-    color: #eee;
-    border: none;
-    cursor: pointer;
-    padding: 0.35rem 0.6rem;
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-  .lang-switch button.active {
-    background: #fff;
-    color: #000;
-    outline: 1px solid #ccc;
-  }
-  .lang-switch button:hover:not(.active) {
-    background: #333;
   }
 </style>
