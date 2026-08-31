@@ -51,9 +51,6 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", line
 
   const withX = preItems.map((it) => ({ ...it, x: xScale(it.date), label: labelFn(it) }));
 
-  // Wave order only — every category's 1st item (by its primary category)
-  // is processed before any category's 2nd, so a dense category can't claim
-  // every low row before a sparser one gets a turn.
   const groups = new Map();
   for (const it of withX) {
     const cid = it.catId;
@@ -71,12 +68,6 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", line
   const rowEndX = new Map();   // global collision map (inter-category avoidance)
   const catFloor = new Map();  // per (primary) category: never below its own last row
 
-  // An item shared with another category is still colored/counted for both,
-  // but its ROW is driven only by its own primary category's climb — not by
-  // whichever of its categories happens to be busiest. Two branches meeting
-  // at a shared incident sounds nice in theory but means a sparse category
-  // gets yanked up to a dense partner's height for one Meldung, which reads
-  // as an unexplained gap, not a meeting.
   return withWave.map((it) => {
     const tw = widthFn ? widthFn(it) : Math.ceil(it.label.length * CHAR_W);
     const hw = tw / 2;
