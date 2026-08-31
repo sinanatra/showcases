@@ -20,8 +20,6 @@
   } from "./config.js";
   import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence } from "./catTimeline.js";
 
-  // Categories are only added/edited in config.js — the UI just toggles
-  // which ones are shown, it doesn't create or modify them.
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
   let showBerlin    = $state(DEFAULT_SHOW_BERLIN);
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
@@ -31,9 +29,6 @@
   const reversed = DEFAULT_REVERSED;
   const textAlign = DEFAULT_TEXT_ALIGN;
 
-  // Translations are precomputed offline (scripts/precompute-translations.mjs)
-  // and shipped as a static file — the app never calls a translation API
-  // itself. Missing entries just fall back to German.
   /** @type {Record<string,string>} */ let translatedMap = $state({});
   async function loadTranslations() {
     try {
@@ -52,7 +47,6 @@
     return false;
   }
 
-  // Bilanz (summary) reports are always excluded from the timeline.
   function passesBilanz(a) {
     return !/bilanz/i.test(a.Title || "");
   }
@@ -69,11 +63,6 @@
 
   const baseline = () => baselineY;
 
-  // Cache of matched-and-snippeted items — expensive (parses every article,
-  // runs matchesCategory + regex-heavy sentence extraction over the whole
-  // dataset). Only recomputed when the dataset, categories, or region filter
-  // actually change. Translation arriving is cheap by comparison — it only
-  // needs a re-layout (see layout() below), not a full re-match.
   /** @type {any[]} */ let builtItems = [];
   /** @type {any[]} */ let branchCats = [];
 
@@ -104,9 +93,6 @@
       return;
     }
 
-    // Only official PMK categories ("canonical") form timeline branches.
-    // Everything else ("text") is a highlight: a search that recolors items
-    // already sitting on a canonical branch, it never creates its own branch.
     branchCats = categories.filter((c) => c.type === "canonical");
     const highlightCats = categories.filter((c) => c.type !== "canonical");
 
@@ -123,18 +109,7 @@
       );
       if (matchedHighlight) newCounts[matchedHighlight.id]++;
 
-      // An incident matching one PMK category is one item. An incident
-      // matching several becomes several independent items, one per branch
-      // it genuinely belongs to — each placed and row-synced only within
-      // its own branch, never merged into a shared row with the others. The
-      // highlight layer rides along on each, since it's a property of the
-      // incident, not of any one branch.
-      //
-      // Exception: two branches whose keywords land in the exact same
-      // sentence (e.g. "volksverhetzenden, antisemitischen Ausrufen" trips
-      // both Incitement and Antisemitism at once) would otherwise render as
-      // two rows with identical visible text — indistinguishable from a
-      // plain duplicate. Those collapse into one item carrying both catIds.
+     
       for (const catIds of groupBranchesBySentence(p, matchedBranches)) {
         for (const id of catIds) newCounts[id]++;
         const primaryCat = matchedBranches.find((c) => c.id === catIds[0]);
@@ -153,9 +128,6 @@
     counts = newCounts;
   }
 
-  // Layout only — placement, ticks, markers. Cheap enough to re-run whenever
-  // translations arrive, so bilingual widths stay accounted for without
-  // redoing the expensive matching/snippet pass above.
   function layout() {
     if (!builtItems.length) {
       placed = [];
@@ -164,10 +136,6 @@
       return;
     }
 
-    // Toggling a category off removes it from the timeline outright — not
-    // just dims it — so drop its segments (and any item left with none)
-    // before computing the date range, or the timeline stays as long as it
-    // was even after the items that justified that length are gone.
     const onCatIds = new Set(categories.filter((c) => c.on).map((c) => c.id));
     const visibleItems = [];
     for (const it of builtItems) {
@@ -220,9 +188,6 @@
 
     ticks = [...majorTicks, ...midTicks];
 
-    // Fallback render text for items with no segments — plain concatenation
-    // is fine here since it's not used for width/collision math (see
-    // itemWidth below, which mirrors TimelineItems.svelte's real px layout).
     const labelFn = (it) =>
       it.segments
         .map((s) => {
@@ -232,10 +197,6 @@
           return `${de}${en}`;
         })
         .join(" ");
-    // Mirrors TimelineItems.svelte's own width computation exactly, so
-    // collision spacing matches the real render — a char-count estimate
-    // drifts once the (smaller-font) district prefix or "both"-mode
-    // stacking (width = wider of DE/EN, not their sum) are involved.
     const itemWidth = (it) => {
       const districtW = it.district ? Math.ceil(it.district.length * DIST_CW) + DIST_GAP : 0;
       const itemTw = (it.segments?.length ? it.segments : [{ text: it.label }]).reduce((sum, s) => {
@@ -255,11 +216,6 @@
     const rowH = langMode === "both" ? LINE_H_BOTH : LINE_H;
     const placedRaw = placeItems(visibleItems, xScale, labelFn, textAlign, rowH, itemWidth);
 
-    // Row numbers from placeItems' collision avoidance aren't contiguous —
-    // a wide item can force the next one several rows up while the skipped
-    // rows stay empty, showing up as an uneven gap between item lines that
-    // otherwise sit right next to each other. Re-rank to only the rows
-    // actually in use so the vertical pitch stays even.
     const usedRows = [...new Set(placedRaw.map((p) => Math.round(p.y / rowH - 0.2)))].sort((a, b) => a - b);
     const rowRank = new Map(usedRows.map((r, i) => [r, i]));
     const allPlaced = placedRaw.map((p) => ({
@@ -674,8 +630,6 @@
     const totalH = svgH + legendH;
     clone.setAttribute("height", String(totalH));
 
-    // For PNG we only need the CSS variable resolved — the browser already has
-    // Pitch Sans cached from the page, so we skip the heavy base64 font blob.
     {
       const ns = "http://www.w3.org/2000/svg";
       let defs = clone.querySelector("defs");
