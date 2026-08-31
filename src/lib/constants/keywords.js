@@ -79,7 +79,6 @@ export const keywordsGroup = {
   sexistisch: "frauenfeindlichkeit",
   sexismus: "frauenfeindlichkeit",
   sexist: "frauenfeindlichkeit",
-  sexuell: "frauenfeindlichkeit",
   misogyn: "frauenfeindlichkeit",
   misogynie: "frauenfeindlichkeit",
   frauenhass: "frauenfeindlichkeit",
@@ -139,7 +138,13 @@ const AUGMENT_RULES = [
     canon: "islamfeindlichkeit",
     terms: /\b(islamfeind|muslimfeind|islamophob)\w*\b/,
     contextOnlyTerms: /\bkopftuch\w*\b/,
-    hateContext: /\b(rassist|fremdenfeind|volksverhetz|beleidig|hass)\w*\b/,
+    // "fremdenfeind" and "beleidig" are too generic to use here: the former
+    // is literally the Xenophobia category's own tag (using it as evidence
+    // for a *different, more specific* category is circular), and the
+    // latter ("insulted") appears in nearly every hate-crime report — either
+    // one alone would auto-promote almost any headscarf mention to
+    // Islamophobia even with zero actual religious framing.
+    hateContext: /\b(rassist|volksverhetz|hass)\w*\b/,
   },
 ];
 
