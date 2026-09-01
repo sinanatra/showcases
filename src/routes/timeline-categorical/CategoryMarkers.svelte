@@ -1,7 +1,7 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { MARKER_LABEL_FS } from "./config.js";
+  import { MARKER_LABEL_DY, MARKER_LABEL_FS } from "./config.js";
 
   let { branchPaths } = $props();
 </script>
@@ -14,6 +14,7 @@
 
 {#each branchPaths as bp}
   <text
+    dy={MARKER_LABEL_DY}
     font-size={MARKER_LABEL_FS}
     fill="#000"
     stroke="#fff"
@@ -21,8 +22,6 @@
     paint-order="stroke fill"
     style="font-family: var(--font-mono)"
     text-anchor="middle"
-    ><textPath href={`#${bp.id}`} startOffset={bp.startOffset}
-      >{bp.cat.label}</textPath
-    ></text
+    ><textPath href={`#${bp.id}`} startOffset={bp.startOffset}>{bp.text}</textPath></text
   >
 {/each}
