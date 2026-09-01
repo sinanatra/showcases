@@ -1,4 +1,6 @@
 <script>
+  import CategoryJsonEditor from "./CategoryJsonEditor.svelte";
+
   let {
     categories = $bindable([]),
     showBerlin = $bindable(true),
@@ -8,6 +10,10 @@
     counts = {},
     onRebuild = () => {},
   } = $props();
+
+  function notifyChange() {
+    onRebuild();
+  }
 </script>
 
 <aside class="panel" class:closed={!panelOpen}>
@@ -30,12 +36,15 @@
           class:off={!cat.on}
           onclick={() => {
             cat.on = !cat.on;
+            notifyChange();
           }}
         >
           <span class="leg-chip" style:background={cat.on ? (cat.color ?? "#999") : undefined}>{cat.label}</span>
           <span class="leg-count">{counts[cat.id] ?? 0}</span>
         </button>
       {/each}
+
+      <CategoryJsonEditor bind:categories onChange={notifyChange} />
 
       <div class="section-title" style="margin-top:16px">Region</div>
       <label class="check-row"
