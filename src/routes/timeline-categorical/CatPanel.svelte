@@ -117,7 +117,7 @@
     cursor: pointer;
     font-family: var(--font-mono);
     font-size: 11px;
-    color: #333;
+    color: #000;
     padding: 2px 0;
     text-align: left;
     width: 100%;
@@ -171,8 +171,8 @@
   }
   .lang-btn:hover,
   .lang-btn.active {
-    background: #333;
+    background: #000;
     color: #fff;
-    border-color: #333;
+    border-color: #000;
   }
 </style>

@@ -36,7 +36,7 @@
     text-anchor="middle"
     style="font-family: var(--font-mono)"
     font-size={DATE_FS}
-    font-weight={700}
-    fill="#333"
+    font-weight={400}
+    fill="#000"
   >{t.label}</text>
 {/each}
