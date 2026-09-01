@@ -14,7 +14,8 @@ export const PX_PER_DAY = 10;
 
 export const SEGMENT_SNIP_MAX = 140;
 export const MAX_SEGMENTS_PER_ITEM = 2;
-export const MARKER_LABEL_FS = 60;
+export const MARKER_LABEL_FS = 160;
+export const MARKER_LABEL_DY = -50;
 export const DATE_FS = 30;
 export const AXIS_LABEL_GAP = 70;
 export const AXIS_PAD = AXIS_LABEL_GAP + DATE_FS + 20;
@@ -28,6 +29,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "rechts",
     label: "Far-right extremism",
+    labelDe: "Rechtsextremismus",
     color: "#8c8c8c",
     type: "canonical",
     query: "rechtsextremismus",
@@ -51,6 +53,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "antisem",
     label: "Antisemitism",
+    labelDe: "Antisemitismus",
     color: "#9b9b9b",
     type: "canonical",
     query: "antisemitismus",
@@ -69,6 +72,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "fremd",
     label: "Xenophobia",
+    labelDe: "Fremdenfeindlichkeit",
     color: "#ababab",
     type: "canonical",
     query: "fremdenfeindlichkeit",
@@ -85,6 +89,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "queer",
     label: "Anti-LGBTQ+ violence",
+    labelDe: "Queerfeindlichkeit",
     color: "#bababa",
     type: "canonical",
     query: "queerfeindlichkeit",
@@ -112,6 +117,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "islam",
     label: "Islamophobia",
+    labelDe: "Islamfeindlichkeit",
     color: "#c9c9c9",
     type: "canonical",
     query: "islamfeindlichkeit",
@@ -139,6 +145,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "vv",
     label: "Incitement to hatred",
+    labelDe: "Volksverhetzung",
     color: "#d8d8d8",
     type: "canonical",
     query: "volksverhetzung",
@@ -149,6 +156,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "ableism",
     label: "Ableism",
+    labelDe: "Behindertenfeindlichkeit",
     color: "#e8e8e8",
     type: "canonical",
     query: "behindertenfeindlichkeit",
@@ -170,16 +178,18 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "palaestina",
     label: "Palestine / Gaza",
+    labelDe: "Palästina / Gaza",
     color: "#6fff00",
     type: "text",
     query:
-      "palästina,palestine,gaza,pro-palästina,palästinensischer,palestinian",
+      "palästina,palestine,gaza,pro-palästina,palästinensischer,palestinian, palestinensische,pro-palestinian,pro-palestine,pro-gaza,gazastre",
     on: true,
     desc: "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
   },
   {
     id: "misogyn",
     label: "Misogyny",
+    labelDe: "Frauenfeindlichkeit",
     color: "orangered",
     type: "text",
     query:
@@ -190,9 +200,11 @@ export const DEFAULT_CATEGORIES = [
   {
     id: "Ukraine",
     label: "Ukraine",
+    labelDe: "Ukraine",
     color: "red",
     type: "text",
     on: true,
     query: "ukraine,ukrainisch,ukrainian,russland,putin,russisch,russian",
   },
+  
 ];

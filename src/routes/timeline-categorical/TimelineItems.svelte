@@ -11,7 +11,7 @@
   } from "./config.js";
 
   const DE_TEXT = "#000";
-  const EN_TEXT = "#333";
+  const EN_TEXT = "#000";
   const DIST_TEXT = "#999";
 
   let {

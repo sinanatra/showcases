@@ -56,6 +56,7 @@
   /** @type {any[]} */ let ticks = $state([]);
   /** @type {any[]} */ let placed = $state([]);
   /** @type {any[]} */ let branchPaths = $state([]);
+  /** @type {any[]} */ let debugPaths = $state([]);
   /** @type {Record<string,number>} */ let counts = $state({});
   let dataSvgW = $state(4000);
   let svgH = $state(600);
@@ -229,63 +230,49 @@
     placed = allPlaced;
 
     // ── branch labels ────────────────────────────────────────────
-    const MAX_LABELS_PER_BRANCH = 5;
-    const LABEL_CLEARANCE = MARKER_LABEL_FS * 0.5;
-    const LABEL_LIFT_STEP = MARKER_LABEL_FS * 0.2;
-    const MAX_LIFTS = 20;
+    const LABEL_CLEARANCE = 50;
+    const OUTLIER_PX = 100;
     const LABEL_CW = MARKER_LABEL_FS * 1.1;
-    const LABEL_HALF_H = MARKER_LABEL_FS * 0.9;
-    const RUN_JUMP_PX = 140;
-    const MAX_TILT_DEG = 40;
-    const JITTER_FRACS = [0, 0.03, -0.03, 0.06, -0.06];
+    const LABEL_GAP_PX = 40;
+    const MAX_TILT_DEG = 130;
+    const MAX_REPEATS = 3;
+    const LABEL_START_RATIO = 0.3;
 
-    const pointInRect = (/** @type {number} */ px, /** @type {number} */ py, /** @type {any} */ r, /** @type {number} */ pad) => {
-      const dx = px - r.x, dy = py - r.y;
-      const u = dx * r.ux + dy * r.uy;
-      const v = dx * -r.uy + dy * r.ux;
-      return Math.abs(u) <= r.halfW + pad && Math.abs(v) <= r.halfH + pad;
-    };
-    const rectCorners = (/** @type {any} */ r) => {
-      const px = -r.uy, py = r.ux;
-      return [
-        { x: r.x + r.ux * r.halfW + px * r.halfH, y: r.y + r.uy * r.halfW + py * r.halfH },
-        { x: r.x - r.ux * r.halfW + px * r.halfH, y: r.y - r.uy * r.halfW + py * r.halfH },
-        { x: r.x - r.ux * r.halfW - px * r.halfH, y: r.y - r.uy * r.halfW - py * r.halfH },
-        { x: r.x + r.ux * r.halfW - px * r.halfH, y: r.y + r.uy * r.halfW - py * r.halfH },
-      ];
-    };
-    const rectsOverlap = (/** @type {any} */ a, /** @type {any} */ b) => {
-      const cornersA = rectCorners(a), cornersB = rectCorners(b);
-      const axes = [{ x: a.ux, y: a.uy }, { x: -a.uy, y: a.ux }, { x: b.ux, y: b.uy }, { x: -b.uy, y: b.ux }];
-      for (const ax of axes) {
-        const projA = cornersA.map((c) => c.x * ax.x + c.y * ax.y);
-        const projB = cornersB.map((c) => c.x * ax.x + c.y * ax.y);
-        if (Math.max(...projA) < Math.min(...projB) || Math.max(...projB) < Math.min(...projA)) return false;
-      }
-      return true;
+    /** @param {any} cat */
+    const wordsFor = (cat) => {
+      if (langMode === "de") return [cat.labelDe || cat.label];
+      if (langMode === "en") return [cat.label];
+      return [cat.labelDe || cat.label, cat.label];
     };
 
-    /** @param {any[]} runItems */
-    const prepareRun = (runItems) => {
-      const n = runItems.length;
-      if (n < 2) return null;
-      const samples = Math.max(2, Math.min(10, n));
+    /** @type {any[]} */ const debugList = [];
+    /** @type {any[]} */ const labels = [];
 
-      /** @type {any[]} */ const trend = [];
-      for (let i = 0; i < samples; i++) {
-        const idx = Math.round((i * (n - 1)) / (samples - 1));
-        const lo = Math.max(0, idx - 4), hi = Math.min(n - 1, idx + 4);
-        let sum = 0, cnt = 0;
-        for (let k = lo; k <= hi; k++) { sum += bl - runItems[k].y; cnt++; }
-        trend.push({ x: runItems[idx].x, y: sum / cnt });
+    for (const cat of branchCats.filter((c) => c.on)) {
+      const items = allPlaced
+        .filter((p) => p.catId === cat.id)
+        .sort((a, b) => a.x - b.x);
+      if (!items.length) continue;
+
+      const raw = items.map((it) => ({ x: it.x, y: bl - it.y }));
+      /** @type {any[]} */ const trend = [raw[0]];
+      let stuck = 0;
+      for (let i = 1; i < raw.length; i++) {
+        const prev = trend[trend.length - 1];
+        if (Math.abs(raw[i].y - prev.y) > OUTLIER_PX) {
+          stuck++;
+          if (stuck < 3) continue;
+        }
+        trend.push(raw[i]);
+        stuck = 0;
       }
-      for (let pass = 0; pass < 4; pass++) {
-        const smoothed = trend.map((p, i) => {
-          if (i === 0 || i === trend.length - 1) return p;
-          return { x: p.x, y: 0.3 * trend[i - 1].y + 0.4 * p.y + 0.3 * trend[i + 1].y };
-        });
-        for (let i = 0; i < trend.length; i++) trend[i] = smoothed[i];
-      }
+      if (trend.length < 2) continue;
+
+      const pathD = d3.line()
+        .x(/** @param {any} p */ (p) => p.x)
+        .y(/** @param {any} p */ (p) => p.y)
+        .curve(d3.curveMonotoneX)(trend);
+      debugList.push({ id: `debug-run-${cat.id}`, d: pathD, color: cat.color ?? "red" });
 
       /** @type {number[]} */ const segLens = [];
       let length = 0;
@@ -294,7 +281,7 @@
         segLens.push(l);
         length += l;
       }
-      if (!length) return null;
+      if (!length) continue;
 
       const pointAt = (/** @type {number} */ offset) => {
         let acc = 0;
@@ -330,117 +317,42 @@
         return pointAt(offset);
       };
 
-      const offsetForX = (/** @type {number} */ targetX) => {
-        if (targetX <= trend[0].x) return 0;
-        if (targetX >= trend[trend.length - 1].x) return length;
-        let acc = 0;
-        for (let i = 0; i < trend.length - 1; i++) {
-          const a = trend[i], b = trend[i + 1];
-          if (targetX <= b.x) {
-            const t = b.x === a.x ? 0 : (targetX - a.x) / (b.x - a.x);
-            return acc + t * segLens[i];
-          }
-          acc += segLens[i];
-        }
-        return length;
-      };
-
-      return { xStart: trend[0].x, xEnd: trend[trend.length - 1].x, length, pointAt, pointAtExt, offsetForX };
-    };
-
-    /** @param {any} run */
-    const tryCandidate = (/** @type {any} */ cat, /** @type {any} */ run, /** @type {number} */ baseOffset) => {
-      const halfW = (cat.label.length * LABEL_CW) / 2;
-      for (const j of JITTER_FRACS) {
-        const offset = Math.min(run.length, Math.max(0, baseOffset + j * run.length));
-        const p = run.pointAt(offset);
-        const norm = Math.hypot(p.dx, p.dy) || 1;
-        const ux = p.dx / norm, uy = p.dy / norm;
+      const words = wordsFor(cat);
+      for (let wi = 0; wi < MAX_REPEATS; wi++) {
+        const word = words[wi % words.length];
+        const halfW = (word.length * LABEL_CW) / 2;
+        const progress = MAX_REPEATS > 1 ? wi / (MAX_REPEATS - 1) : 0;
+        const labelStart = length * LABEL_START_RATIO +
+          (length * (1 - LABEL_START_RATIO) - halfW * 2) * progress;
+        const offset = labelStart + halfW;
+        const p = pointAt(offset);
         const tiltDeg = Math.abs(Math.atan2(p.dy, p.dx) * 180 / Math.PI);
-        if (tiltDeg > MAX_TILT_DEG) continue;
 
-        let clearance = LABEL_CLEARANCE;
-        for (let lift = 0; lift <= MAX_LIFTS; lift++) {
-          const cy = p.y - clearance;
-          const rect = { x: p.x, y: cy, ux, uy, halfW, halfH: LABEL_HALF_H };
-          const blocked = allPlaced.some((it) => pointInRect(it.x, bl - it.y, rect, 6));
-          if (!blocked) {
-            const segStart = offset - halfW * 1.15;
-            const segEnd = offset + halfW * 1.15;
-            const SUB_SAMPLES = 6;
-            /** @type {any[]} */ const subPts = [];
-            for (let s = 0; s < SUB_SAMPLES; s++) {
-              const off = segStart + ((segEnd - segStart) * s) / (SUB_SAMPLES - 1);
-              const sp = run.pointAtExt(off);
-              subPts.push({ x: sp.x, y: sp.y - clearance });
-            }
-            const d = d3.line()
-              .x(/** @param {any} sp */ (sp) => sp.x)
-              .y(/** @param {any} sp */ (sp) => sp.y)
-              .curve(d3.curveMonotoneX)(subPts);
-            let pathLen = 0;
-            for (let s = 1; s < subPts.length; s++)
-              pathLen += Math.hypot(subPts[s].x - subPts[s - 1].x, subPts[s].y - subPts[s - 1].y);
-            return { ...rect, d, pathLen };
+        if (tiltDeg <= MAX_TILT_DEG) {
+          const segStart = offset - halfW;
+          const segEnd = offset + halfW;
+          const SUB_SAMPLES = 5;
+          /** @type {any[]} */ const subPts = [];
+          for (let s = 0; s < SUB_SAMPLES; s++) {
+            const off = segStart + ((segEnd - segStart) * s) / (SUB_SAMPLES - 1);
+            const sp = pointAtExt(off);
+            subPts.push({ x: sp.x, y: sp.y - LABEL_CLEARANCE });
           }
-          clearance += LABEL_LIFT_STEP;
+          const d = d3.line()
+            .x(/** @param {any} sp */ (sp) => sp.x)
+            .y(/** @param {any} sp */ (sp) => sp.y)
+            .curve(d3.curveLinear)(subPts);
+          let pathLen = 0;
+          for (let s = 1; s < subPts.length; s++)
+            pathLen += Math.hypot(subPts[s].x - subPts[s - 1].x, subPts[s].y - subPts[s - 1].y);
+          labels.push({ cat, id: `branch-label-${cat.id}-${labels.length}`, d, startOffset: pathLen / 2, text: word });
+          debugList.push({ id: `debug-seg-${labels.length}`, d, color: "red", thick: true });
         }
-      }
-      return null;
-    };
-
-    /** @type {any[]} */ const branches = branchCats.filter((cat) => cat.on).map((cat) => {
-      const items = allPlaced
-        .filter((p) => p.catIds.includes(cat.id))
-        .sort((a, b) => a.x - b.x);
-      if (!items.length) return null;
-
-      /** @type {any[][]} */ const runGroups = [[items[0]]];
-      for (let i = 1; i < items.length; i++) {
-        const dy = Math.abs((bl - items[i].y) - (bl - items[i - 1].y));
-        if (dy > RUN_JUMP_PX) runGroups.push([]);
-        runGroups[runGroups.length - 1].push(items[i]);
-      }
-      /** @type {any[]} */ const runs = runGroups.map(prepareRun).filter(Boolean);
-      if (!runs.length) return null;
-
-      const xMin = items[0].x, xMax = items[items.length - 1].x;
-      const xRange = xMax - xMin || 1;
-
-      /** @type {any[]} */ const candidates = [];
-      for (let k = 0; k < MAX_LABELS_PER_BRANCH; k++) {
-        const targetX = xMin + (xRange * (k + 0.5)) / MAX_LABELS_PER_BRANCH;
-        let run = runs.find((r) => targetX >= r.xStart && targetX <= r.xEnd);
-        if (!run) {
-          run = runs.reduce((best, r) => {
-            const d = targetX < r.xStart ? r.xStart - targetX : targetX - r.xEnd;
-            return !best || d < best.d ? { r, d } : best;
-          }, /** @type {any} */ (null))?.r;
-        }
-        if (!run) continue;
-        const found = tryCandidate(cat, run, run.offsetForX(targetX));
-        if (found) candidates.push(found);
-      }
-      if (!candidates.length) return null;
-
-      return { cat, items, candidates };
-    }).filter(Boolean);
-
-    branches.sort((a, b) => b.items.length - a.items.length);
-    /** @type {any[]} */ const acceptedRects = [];
-    /** @type {any[]} */ const labels = [];
-    for (let round = 0; round < MAX_LABELS_PER_BRANCH; round++) {
-      for (const br of branches) {
-        const c = br.candidates[round];
-        if (!c) continue;
-        const overlaps = acceptedRects.some((r) => rectsOverlap(c, r));
-        if (overlaps) continue;
-        acceptedRects.push(c);
-        labels.push({ cat: br.cat, id: `branch-label-${br.cat.id}-${labels.length}`, d: c.d, startOffset: c.pathLen / 2 });
       }
     }
 
     branchPaths = labels;
+    debugPaths = debugList;
 
     svgH = bl + AXIS_PAD;
 
@@ -703,6 +615,9 @@
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
             <CategoryMarkers {branchPaths} />
             <TimelineItems {placed} baseline={baseline()} {textAlign} {translatedMap} {langMode} />
+            <!-- {#each debugPaths as dp}
+              <path id={dp.id} d={dp.d} fill="none" stroke={dp.color} stroke-width={dp.thick ? 6 : 2} opacity={dp.thick ? 0.9 : 0.5} />
+            {/each} -->
           </g>
         </svg>
       {/if}
