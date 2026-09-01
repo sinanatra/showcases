@@ -200,13 +200,12 @@ export const DEFAULT_CATEGORIES = [
     desc: "Misogyny is not recognised as a politically motivated crime. It almost never appear in police reports and therefore underrepresented.",
   },
   {
-    id: "Ukraine",
-    label: "Ukraine",
-    labelDe: "Ukraine",
-    color: "red",
+    id: "Demo",
+    label: "Demo",
+    labelDe: "Demo",
+    color: "deepskyblue",
     type: "text",
     on: true,
-    query: "ukraine,ukrainisch,ukrainian,russland,putin,russisch,russian",
+    query: "demo,demonstration,protest,demonstrieren,protestieren,demonstrant,demonstrantin,demonstrierende,Versammlung,Versammlungen,Versammlungsrecht,Versammlungsfreiheit",
   },
-  
 ];
