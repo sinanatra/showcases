@@ -342,7 +342,7 @@
           const d = d3.line()
             .x(/** @param {any} sp */ (sp) => sp.x)
             .y(/** @param {any} sp */ (sp) => sp.y)
-            .curve(d3.curveLinear)(subPts);
+            .curve(d3.curveCatmullRom.alpha(1.8))(subPts);
           let pathLen = 0;
           for (let s = 1; s < subPts.length; s++)
             pathLen += Math.hypot(subPts[s].x - subPts[s - 1].x, subPts[s].y - subPts[s - 1].y);
