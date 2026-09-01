@@ -13,7 +13,7 @@
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, LINE_H_BOTH, CHAR_W, DIST_CW, DIST_GAP,
-    AXIS_PAD, MARKER_LABEL_FS,
+    AXIS_PAD, MARKER_LABEL_DY, MARKER_LABEL_FS,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
@@ -247,6 +247,7 @@
 
     /** @type {any[]} */ const debugList = [];
     /** @type {any[]} */ const labels = [];
+    /** @type {any[]} */ const labelBounds = [];
 
     for (const cat of branchCats.filter((c) => c.on)) {
       const items = allPlaced
@@ -345,8 +346,22 @@
           let pathLen = 0;
           for (let s = 1; s < subPts.length; s++)
             pathLen += Math.hypot(subPts[s].x - subPts[s - 1].x, subPts[s].y - subPts[s - 1].y);
-          labels.push({ cat, id: `branch-label-${cat.id}-${labels.length}`, d, startOffset: pathLen / 2, text: word });
-          debugList.push({ id: `debug-seg-${labels.length}`, d, color: "red", thick: true });
+          const collisionPad = MARKER_LABEL_FS * 0.65;
+          const bounds = {
+            left: Math.min(...subPts.map((sp) => sp.x)) - collisionPad,
+            right: Math.max(...subPts.map((sp) => sp.x)) + collisionPad,
+            top: Math.min(...subPts.map((sp) => sp.y)) + MARKER_LABEL_DY - collisionPad,
+            bottom: Math.max(...subPts.map((sp) => sp.y)) + MARKER_LABEL_DY + collisionPad,
+          };
+          const overlapsLabel = labelBounds.some((other) =>
+            bounds.left < other.right && bounds.right > other.left &&
+            bounds.top < other.bottom && bounds.bottom > other.top,
+          );
+          if (!overlapsLabel) {
+            labels.push({ cat, id: `branch-label-${cat.id}-${labels.length}`, d, startOffset: pathLen / 2, text: word });
+            labelBounds.push(bounds);
+            debugList.push({ id: `debug-seg-${labels.length}`, d, color: "red", thick: true });
+          }
         }
       }
     }
