@@ -100,16 +100,8 @@
   let scheduleResetX = false;
   let filteredUnsub;
 
-  // The date header must stay pinned to the viewport while the page scrolls
-  // vertically, which requires it to NOT be inside a container that
-  // establishes its own vertical scrollport (position:sticky only sticks to
-  // the nearest scrolling ancestor — and per the CSS overflow spec, giving
-  // an element overflow-x without overflow-y forces overflow-y to "auto"
-  // too, silently turning it into one). So the header and the row content
-  // stay two siblings, each independently horizontally scrollable, with
-  // their scrollLeft kept in sync here. Vertical and horizontal scrolling
-  // are otherwise fully independent — nothing auto-scrolls the timeline
-  // horizontally as you scroll the page vertically.
+  // Header and row content are separate scrollable siblings (so the header can stay
+  // sticky to the page) — keep their horizontal scroll positions in sync here.
   function syncScrollLeft(/** @type {HTMLElement} */ from, /** @type {HTMLElement} */ to) {
     if (syncingScroll) return;
     syncingScroll = true;
@@ -223,10 +215,8 @@
         const t = +end - frac * (+end - +start);
         ticks.push({ x, d: new Date(t) });
       }
-      // always refresh visible slice when rows rebuild (content may have changed)
-      // use updateVisible() so visibleStart/visibleEnd are recalculated from
-      // current scroll position — otherwise initial async data load renders nothing
-      // because visibleEnd is still 0 when the first real rows arrive
+      // Recompute visible slice from current scroll position — needed after async data
+      // loads, since visibleEnd is still 0 until the first real rows arrive.
       if (browser) { measureSectionTop(); updateVisible(); }
     } else {
       start = null;

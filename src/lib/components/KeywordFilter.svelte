@@ -1,32 +1,6 @@
 <script>
-  import { filters, availableKeywordsLabeled } from "$lib/stores";
-  import { t } from "$lib/i18n";
+  import { availableKeywordsLabeled } from "$lib/stores";
+  import SelectFilter from "$lib/components/SelectFilter.svelte";
 </script>
 
-<label>
-  {$t("filters.keyword")}
-  <select
-    bind:value={$filters.keyword}
-    on:change={(e) => filters.set({ ...$filters, keyword: e.target.value })}
-    aria-label={$t("filters.keyword")}
-  >
-    <option value="">{$t("filters.all")}</option>
-    {#each $availableKeywordsLabeled ?? [] as kw}
-      <option value={kw.value}>{kw.label}</option>
-    {/each}
-  </select>
-</label>
-
-<style>
-  label {
-    display: flex;
-    gap: 0.2rem;
-    align-items: center;
-    font-family: Arial, sans-serif;
-  }
-  select {
-    background: #fff;
-    padding: 1px;
-    width: 150px;
-  }
-</style>
+<SelectFilter filterKey="keyword" labelKey="filters.keyword" options={$availableKeywordsLabeled} />

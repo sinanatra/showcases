@@ -258,10 +258,7 @@ export function createSketch({
         return;
       }
       const base = Math.max(window.innerWidth, window.innerHeight);
-      const grewByData = Math.min(1.6, 1 + data.length / 40);
       const maxBuffer = isMobile ? 2048 : 4200;
-      // const size = Math.min(maxBuffer, Math.floor(base * grewByData));
-
       const size = Math.min(maxBuffer, Math.floor(base * 2.1));
 
       bufferCenter = { x: size / 2, y: size / 2 };

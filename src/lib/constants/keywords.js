@@ -1,7 +1,5 @@
 export const keywordsGroup = {
-  // Current analysis.py `keywords` stems (what KeywordMatch actually contains
-  // after a rescore) plus the older full-word variants, kept for data scored
-  // before the stem-based matching switch.
+  // analysis.py stems, plus older full-word variants kept for data scored pre stem-based matching.
   antisem: "antisemitismus",
   antisemit: "antisemitismus",
   "anti-semit": "antisemitismus",
@@ -131,20 +129,14 @@ export function getKeywordVariants(canon) {
   return Array.from(new Set([...variants, canon]));
 }
 
-// A term is "context-only" when it implies a canonical category solely in
-// combination with a hateful framing, not on its own (e.g. "kopftuch" alone
-// is neutral; "kopftuch" + "rassistisch" reads as islamophobic).
+// A "context-only" term implies its category only combined with a hateful framing
+// (e.g. "kopftuch" alone is neutral; "kopftuch" + "rassistisch" reads as islamophobic).
 const AUGMENT_RULES = [
   {
     canon: "islamfeindlichkeit",
     terms: /\b(islamfeind|muslimfeind|islamophob)\w*\b/,
     contextOnlyTerms: /\bkopftuch\w*\b/,
-    // "fremdenfeind" and "beleidig" are too generic to use here: the former
-    // is literally the Xenophobia category's own tag (using it as evidence
-    // for a *different, more specific* category is circular), and the
-    // latter ("insulted") appears in nearly every hate-crime report — either
-    // one alone would auto-promote almost any headscarf mention to
-    // Islamophobia even with zero actual religious framing.
+    // Excludes "fremdenfeind"/"beleidig": too generic, would auto-promote almost any headscarf mention.
     hateContext: /\b(rassist|volksverhetz|hass)\w*\b/,
   },
 ];
