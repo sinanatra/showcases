@@ -119,7 +119,7 @@
     syncScrollLeft(timelineContainer, datesBar);
   }
 
-  function updateVisible() {
+  function updateVisible(force = false) {
     const rowsStartY = sectionTop + yOffset;
     const first = Math.max(
       0,
@@ -131,7 +131,7 @@
         (window.scrollY + window.innerHeight - rowsStartY) / lineHeight
       ) + bufferRows
     );
-    if (first !== visibleStart || last !== visibleEnd) {
+    if (force || first !== visibleStart || last !== visibleEnd) {
       visibleStart = first;
       visibleEnd = last;
       visible = rows.slice(visibleStart, visibleEnd);
@@ -215,9 +215,7 @@
         const t = +end - frac * (+end - +start);
         ticks.push({ x, d: new Date(t) });
       }
-      // Recompute visible slice from current scroll position — needed after async data
-      // loads, since visibleEnd is still 0 until the first real rows arrive.
-      if (browser) { measureSectionTop(); updateVisible(); }
+      if (browser) { measureSectionTop(); updateVisible(true); }
     } else {
       start = null;
       end = null;
