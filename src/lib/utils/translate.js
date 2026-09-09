@@ -3,9 +3,7 @@ const MAX_LS_ENTRIES = 8000;
 // Raises MyMemory's anonymous daily quota from 5,000 to 50,000 words.
 const CONTACT_EMAIL = "gn.nanni@gmail.com";
 
-// In-memory cache (always populated from localStorage on first use)
 const cache = new Map();
-// In-flight promises — prevents duplicate concurrent fetches for the same string
 const inflight = new Map();
 let lsLoaded = false;
 
@@ -34,11 +32,7 @@ function persistToLS() {
   }, 1500);
 }
 
-// MyMemory's anonymous tier throttles hard — firing requests in parallel
-// batches (as the caller used to) got every single one back as 429. Route
-// every request through one global queue spaced out over time, with
-// exponential-backoff retries on 429, so a page with hundreds of unique
-// snippets trickles them out instead of bursting.
+// MyMemory's anonymous tier 429s hard on parallel bursts — space requests out globally.
 const MIN_INTERVAL_MS = 350;
 let queueTail = Promise.resolve();
 let lastDispatch = 0;
@@ -58,9 +52,7 @@ function scheduled(fn) {
   return result;
 }
 
-// Once MyMemory reports the daily anonymous quota is used up, every further
-// call gets the same warning back as a 429 — retrying wastes seconds per
-// item for the rest of the session. Trip a breaker and fail fast instead.
+// Once the anonymous quota is exhausted, every further call 429s the same way — fail fast instead of retrying.
 let quotaExhausted = false;
 
 async function fetchWithRetry(url, attempt = 0) {
@@ -89,11 +81,7 @@ async function translate(text, sl, tl) {
   if (cache.has(key)) return cache.get(key);
   if (inflight.has(key)) return inflight.get(key);
 
-  // translate.googleapis.com doesn't send CORS headers for browser fetches
-  // (blocked outright, not a sandbox artifact — confirmed in real browsers
-  // too), so it silently never translated anything. MyMemory's API does
-  // send Access-Control-Allow-Origin: * and works directly from the client.
-  // A contact email raises MyMemory's daily quota from 5,000 to 50,000 words.
+  // MyMemory sends Access-Control-Allow-Origin: * for browser fetches; translate.googleapis.com doesn't.
   const url =
     "https://api.mymemory.translated.net/get" +
     `?langpair=${sl}|${tl}&q=${encodeURIComponent(text)}&de=${encodeURIComponent(CONTACT_EMAIL)}`;
@@ -101,8 +89,7 @@ async function translate(text, sl, tl) {
   const promise = scheduled(() => fetchWithRetry(url))
     .then((body) => {
       const translated = body?.responseData?.translatedText;
-      // Quota-exceeded / error responses can come back as status 200 with a
-      // warning string in translatedText — don't cache those as if real.
+      // Quota-exceeded responses can come back as status 200 with a warning string.
       if (!translated || body.responseStatus !== 200 || /MYMEMORY WARNING/i.test(translated)) {
         return text;
       }

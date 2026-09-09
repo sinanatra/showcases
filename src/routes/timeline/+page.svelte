@@ -5,7 +5,6 @@
   import RegionFilter from "$lib/components/RegionFilter.svelte";
   import DistrictFilter from "$lib/components/DistrictFilter.svelte";
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
-  import GenderFilter from "$lib/components/GenderFilter.svelte";
   import YearSlider from "$lib/components/YearSlider.svelte";
   import TimeClusterFilter from "$lib/components/TimeClusterFilter.svelte";
   import TextSearch from "$lib/components/TextSearch.svelte";
@@ -100,7 +99,6 @@
     <div class="filters-grid">
       <RegionFilter />
       <DistrictFilter />
-      <!-- <GenderFilter /> -->
 
       <YearSlider />
       <TimeClusterFilter />
