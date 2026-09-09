@@ -206,6 +206,7 @@ export const DEFAULT_CATEGORIES = [
     color: "deepskyblue",
     type: "text",
     on: true,
-    query: "demo,demonstration,protest,demonstrieren,protestieren,demonstrant,demonstrantin,demonstrierende,Versammlung,Versammlungen,Versammlungsrecht,Versammlungsfreiheit",
+    query:
+      "demo,demonstration,protest,demonstrieren,protestieren,demonstrant,demonstrantin,demonstrierende,Versammlung,Versammlungen,Versammlungsrecht,Versammlungsfreiheit",
   },
 ];
