@@ -82,6 +82,7 @@ export const keywordsGroup = {
   misogyn: "frauenfeindlichkeit",
   misogynie: "frauenfeindlichkeit",
   frauenhass: "frauenfeindlichkeit",
+  sexuell: "frauenfeindlichkeit",
   antifeminismus: "frauenfeindlichkeit",
   antifeministisch: "frauenfeindlichkeit",
   antifem: "frauenfeindlichkeit",
@@ -148,13 +149,24 @@ const AUGMENT_RULES = [
   },
 ];
 
-function groupIncludes(/** @type {string[]} */ kws, /** @type {string} */ canon) {
+function groupIncludes(
+  /** @type {string[]} */ kws,
+  /** @type {string} */ canon,
+) {
   return kws.some(
-    (k) => (keywordsGroup[/** @type {keyof typeof keywordsGroup} */ (String(k || "").toLowerCase())] || "") === canon
+    (k) =>
+      (keywordsGroup[
+        /** @type {keyof typeof keywordsGroup} */ (
+          String(k || "").toLowerCase()
+        )
+      ] || "") === canon,
   );
 }
 
-export function augmentKeywordMatch(/** @type {string[]} */ keywordMatch, /** @type {string} */ text) {
+export function augmentKeywordMatch(
+  /** @type {string[]} */ keywordMatch,
+  /** @type {string} */ text,
+) {
   const kws = Array.isArray(keywordMatch) ? [...keywordMatch] : [];
   const hay = String(text || "").toLowerCase();
 
