@@ -680,8 +680,7 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
 
     p.setup = () => {
       p.pixelDensity(Math.min(2, window.devicePixelRatio || 1));
-      const c = p.createCanvas(window.innerWidth, window.innerHeight);
-      // c.elt.style.background = "transparent";
+      p.createCanvas(window.innerWidth, window.innerHeight);
       p.colorMode(p.HSB);
       p.frameRate(30);
       p.clear();
@@ -698,7 +697,6 @@ export function createTextSketch({ getIncidents, getSettings, setStatus }) {
     p.draw = () => {
       const didClear = p.frameCount % 10 === 0;
       if (didClear) fadeTextLayer(0.1);
-      // fadeTextLayer(0.02);
 
       if (needsBasemapRedraw) redrawBasemapLayer();
 

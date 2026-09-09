@@ -430,12 +430,8 @@
     const cH = svgEl.clientHeight;
     if (!cW || !cH) return;
     const scale = Math.min(cW / dataSvgW, cH / svgH) * 0.97;
-    // dataSvgW can run into the tens of thousands of px for a multi-year
-    // timeline, so the fit scale is often well below the zoom behavior's
-    // scaleExtent floor. d3 silently clamps transform() to that floor, which
-    // desyncs the applied scale from the (tx, ty) computed for the intended
-    // one — the visible jump/offset right after clicking "fit". Widen the
-    // floor to always include the fit scale before applying it.
+    // Widen the scaleExtent floor to include the fit scale first — otherwise d3 silently
+    // clamps transform() to the old floor, desyncing it from the computed (tx, ty).
     zoomBehavior.scaleExtent([Math.min(0.1, scale), 10]);
     const tx = (cW - dataSvgW * scale) / 2;
     const ty = Math.max(4, (cH - svgH * scale) / 2);
