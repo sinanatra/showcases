@@ -2055,6 +2055,7 @@ Nazi-Parolen gerufen,16.09.2024,"Neuenhagen, Märkisch-Oderland","Am 14.09.2024 
 Nazigruß gezeigt,17.05.2021,"Bernau b. Berlin, Barnim","Am späten Abend des 16.05.2021 waren Polizisten auf Streifenfahrt in der Breitscheidstraße unterwegs, als ihnen dort ein Mann auffiel, der bei der Vorbeifahrt des Funkwagens die Hacken zusammenschlug und den rechten Arm zum sog. „Hitlergruß“ hob. Der 42-Jährige wird sich nun erklären müssen.",https://polizei.brandenburg.de/pressemeldung/nazigruss-gezeigt/2573612,brandenburg_police_results.csv,True,"['hitlergruß', 'nazi']",17.05.2021,[],['42'],['mann'],[],"['hitlergruß', 'nazigruß']"
 Nazigruß gezeigt,30.10.2023,"Eberswalde, Barnim","Am Morgen des 29.10.2023 waren Polizisten mit ihrem Streifenwagen in der Eisenbahnstraße unterwegs, als ihnen vom Fahrbahnrand der sog. „Hitlergruß“ dargeboten wurde. Die Beamten griffen sich den Mann und stellten fest, dass sie es mit einem 27-Jährigen zu tun hatten, der zwar eine schon bekannte Größe darstellte, aber noch nie mit derartigen Sachverhalten aufgefallen war. Die Kriminalpolizei hat sich der Sache angenommen.",https://polizei.brandenburg.de/pressemeldung/nazigruss-gezeigt/4343769,brandenburg_police_results.csv,True,"['hitlergruß', 'nazi']",30.10.2023,[],['27'],['mann'],[],"['hitlergruß', 'nazigruß']"
 Nazigruß öffentlich gezeigt,04.05.2021,"Eberswalde, Barnim","Am 03.05.2021, gegen 18:10 Uhr, entdeckten Polizisten einen Mann, der über den Marktplatz lief und bei ihrem Sichten mehrfach den sogenannten „Hitlergruß“ zeigte. Sie nahmen sich des offensichtlich Alkoholisierten an und stellten fest, dass man es mit einem bereits hinlänglich bekannten 51-Jährigen zu tun hatte. Der Gestellte hatte zu diesem Zeitpunkt einen Atemalkoholwert von 2,72 Promille aufzuweisen. Nun wird gegen ihn wegen Verwendens von Kennzeichen verfassungswidriger Organisationen ermittelt.",https://polizei.brandenburg.de/pressemeldung/nazigruss-oeffentlich-gezeigt/2553080,brandenburg_police_results.csv,True,"['hitlergruß', 'nazi', 'verfassungswidrig']",04.05.2021,['18:10'],['51'],['mann'],[],"['hitlergruß', 'nazigruß', 'verfassungswidriger']"
+Nazigruß skandiert (Babelsberg),11.09.2026,"Babelsberg, Potsdam","Eine Zeugin meldete der Polizei am Donnerstagabend eine Personengruppe auf einem P+R Parkplatz in Babelsberg, die offenbar Musik fremdenfeindlichen Inhalts über eine Musikbox abspielte. Als ein Mann, aus der Gruppe heraus dann den Hitlergruß vollzog, informierte die Zeugin die Polizei. Noch vor Eintreffen der Beamten entfernte sich die Gruppe mit einem Fahrzeug aber in Richtung Am Stern. Das Fahrzeug konnte die Polizei am Bahnübergang Wetzlarer Straße feststellen und kontrollieren. Dabei konnten nicht nur die Identitäten der Personen festgestellt, sondern auch ermittelt werden, dass die abgespielte Musik keine strafrechtliche Relevanz hatte. Die Polizei ermittelt nun gegen einen 19-Jährigen wegen des Verwendens von Zeichen verfassungswidriger Organisationen.",https://polizei.brandenburg.de/pressemeldung/nazigruss-skandiert/5712328,police_rss.csv,True,"['fremdenfeind', 'hitlergruß', 'verfassungswidrig', 'nazi']",11.09.2026,[],['19'],['mann'],[],"['fremdenfeindlichen', 'verfassungswidriger', 'hitlergruß', 'nazigruß']"
 Naziparole entgegengerufen,08.06.2020,"Angermünde, Uckermark","Am Abend des 05.06.2020 nahmen sich Polizisten eines jungen Mannes an, der ihnen in der Berliner Straße den sog. „Hitlergruß“ gezeigt hatte und das Ganze mit einer Naziparole noch unterstrich. Der 15-Jährige wird sich nun mit Kriminalisten der Direktion Ost unterhalten müssen. Der Vorwurf lautet auf Verwenden von Kennzeichen verfassungswidriger Organisationen.",https://polizei.brandenburg.de/pressemeldung/naziparole-entgegengerufen/2004322,brandenburg_police_results.csv,True,"['hitlergruß', 'nazi', 'verfassungswidrig']",08.06.2020,[],['15'],[],[],"['hitlergruß', 'verfassungswidriger', 'naziparole']"
 Naziparole gebrüllt,12.08.2019,"Templin, Uckermark","Am späten Abend des 10.08.2019 wurden Polizisten in die Dargersdorfer Straße gerufen. Ein 54 Jahre alter Einheimischer hatte zuvor in einer Lokalität zu tief ins Glas geschaut und war auf seinem Heimweg zu der Erkenntnis gelangt, dass ihn die eigenen Füße eher nicht mehr nach Hause tragen würden. Also ließ er zufällig vorbeikommende Jugendliche kurzerhand Rettungskräfte rufen. Die von den Rettern hinzugezogenen Polizisten wurden von ihm mit einer Naziparole empfangen. Ein Atemalkoholtest offenbarte dann den Wert von 1,99 Promille.
 Tatsächlich entdeckte der Mann in der weiteren Folge, dass er seinen Heimweg sehr wohl auch allein finden würde und ersparte sich so eine Nacht im Gewahrsam. Die Beamten sahen aber genau hin, dass er auch wirklich unbeschadet dort ankam.
@@ -4266,6 +4267,74 @@ Hinweise zum Datenschutz:
 Es wird um Kenntnisnahme und Beachtung der auf der Website
 www.polizei.brandenburg.de
 eingestellten Hinweise zum Datenschutz gebeten, mit denen Sie gemäß Art. 13 der Datenschutz-Grundverordnung (DSGVO) über die Verarbeitung Ihrer personenbezogenen Daten im Zusammenhang mit Ihrer Bewerbung im Polizeipräsidium des Landes Brandenburg informiert werden.",https://polizei.brandenburg.de/pressemeldung/sachbearbeiterin-sachbearbeiter-m-w-d-vo/5711973,police_rss.csv,True,['sexuell'],07.09.2026,['21:00'],[],"['frau', 'frau']",[],['sexueller']
+Sachbearbeiterin/ Sachbearbeiter (w/m/d) Personalangelegenheiten,11.09.2026,Überregional,"Das Polizeipräsidium des Landes Brandenburg trägt mit seinen ca. 7.300 Bediensteten im Leitungsbereich/ Behördenstab, der Direktion Besondere Dienste, dem Landeskriminalamt und den vier Polizeidirektionen zur Sicherheit der knapp 2,6 Millionen Brandenburgerinnen und Brandenburger bei.
+Eine wesentliche Voraussetzung dafür, dass unsere Polizeikräfte ihre Kernaufgaben erfolgreich erledigen können, ist eine professionelle und leistungsstarke Polizeiverwaltung, die für einen reibungslosen Ablauf aller administrativen Prozesse sorgt.
+Im Stabsbereich Personal beim Behördenstab des Polizeipräsidiums ist befristet zur Elternzeitvertretung zum nächstmöglichen Zeitpunkt bis voraussichtlich September 2027 folgende Stelle zu besetzen
+Sachbearbeiterin/ Sachbearbeiter (w/m/d) Personalangelegenheiten
+(Vollzeit, bewertet bis Bes.Gr. A 11 BbgBesO bzw. nach Entgeltgruppe 9b TV-L)
+Dienstort: Potsdam
+Ihre Aufgabenschwerpunkte:
+Gemeinsam mit weiteren Kolleginnen und Kollegen sind Sie für alle Angelegenheiten der Beamtinnen und Beamten sowie Tarifbeschäftigten mit dienstlichem Bezug zuständig, insbesondere
+Umsetzungen, Abordnungen und Versetzungen
+Ernennungen
+Dienstpostenübertragungen, Feststellung der Amtsbezeichnungen
+arbeitsmedizinische Vorsorgeuntersuchungen
+Nebentätigkeiten
+Dienstunfälle
+Elternzeit, Teilzeit, Dienstbefreiungen
+Gewährung von Zulagen und Zuschlägen
+Dienst- und Arbeitsjubiläen
+Ruhestand sowie Beendigung von Arbeitsverhältnissen
+Beratung der Mitarbeitenden und Führungskräfte in Personalangelegenheiten
+Anforderungen
+Laufbahnbefähigung für den gehobenen allgemeinen Verwaltungsdienst bzw. für eine als gleichwertig anerkannte Laufbahn
+oder
+erfolgreich abgeschlossenes Bachelor- bzw. Diplom-Studium (FH) der Fachrichtung Öffentliche Verwaltung/Recht
+oder
+abgeschlossene weiterführende Fortbildung zur Verwaltungsfachwirtin/zum Verwaltungsfachwirt
+Fachliche Anforderungen
+gute Kenntnisse im Personalvertretungsrecht und Beamten- und Tarifrecht (TV-L)
+Kenntnisse des allgemeinen Verwaltungsrechts und Nebentätigkeitsrechts
+Darüber hinaus bringen Sie mit:
+sehr gutes mündliches und schriftliches Ausdrucksvermögen
+gute Kommunikationsfähigkeit
+Verantwortungsbewusstsein
+ausgeprägte Organisationsfähigkeit und Belastbarkeit
+Selbständigkeit und Initiative
+gute Kenntnisse der gängigen MS-Office Programme (Word, Excel, Outlook)
+Es wird darauf hingewiesen, dass bei Einstellungsabsicht ein Auszug aus dem Bundeszentralregister (Führungszeugnis) zur Vorlage bei der Behörde gemäß § 30 Absatz 5 Bundeszentralregistergesetz abgefordert wird.
+Wir bieten Ihnen:
+eine abwechslungsreiche Tätigkeit im polizeilichen Umfeld
+bedarfsorientierte Weiterbildungsmöglichkeiten
+flexible Arbeitszeitgestaltung (kernzeitlose Gleitzeit zwischen 06:00 und 21:00 Uhr) sowie die Möglichkeit der flexiblen Arbeitsortgestaltung nach Beendigung der Einarbeitungsphase
+die kostenlose Nutzung von Maßnahmen des betrieblichen Gesundheitsmanagements (z.B. Sportkurse, Fitnessräume etc.)
+die Möglichkeit zum Bezug eines mit 16 EUR vom Arbeitgeber bezuschussten VBB-Firmentickets bzw. Deutschlandtickets-Job
+30 Tage Erholungsurlaub im Kalenderjahr sowie bezahlte Freistellung am 24.12. und 31.12.
+(nur für Beschäftigte) betriebliche Altersvorsorge (VBL) und Jahressonderzahlung
+für Beamtinnen und Beamte: Die Möglichkeit der Abordnung im Einvernehmen mit Ihrer derzeitigen Dienststelle, insbesondere als Außenprobezeit.
+Bei der Gestaltung der Arbeitsplätze und -bedingungen legt das Polizeipräsidium großen Wert darauf, dass sich die Belange von Beruf und Familie bestmöglich vereinbaren lassen. Dieser Arbeitsplatz ist daher - im Rahmen der dienstlichen Möglichkeiten und Erfordernisse - grundsätzlich auch für eine Teilzeitbeschäftigung geeignet.
+Das Polizeipräsidium fördert aktiv die Gleichstellung aller Beschäftigten. Wir begrüßen deshalb Bewerbungen von Allen, unabhängig von deren Nationalität (Kommunikationssprache ist Deutsch), sozialer Herkunft, Alter, Religion, Behinderung, Geschlecht oder sexueller Identität.
+Ihre besondere Verpflichtung sieht die Polizei des Landes Brandenburg in der Einstellung behinderter Menschen. Daher werden Bewerbende, die zum Personenkreis schwerbehinderter oder diesen gleichgestellten Menschen mit Behinderung gehören, bei gleicher Eignung bevorzugt berücksichtigt.
+Kontakt und Informationen
+Für Fragen zum fachlichen Aufgabenbereich steht Ihnen Frau Blaurock unter der Telefonnummer (0331) 283-3311 gern zur Verfügung. Bei Fragen zum Bewerbungsverfahren wenden Sie sich bitte an Herrn Müller unter (0331) 283-3313.
+Wenn wir Ihr Interesse geweckt haben,
+dann senden Sie Ihre aussagekräftige Bewerbung mit Anschreiben, Lebenslauf und Ausbildungsnachweisen sowie (Arbeits-)Zeugnissen bzw. dienstlichen Beurteilungen bitte bis zum
+2. Oktobter 2026
+vorzugsweise an
+bewerbung.pp@polizei.brandenburg.de
+oder postalisch an das
+Polizeipräsidium des Landes Brandenburg
+Behördenstab, Stabsbereich Personal
+Kaiser-Friedrich-Str. 143
+14469 Potsdam
+Bewernemde, die bereits im öffentlichen Dienst tätig sind, werden gebeten, ihr Einverständnis zur Einsichtnahme in die Personalakte zu erklären und nach Mäglichkeit Angaben zu ihrer personalführenden Stelle zu tätigen.
+Wenn Sie uns Ihre Unterlagen verschlüsselt zusenden wollen, dann kontaktieren Sie uns bitte zur Übermittlung unseres öffentlichen Schlüssels
+.
+Kosten, die Ihnen im Rahmen Ihrer Bewerbung entstehen, können nicht erstattet werden.
+Hinweise zum Datenschutz:
+Es wird um Kenntnisnahme und Beachtung der auf der Website
+www.polizei.brandenburg.de
+eingestellten Hinweise zum Datenschutz gebeten, mit denen Sie gemäß Art. 13 der Datenschutz-Grundverordnung (DSGVO) über die Verarbeitung Ihrer personenbezogenen Daten im Zusammenhang mit Ihrer Bewerbung im Polizeipräsidium des Landes Brandenburg informiert werden.",https://polizei.brandenburg.de/pressemeldung/sachbearbeiterin-sachbearbeiter-w-m-d-pe/5712324,police_rss.csv,True,['sexuell'],11.09.2026,['21:00'],[],['frau'],['beleidigung'],['sexueller']
 Sachbeschädigung an der Bushaltestelle,16.06.2021,"Boitzenburg, Uckermark","Unbekannte Täter beschmierten an der Bushaltestelle Puschkinstraße die Sitzbank mit vier kleinen Hakenkreuzen. Für die Tatzeit kommen der 14. Juni ab 18 Uhr bis 15. Juni, 14 Uhr in Frage. Nun ermittelt der polizeiliche Staatsschutz zum Verwenden von Kennzeichen verfassungswidriger Organisationen in Verbindung mit gemeinschädlicher Sachbeschädigung.",https://polizei.brandenburg.de/pressemeldung/sachbeschaedigung-an-der-bushaltestelle/2623465,brandenburg_police_results.csv,True,"['hakenkreuz', 'verfassungswidrig']",16.06.2021,"['18', '14']",[],[],[],"['verfassungswidriger', 'hakenkreuzen']"
 Sachbeschädigung durch Graffiti,10.03.2024,"Bahnhof Wustermark, Havelland","Durch einen Bürgerhinweis erlangte die Polizei Kenntnis über Sachbeschädigungen durch Graffiti. Unbekannte Täter beschmierten mehrere Objekte auf dem Bahnsteig und den Personenaufzug des Bahnhofs Wustermark mit diversen Hakenkreuzen und
 verfassungsfeindlichen Sprüchen. Die Polizei hat die Entfernung der Schmierereien veranlasst und ermittelt nun wegen Sachbeschädigung und wegen des Verwendens von Kennzeichen verfassungswidriger Organisationen.",https://polizei.brandenburg.de/pressemeldung/sachbeschaedigung-durch-graffiti/4656119,brandenburg_police_results.csv,True,"['hakenkreuz', 'verfassungswidrig']",10.03.2024,[],[],[],['graffiti'],"['verfassungswidriger', 'hakenkreuzen']"
@@ -4865,6 +4934,8 @@ Verwenden von Kennzeichen verfassungswidriger Organisationen,26.05.2024,"Bornste
 Verwenden von Kennzeichen verfassungswidriger Organisationen und Beleidigungen,25.08.2024,"Landkreis Potsdam-Mittelmark, Michendorf, Sportplatz, Potsdam-Mittelmark","Am Samstagnachmittag geriet eine 40-jährige Frau mit zwei Männern im Alter von 31 und 50 Jahren verbal aneinander, die aufgrund ihrer starken Alkoholisierung zunächst kein gutes Benehmen beim Besuch eines lokalen Fußballspiels an den Tag legten.
 In der weiteren Folge beleidigten sich die beteiligten Personen gegenseitig. Anschließend skandierte der jüngere Mann lautstark einen Ausruf verfassungsfeindlicher Organisationen über den Platz. Es wurden entsprechende Anzeigen aufgenommen und die Männer nach Anzeigenaufnahme ausdrücklich des Platzes verwiesen.
 Samstag, 24.08.2024, 15:45 Uhr",https://polizei.brandenburg.de/pressemeldung/verwenden-von-kennzeichen-verfassungswid/5051224,brandenburg_police_results.csv,True,['verfassungswidrig'],25.08.2024,['15:45'],['40'],"['frau', 'mann']",['beleidigung'],['verfassungswidriger']
+Verwenden von Kennzeichen verfassungswidriger Organisationen (Senftenberg),10.09.2026,"Senftenberg, Oberspreewald-Lausitz","Am Donnerstagabend kam es im Kaufland in Senftenberg zu einem Vorfall, bei dem ein Mann den sogenannten „Hitlergruß“ gezeigt und dabei mehrfach „Heil Hitler“ gerufen hatte. Diese Straftat wurde von einem Security-Mitarbeiter wahrgenommen und der Person ein Hausverbot ausgesprochen, zeitgleich wurde durch die Polizei verständigt.
+Vor dem Eintreffen der Beamten bedrohte der Mann den Sicherheitsdienst. Es wurden entsprechende Strafanzeigen gefertigt und ein Platzverweis für den Bereich ausgesprochen.",https://polizei.brandenburg.de/pressemeldung/verwenden-von-kennzeichen-verfassungswid/5712342,police_rss.csv,True,"['heil hitler', 'verfassungswidrig', 'hitlergruß']",10.09.2026,[],[],"['mann', 'mann']",[],"['heil hitler', 'verfassungswidriger', 'hitlergruß']"
 Verwendung von Kennzeichen verfassungswidriger Organisationen,06.02.2023,"Cottbus, Cottbus","Am Samstag, 04.02.23, gegen 14:40 Uhr rief der Tatverdächtige selbst die Polizei zu seiner Wohnanschrift in die Neue Straße, weil angeblich seine Ehefrau beleidigt worden sei. Dabei wurde bekannt, dass der Sachverhalt bereits am Vortag durch die Polizei aufgenommen und ein Strafermittlungsverfahren eingeleitet wurde.
 Dies wurde dem Tatverdächtigen mitgeteilt, woraufhin dieser unvermittelt den rechten Arm hob und einmal „Sieg Heil!“ rief. Weitere Handlungen wurde unverzüglich durch die Polizeikräfte unterbunden. Der Tatverdächtige war zum Tatzeitpunkt deutlich alkoholisiert gewesen. Ein Strafermittlungsverfahren wurde eingeleitet.",https://polizei.brandenburg.de/pressemeldung/verwendung-von-kennzeichen-verfassungswi/3720551,brandenburg_police_results.csv,True,"['sieg heil', 'verfassungswidrig']",06.02.2023,['14:40'],[],[],[],"['sieg heil', 'verfassungswidriger']"
 Vier Anzeigen auf einen Streich,22.05.2020,"Zehdenick, Oberhavel","Ein 18-Jähriger aus dem Landkreis Oberhavel war gestern Abend zusammen mit zwei Kumpels mit dem Fahrrad in Burgwall unterwegs. Genau zu dieser Zeit befand sich eine Streifenwagenbesetzung in der Marienthaler Straße und die Drei kamen ihnen entgegen. Hierbei rief der 18-Jährige mehrere rechtsgerichtete Sprüche und brach ab, als er die Beamten erblickte. Der junge Mann stand unter dem Einfluss von Alkohol (1,86 Promille), eine Blutprobe wurde ihm im Anschluss in einem Krankenhaus entnommen. Der 18-Jährige beleidigte zudem die Beamten und bedrohte einen der Polizisten. Er wurde an seine Eltern übergeben. Die Kripo ermittelt wegen des Verwendens von Kennzeichen verfassungswidriger Organisationen, wegen Trunkenheit im Straßenverkehr, Bedrohung und Beleidigung.",https://polizei.brandenburg.de/pressemeldung/vier-anzeigen-auf-einen-streich/1980091,brandenburg_police_results.csv,True,['verfassungswidrig'],22.05.2020,[],"['18', '18', '18']","['junge', 'mann']",['beleidigung'],['verfassungswidriger']
