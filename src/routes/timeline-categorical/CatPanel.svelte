@@ -1,14 +1,24 @@
 <script>
   import CategoryJsonEditor from "./CategoryJsonEditor.svelte";
+  import TimelineExport from "$lib/components/TimelineExport.svelte";
 
   let {
     categories = $bindable([]),
     showBerlin = $bindable(true),
     showBrandenburg = $bindable(false),
-    panelOpen = $bindable(true),
     langMode = $bindable("both"),
+    pdfWidthCm = $bindable(null),
+    pdfHeightCm = $bindable(null),
     counts = {},
+    hasRows = false,
+    exporting = false,
+    exportingPng = false,
+    exportingPdf = false,
     onRebuild = () => {},
+    onResetZoom = () => {},
+    onExportSVG = () => {},
+    onExportPNG = () => {},
+    onExportPDF = () => {},
   } = $props();
 
   function notifyChange() {
@@ -16,93 +26,77 @@
   }
 </script>
 
-<aside class="panel" class:closed={!panelOpen}>
-  <button
-    class="toggle"
-    onclick={() => {
-      panelOpen = !panelOpen;
-      onRebuild();
-    }}
-  >
-    {panelOpen ? "✕" : "☰"}
-  </button>
+<aside class="panel">
+  <div class="panel-body">
+    <div class="section-title">View</div>
+    <button class="plain-btn" onclick={onResetZoom}>Fit to viewport</button>
 
-  {#if panelOpen}
-    <div class="panel-body">
-      <div class="section-title">Categories</div>
-      {#each categories as cat}
+    <div class="section-title" style="margin-top:16px">Categories</div>
+    {#each categories as cat}
+      <button
+        class="leg-row"
+        class:off={!cat.on}
+        onclick={() => {
+          cat.on = !cat.on;
+          notifyChange();
+        }}
+      >
+        <span class="leg-chip" style:background={cat.on ? (cat.color ?? "#999") : undefined}>{cat.label}</span>
+        <span class="leg-count">{counts[cat.id] ?? 0}</span>
+      </button>
+    {/each}
+
+    <CategoryJsonEditor bind:categories onChange={notifyChange} />
+
+    <div class="section-title" style="margin-top:16px">Region</div>
+    <label class="check-row"
+      ><input type="checkbox" bind:checked={showBerlin} /> Berlin</label
+    >
+    <label class="check-row"
+      ><input type="checkbox" bind:checked={showBrandenburg} /> Brandenburg</label
+    >
+
+    <div class="section-title" style="margin-top:16px">Language</div>
+    <div class="lang-row">
+      {#each [["de", "DE"], ["en", "EN"], ["both", "Both"]] as [value, label]}
         <button
-          class="leg-row"
-          class:off={!cat.on}
-          onclick={() => {
-            cat.on = !cat.on;
-            notifyChange();
-          }}
-        >
-          <span class="leg-chip" style:background={cat.on ? (cat.color ?? "#999") : undefined}>{cat.label}</span>
-          <span class="leg-count">{counts[cat.id] ?? 0}</span>
-        </button>
+          class="lang-btn"
+          class:active={langMode === value}
+          onclick={() => { langMode = value; }}
+        >{label}</button>
       {/each}
-
-      <CategoryJsonEditor bind:categories onChange={notifyChange} />
-
-      <div class="section-title" style="margin-top:16px">Region</div>
-      <label class="check-row"
-        ><input type="checkbox" bind:checked={showBerlin} /> Berlin</label
-      >
-      <label class="check-row"
-        ><input type="checkbox" bind:checked={showBrandenburg} /> Brandenburg</label
-      >
-
-      <div class="section-title" style="margin-top:16px">Language</div>
-      <div class="lang-row">
-        {#each [["de", "DE"], ["en", "EN"], ["both", "Both"]] as [value, label]}
-          <button
-            class="lang-btn"
-            class:active={langMode === value}
-            onclick={() => { langMode = value; }}
-          >{label}</button>
-        {/each}
-      </div>
     </div>
-  {/if}
+
+    <div class="section-title" style="margin-top:16px">Export</div>
+    <TimelineExport
+      {hasRows}
+      {exporting}
+      {exportingPng}
+      {exportingPdf}
+      bind:pdfWidthCm
+      bind:pdfHeightCm
+      {onExportSVG}
+      {onExportPNG}
+      {onExportPDF}
+    />
+  </div>
 </aside>
 
 <style>
   .panel {
     flex-shrink: 0;
-    width: 200px;
+    width: 220px;
     height: 100vh;
-    background: rgba(244, 243, 239, 0.97);
+    background: #f4f3ef;
     border-left: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
-    transition: width 0.15s;
-  }
-  .panel.closed {
-    width: 36px;
-  }
-
-  .toggle {
-    align-self: flex-end;
-    background: none;
-    border: none;
-    color: #aaa;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 10px 10px 6px;
-    font-family: var(--font-mono);
-    flex-shrink: 0;
-  }
-  .toggle:hover {
-    color: #555;
   }
 
   .panel-body {
-    padding: 0 12px 16px;
+    box-sizing: border-box;
+    height: 100%;
+    padding: 12px;
     overflow-y: auto;
-    flex: 1;
     font-family: var(--font-mono);
     font-size: 11px;
     color: #555;
@@ -114,6 +108,24 @@
     letter-spacing: 0.1em;
     color: #aaa;
     margin: 6px 0 4px;
+  }
+
+  .plain-btn {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #bbb;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    font: inherit;
+    padding: 5px;
+    text-align: left;
+  }
+  .plain-btn:hover {
+    background: #111;
+    color: #fff;
+    border-color: #111;
   }
 
   .leg-row {
