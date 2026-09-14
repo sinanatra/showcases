@@ -1,9 +1,29 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { TOP_PAD, DATE_FS, AXIS_LABEL_GAP } from "./config.js";
+  import { TOP_PAD, DATE_FS, DATE_CW, AXIS_LABEL_GAP } from "./config.js";
 
   let { ticks, baseline, dataSvgW } = $props();
+
+  let visibleLabels = $derived.by(() => {
+    const labelW = 8 * DATE_CW;
+    const GAP = 6;
+    const monthTicks = ticks.filter((t) => !t.isWeek);
+    const yearTicks = monthTicks.filter((t) => t.isYear);
+    const otherTicks = monthTicks.filter((t) => !t.isYear).slice().sort((a, b) => a.x - b.x);
+
+    const spans = yearTicks.map((t) => [t.x - labelW / 2, t.x + labelW / 2]);
+    const result = [...yearTicks];
+    for (const t of otherTicks) {
+      const left = t.x - labelW / 2, right = t.x + labelW / 2;
+      const overlaps = spans.some(([sL, sR]) => left < sR + GAP && right > sL - GAP);
+      if (!overlaps) {
+        spans.push([left, right]);
+        result.push(t);
+      }
+    }
+    return result;
+  });
 </script>
 
 <!-- grid lines -->
@@ -29,7 +49,7 @@
 />
 
 <!-- axis labels — month/year only, skip week ticks -->
-{#each ticks.filter(t => !t.isWeek) as t}
+{#each visibleLabels as t}
   <text
     x={t.x}
     y={baseline + AXIS_LABEL_GAP}

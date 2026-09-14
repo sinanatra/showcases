@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import * as d3 from "d3";
   import { articles } from "$lib/stores";
   import { loadArticles } from "$lib/utils/loadArticles";
@@ -7,7 +7,6 @@
   import { detectRegion } from "$lib/utils/detectRegion";
   import { normalizeDistrict } from "$lib/constants/districts";
   import CatPanel from "./CatPanel.svelte";
-  import TimelineExport from "$lib/components/TimelineExport.svelte";
   import TimelineGrid from "./TimelineGrid.svelte";
   import TimelineItems from "./TimelineItems.svelte";
   import CategoryMarkers from "./CategoryMarkers.svelte";
@@ -15,20 +14,28 @@
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, LINE_H_BOTH, CHAR_W, DIST_CW, DIST_GAP,
     AXIS_PAD, MARKER_LABEL_DY, MARKER_LABEL_FS,
+    PDF_WIDTH_CM, PDF_HEIGHT_CM,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
-  import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence } from "./catTimeline.js";
+import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence } from "./catTimeline.js";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
   let showBerlin    = $state(DEFAULT_SHOW_BERLIN);
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
-  let panelOpen     = $state(true);
   /** @type {"de"|"en"|"both"} */ let langMode = $state("both");
+
+  const SIDEBAR_W = 220;
 
   const reversed = DEFAULT_REVERSED;
   const textAlign = DEFAULT_TEXT_ALIGN;
+
+  // Mutable so a custom PDF width+height (see exportPDF) can re-lay-out the
+  // chart itself — spreading dates out (or packing them tighter) shifts how
+  // many rows the greedy packer needs, which is what actually changes the
+  // chart's aspect ratio — instead of just stretching a fixed layout to fit.
+  let pxPerDay = $state(PX_PER_DAY);
 
   /** @type {Record<string,string>} */ let translatedMap = $state({});
   async function loadTranslations() {
@@ -130,7 +137,7 @@
     counts = newCounts;
   }
 
-  function layout() {
+  function layout(ignoreMinWidth = false) {
     if (!builtItems.length) {
       placed = [];
       ticks = [];
@@ -158,11 +165,12 @@
     const dMax = new Date(Math.max(...allDates));
     const days = (+dMax - +dMin) / 86400000;
 
-    const minW =
-      typeof window !== "undefined"
-        ? window.innerWidth - (panelOpen ? 252 : 40)
+    const minW = ignoreMinWidth
+      ? 0
+      : typeof window !== "undefined"
+        ? window.innerWidth - SIDEBAR_W
         : 1200;
-    const W = Math.max(minW, Math.ceil(days * PX_PER_DAY) + 2 * H_PAD);
+    const W = Math.max(minW, Math.ceil(days * pxPerDay) + 2 * H_PAD);
     dataSvgW = W;
 
     const xScale = d3
@@ -303,22 +311,6 @@
         return { x: b.x, y: b.y, dx: b.x - a.x, dy: b.y - a.y };
       };
 
-      const pointAtExt = (/** @type {number} */ offset) => {
-        if (offset < 0) {
-          const a = trend[0], b = trend[1];
-          const segLen0 = segLens[0] || 1;
-          const t = offset / segLen0;
-          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        }
-        if (offset > length) {
-          const a = trend[trend.length - 2], b = trend[trend.length - 1];
-          const segLenLast = segLens[segLens.length - 1] || 1;
-          const t = 1 + (offset - length) / segLenLast;
-          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        }
-        return pointAt(offset);
-      };
-
       const words = wordsFor(cat);
       for (let wi = 0; wi < MAX_REPEATS; wi++) {
         const word = words[wi % words.length];
@@ -337,7 +329,7 @@
           /** @type {any[]} */ const subPts = [];
           for (let s = 0; s < SUB_SAMPLES; s++) {
             const off = segStart + ((segEnd - segStart) * s) / (SUB_SAMPLES - 1);
-            const sp = pointAtExt(off);
+            const sp = pointAt(off);
             subPts.push({ x: sp.x, y: sp.y - LABEL_CLEARANCE });
           }
           const d = d3.line()
@@ -401,6 +393,14 @@
     if (builtItems.length) layout();
   });
 
+  let fitDebounceTimer = /** @type {ReturnType<typeof setTimeout>|null} */ (null);
+  $effect(() => {
+    const w = pdfWidthCm, h = pdfHeightCm;
+    if (fitDebounceTimer) clearTimeout(fitDebounceTimer);
+    if (!w || !h || !builtItems.length) return;
+    fitDebounceTimer = setTimeout(() => fitChartToRatio(w / h), 400);
+  });
+
   onMount(() => {
     loadArticles();
     loadTranslations();
@@ -450,6 +450,9 @@
   let exporting = $state(false);
   let exportingPng = $state(false);
   let exportingPdf = $state(false);
+  /** UI-editable PDF page size (cm); null = auto. Seeded from config.js defaults. */
+  let pdfWidthCm = $state(PDF_WIDTH_CM);
+  let pdfHeightCm = $state(PDF_HEIGHT_CM);
 
   /** Cached base64 font data so we only fetch once per session. */
   let _fontB64 = /** @type {string|null} */ (null);
@@ -480,50 +483,6 @@
       '}',
     ].join('\n');
     defs.insertBefore(style, defs.firstChild);
-  }
-
-  /** Appends a category legend to a cloned SVG; returns added height. */
-  function appendLegend(clone, yStart = svgH) {
-    const ns = "http://www.w3.org/2000/svg";
-    const fontMono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace';
-    const activeCats = categories.filter(c => (counts[c.id] ?? 0) > 0);
-    if (!activeCats.length) return 0;
-
-    const chipW = 220; const chipH = 13; const gap = 6; const padX = H_PAD;
-    const cols = Math.max(1, Math.floor((dataSvgW - padX) / (chipW + gap)));
-    const rows = Math.ceil(activeCats.length / cols);
-    const legendY = yStart + 16;
-
-    const g = document.createElementNS(ns, "g");
-    activeCats.forEach((cat, i) => {
-      const color = cat.color ?? "#999";
-      const translated = translatedMap[cat.label];
-      const label =
-        langMode === "en" && translated
-          ? translated
-          : langMode === "both" && translated
-            ? `${cat.label} • ${translated}`
-            : cat.label;
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = padX + col * (chipW + gap);
-      const y = legendY + row * (chipH + gap);
-
-      const rect = document.createElementNS(ns, "rect");
-      rect.setAttribute("x", String(x)); rect.setAttribute("y", String(y));
-      rect.setAttribute("width", String(chipW)); rect.setAttribute("height", String(chipH));
-      rect.setAttribute("fill", color);
-
-      const text = document.createElementNS(ns, "text");
-      text.setAttribute("x", String(x + 3)); text.setAttribute("y", String(y + chipH - 3));
-      text.setAttribute("font-family", fontMono); text.setAttribute("font-size", "9");
-      text.setAttribute("fill", "#000");
-      text.textContent = label;
-
-      g.appendChild(rect); g.appendChild(text);
-    });
-    clone.appendChild(g);
-    return 16 + rows * (chipH + gap) + 10;
   }
 
   /**
@@ -558,9 +517,8 @@
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
     const { minX, minY, maxX, maxY } = getContentBounds();
-    const legendH = appendLegend(clone, maxY);
     const width = maxX - minX;
-    const height = maxY - minY + legendH;
+    const height = maxY - minY;
     clone.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
     clone.setAttribute("width", String(width));
     clone.setAttribute("height", String(height));
@@ -577,15 +535,14 @@
     exporting = false;
   }
 
-  /** Rasterizes the chart (+legend) to a canvas at up to 3× scale, within Chrome's canvas limits. */
+  /** Rasterizes the chart to a canvas at up to 3× scale, within Chrome's canvas limits. */
   async function renderCanvas() {
     if (!svgEl) return null;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
     const { minX, minY, maxX, maxY } = getContentBounds();
-    const legendH = appendLegend(clone, maxY);
     const totalW = maxX - minX;
-    const totalH = maxY - minY + legendH;
+    const totalH = maxY - minY;
 
     {
       const ns = "http://www.w3.org/2000/svg";
@@ -739,6 +696,22 @@
     document.body.removeChild(measureSvg);
   }
 
+  async function fitChartToRatio(targetRatio) {
+    if (!builtItems.length || !Number.isFinite(targetRatio) || targetRatio <= 0) return;
+    let lo = 0.5, hi = 2000;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      pxPerDay = mid;
+      layout(true);
+      const ratio = dataSvgW / svgH;
+      if (ratio > targetRatio) hi = mid; else lo = mid;
+    }
+    pxPerDay = (lo + hi) / 2;
+    layout(true);
+    await tick();
+    requestAnimationFrame(fitContent);
+  }
+
   async function exportPDF() {
     if (!svgEl) return;
     exportingPdf = true;
@@ -747,12 +720,18 @@
       // the SSR bundle — load it lazily, client-side only.
       await import("svg2pdf.js");
 
+      // A width *and* height (cm) together imply a specific target ratio —
+      // re-lay-out the chart itself to match it (see fitChartToRatio) rather
+      // than stretching a fixed layout onto a differently-shaped page.
+      if (pdfWidthCm && pdfHeightCm) {
+        await fitChartToRatio(pdfWidthCm / pdfHeightCm);
+      }
+
       const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
       clone.querySelector(".zoom-group")?.setAttribute("transform", "");
       const { minX, minY, maxX, maxY } = getContentBounds();
-      const legendH = appendLegend(clone, maxY);
       const totalW = maxX - minX;
-      const totalH = maxY - minY + legendH;
+      const totalH = maxY - minY;
       clone.setAttribute("width", String(totalW));
       clone.setAttribute("height", String(totalH));
       clone.setAttribute("viewBox", `${minX} ${minY} ${totalW} ${totalH}`);
@@ -769,13 +748,27 @@
         }
       });
 
-      // Clamp to the PDF spec's max page dimension (14400pt / 200in) so
-      // large timelines don't get silently clipped by PDF viewers.
       const PX_TO_PT = 0.75;
+      const CM_TO_PT = 28.3465;
       const MAX_PDF_PT = 14400;
-      const scale = Math.min(1, MAX_PDF_PT / (Math.max(totalW, totalH) * PX_TO_PT));
-      const outW = totalW * PX_TO_PT * scale;
-      const outH = totalH * PX_TO_PT * scale;
+      const aspect = totalW / totalH;
+      let outW, outH;
+      if (pdfWidthCm) {
+        outW = pdfWidthCm * CM_TO_PT;
+        outH = outW / aspect;
+      } else if (pdfHeightCm) {
+        outH = pdfHeightCm * CM_TO_PT;
+        outW = outH * aspect;
+      } else {
+        const scale = Math.min(1, MAX_PDF_PT / (Math.max(totalW, totalH) * PX_TO_PT));
+        outW = totalW * PX_TO_PT * scale;
+        outH = totalH * PX_TO_PT * scale;
+      }
+      if (Math.max(outW, outH) > MAX_PDF_PT) {
+        const clampScale = MAX_PDF_PT / Math.max(outW, outH);
+        outW *= clampScale;
+        outH *= clampScale;
+      }
 
       const pdf = new jsPDF({
         orientation: outW >= outH ? "landscape" : "portrait",
@@ -828,33 +821,27 @@
         </svg>
       {/if}
     </div>
-
-    <!-- zoom reset / fit -->
-    <button class="zoom-reset" onclick={resetZoom} title="Fit to viewport"
-      >fit</button
-    >
   </div>
 
   <CatPanel
     bind:categories
     bind:showBerlin
     bind:showBrandenburg
-    bind:panelOpen
     bind:langMode
+    bind:pdfWidthCm
+    bind:pdfHeightCm
     {counts}
+    hasRows={placed.length > 0}
+    {exporting}
+    {exportingPng}
+    {exportingPdf}
     onRebuild={build}
+    onResetZoom={resetZoom}
+    onExportSVG={exportSVG}
+    onExportPNG={exportPNG}
+    onExportPDF={exportPDF}
   />
 </div>
-
-<TimelineExport
-  hasRows={placed.length > 0}
-  {exporting}
-  {exportingPng}
-  {exportingPdf}
-  onExportSVG={exportSVG}
-  onExportPNG={exportPNG}
-  onExportPDF={exportPDF}
-/>
 
 <style>
   :global(body) {
@@ -897,24 +884,5 @@
     color: #aaa;
     font-size: 13px;
     font-family: var(--font-mono);
-  }
-
-  .zoom-reset {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 5;
-    background: rgba(244, 243, 239, 0.92);
-    border: 1px solid #ccc;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    cursor: pointer;
-    padding: 3px 8px;
-    color: #666;
-  }
-  .zoom-reset:hover {
-    background: #111;
-    color: #fff;
-    border-color: #111;
   }
 </style>
