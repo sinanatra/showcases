@@ -19,8 +19,12 @@ export const MARKER_LABEL_FS = 120;
 export const MARKER_LABEL_DY = -100;
 
 export const DATE_FS = 30;
+export const DATE_CW = DATE_FS * 0.615;
 export const AXIS_LABEL_GAP = 70;
 export const AXIS_PAD = AXIS_LABEL_GAP + DATE_FS + 20;
+
+export const PDF_WIDTH_CM = null;
+export const PDF_HEIGHT_CM = null;
 
 export const DEFAULT_SHOW_BERLIN = true;
 export const DEFAULT_SHOW_BRANDENBURG = false;
