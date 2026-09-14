@@ -11,6 +11,7 @@
   import TimelineGrid from "./TimelineGrid.svelte";
   import TimelineItems from "./TimelineItems.svelte";
   import CategoryMarkers from "./CategoryMarkers.svelte";
+  import { jsPDF } from "jspdf";
   import {
     TOP_PAD, H_PAD, PX_PER_DAY, LINE_H, LINE_H_BOTH, CHAR_W, DIST_CW, DIST_GAP,
     AXIS_PAD, MARKER_LABEL_DY, MARKER_LABEL_FS,
@@ -448,9 +449,12 @@
   // ── export ────────────────────────────────────────────────────
   let exporting = $state(false);
   let exportingPng = $state(false);
+  let exportingPdf = $state(false);
 
   /** Cached base64 font data so we only fetch once per session. */
   let _fontB64 = /** @type {string|null} */ (null);
+  /** Same font, pre-converted to TTF (quadratic outlines) for PDF embedding — see exportPDF. */
+  let _fontTtfB64 = /** @type {string|null} */ (null);
 
   async function injectFontStyle(clone) {
     if (!_fontB64) {
@@ -479,7 +483,7 @@
   }
 
   /** Appends a category legend to a cloned SVG; returns added height. */
-  function appendLegend(clone) {
+  function appendLegend(clone, yStart = svgH) {
     const ns = "http://www.w3.org/2000/svg";
     const fontMono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'Courier, monospace';
     const activeCats = categories.filter(c => (counts[c.id] ?? 0) > 0);
@@ -488,7 +492,7 @@
     const chipW = 220; const chipH = 13; const gap = 6; const padX = H_PAD;
     const cols = Math.max(1, Math.floor((dataSvgW - padX) / (chipW + gap)));
     const rows = Math.ceil(activeCats.length / cols);
-    const legendY = svgH + 16;
+    const legendY = yStart + 16;
 
     const g = document.createElementNS(ns, "g");
     activeCats.forEach((cat, i) => {
@@ -522,14 +526,44 @@
     return 16 + rows * (chipH + gap) + 10;
   }
 
+  /**
+   * fitContent() sizes the zoom viewport to (dataSvgW × svgH), but actual
+   * content — long district labels hanging left of an item, branch-curve
+   * label placement extrapolating past the plotted range — can spill
+   * slightly outside that nominal box, most visibly at the timeline's start
+   * where items sit close to x=0. Exports need the *real* bounds so nothing
+   * at the edges gets clipped by the SVG/canvas/PDF viewport.
+   */
+  function getContentBounds() {
+    const fallback = { minX: 0, minY: 0, maxX: dataSvgW, maxY: svgH };
+    if (!svgEl) return fallback;
+    const group = /** @type {SVGGraphicsElement|null} */ (svgEl.querySelector(".zoom-group"));
+    if (!group || typeof group.getBBox !== "function") return fallback;
+    try {
+      const bbox = group.getBBox();
+      return {
+        minX: Math.min(0, bbox.x),
+        minY: Math.min(0, bbox.y),
+        maxX: Math.max(dataSvgW, bbox.x + bbox.width),
+        maxY: Math.max(svgH, bbox.y + bbox.height),
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
   async function exportSVG() {
     if (!svgEl) return;
     exporting = true;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
-    clone.setAttribute("width", String(dataSvgW));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
-    const legendH = appendLegend(clone);
-    clone.setAttribute("height", String(svgH + legendH));
+    const { minX, minY, maxX, maxY } = getContentBounds();
+    const legendH = appendLegend(clone, maxY);
+    const width = maxX - minX;
+    const height = maxY - minY + legendH;
+    clone.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
+    clone.setAttribute("width", String(width));
+    clone.setAttribute("height", String(height));
     await injectFontStyle(clone);
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
       type: "image/svg+xml",
@@ -543,15 +577,15 @@
     exporting = false;
   }
 
-  async function exportPNG() {
-    if (!svgEl) return;
-    exportingPng = true;
+  /** Rasterizes the chart (+legend) to a canvas at up to 3× scale, within Chrome's canvas limits. */
+  async function renderCanvas() {
+    if (!svgEl) return null;
     const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
-    clone.setAttribute("width", String(dataSvgW));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
-    const legendH = appendLegend(clone);
-    const totalH = svgH + legendH;
-    clone.setAttribute("height", String(totalH));
+    const { minX, minY, maxX, maxY } = getContentBounds();
+    const legendH = appendLegend(clone, maxY);
+    const totalW = maxX - minX;
+    const totalH = maxY - minY + legendH;
 
     {
       const ns = "http://www.w3.org/2000/svg";
@@ -568,13 +602,13 @@
     const MAX_AREA = 268_000_000;
     const scale = Math.min(
       3,
-      MAX_DIM / dataSvgW,
+      MAX_DIM / totalW,
       MAX_DIM / totalH,
-      Math.sqrt(MAX_AREA / (dataSvgW * totalH)),
+      Math.sqrt(MAX_AREA / (totalW * totalH)),
     );
-    const outW = Math.round(dataSvgW * scale);
-    const outH = Math.round(totalH   * scale);
-    clone.setAttribute("viewBox", `0 0 ${dataSvgW} ${totalH}`);
+    const outW = Math.round(totalW * scale);
+    const outH = Math.round(totalH * scale);
+    clone.setAttribute("viewBox", `${minX} ${minY} ${totalW} ${totalH}`);
     clone.setAttribute("width",  String(outW));
     clone.setAttribute("height", String(outH));
 
@@ -598,19 +632,180 @@
       ctx.fillRect(0, 0, outW, outH);
       ctx.drawImage(img, 0, 0, outW, outH);
     }
+    return { canvas, outW, outH };
+  }
 
-    await new Promise((resolve) => {
-      canvas.toBlob((pngBlob) => {
-        if (!pngBlob) { resolve(); return; }
-        const pngUrl = URL.createObjectURL(pngBlob);
-        Object.assign(document.createElement("a"), {
-          href: pngUrl, download: "timeline-categories.png",
-        }).click();
-        setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
-        resolve();
-      }, "image/png");
-    });
+  async function exportPNG() {
+    exportingPng = true;
+    const rendered = await renderCanvas();
+    if (rendered) {
+      const { canvas } = rendered;
+      await new Promise((resolve) => {
+        canvas.toBlob((pngBlob) => {
+          if (!pngBlob) { resolve(); return; }
+          const pngUrl = URL.createObjectURL(pngBlob);
+          Object.assign(document.createElement("a"), {
+            href: pngUrl, download: "timeline-categories.png",
+          }).click();
+          setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+          resolve();
+        }, "image/png");
+      });
+    }
     exportingPng = false;
+  }
+
+  /**
+   * svg2pdf.js has no support for <textPath>, so the curved branch labels
+   * (drawn along a bent micro-path, see `labels.push` in layout()) can't be
+   * handed to it as-is. Instead we manually lay out each character along the
+   * same path — position + tangent read via the browser's native path
+   * geometry (getPointAtLength) — which reproduces the curve using plain,
+   * individually rotated <text> glyphs that svg2pdf can render.
+   */
+  function flattenBranchLabels(clone) {
+    const ns = "http://www.w3.org/2000/svg";
+    const textPaths = clone.querySelectorAll("text > textPath");
+    if (!textPaths.length) return;
+
+    const measureSvg = document.createElementNS(ns, "svg");
+    measureSvg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;";
+    const measurePath = document.createElementNS(ns, "path");
+    measureSvg.appendChild(measurePath);
+    document.body.appendChild(measureSvg);
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { document.body.removeChild(measureSvg); return; }
+    // svg2pdf.js ignores `paint-order` and always paints fill then stroke, so
+    // a single element with both would draw the white halo *over* the black
+    // fill and eat into the glyph. Emulate stroke-then-fill by hand instead:
+    // one stroke-only halo element, followed by a fill-only element on top.
+    const HALO_ATTRS = ["dy", "font-size", "stroke", "stroke-width"];
+    const FILL_ATTRS = ["dy", "font-size", "fill", "style"];
+
+    textPaths.forEach((textPathEl) => {
+      const textEl = textPathEl.parentNode;
+      const href = textPathEl.getAttribute("href") ||
+        textPathEl.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+      const bp = branchPaths.find((b) => `#${b.id}` === href);
+      if (!bp) { textEl.remove(); return; }
+
+      measurePath.setAttribute("d", bp.d);
+      const len = measurePath.getTotalLength();
+      const fontSize = parseFloat(textEl.getAttribute("font-size")) || MARKER_LABEL_FS;
+      ctx.font = `${fontSize}px Courier, monospace`;
+      const word = bp.text;
+      const totalW = ctx.measureText(word).width;
+      const hasHalo = textEl.getAttribute("stroke") && textEl.getAttribute("stroke") !== "none";
+
+      const frag = document.createDocumentFragment();
+      let cursor = bp.startOffset - totalW / 2;
+      for (const ch of word) {
+        const chW = ctx.measureText(ch).width;
+        const mid = Math.min(Math.max(cursor + chW / 2, 0), len);
+        const p0 = measurePath.getPointAtLength(mid);
+        const p1 = measurePath.getPointAtLength(Math.min(mid + 0.5, len));
+        const angle = (Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180) / Math.PI;
+        const transform = `translate(${p0.x},${p0.y}) rotate(${angle})`;
+
+        if (hasHalo) {
+          const halo = document.createElementNS(ns, "text");
+          for (const attr of HALO_ATTRS) {
+            const v = textEl.getAttribute(attr);
+            if (v != null) halo.setAttribute(attr, v);
+          }
+          halo.setAttribute("fill", "none");
+          halo.setAttribute("text-anchor", "middle");
+          halo.setAttribute("transform", transform);
+          halo.textContent = ch;
+          frag.appendChild(halo);
+        }
+
+        const t = document.createElementNS(ns, "text");
+        for (const attr of FILL_ATTRS) {
+          const v = textEl.getAttribute(attr);
+          if (v != null) t.setAttribute(attr, v);
+        }
+        t.setAttribute("text-anchor", "middle");
+        t.setAttribute("transform", transform);
+        t.textContent = ch;
+        frag.appendChild(t);
+        cursor += chW;
+      }
+      textEl.replaceWith(frag);
+    });
+
+    document.body.removeChild(measureSvg);
+  }
+
+  async function exportPDF() {
+    if (!svgEl) return;
+    exportingPdf = true;
+    try {
+      // svg2pdf.js touches browser globals on import, so it must stay out of
+      // the SSR bundle — load it lazily, client-side only.
+      await import("svg2pdf.js");
+
+      const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+      clone.querySelector(".zoom-group")?.setAttribute("transform", "");
+      const { minX, minY, maxX, maxY } = getContentBounds();
+      const legendH = appendLegend(clone, maxY);
+      const totalW = maxX - minX;
+      const totalH = maxY - minY + legendH;
+      clone.setAttribute("width", String(totalW));
+      clone.setAttribute("height", String(totalH));
+      clone.setAttribute("viewBox", `${minX} ${minY} ${totalW} ${totalH}`);
+
+      flattenBranchLabels(clone);
+
+      // svg2pdf can't resolve CSS custom properties, so resolve the font
+      // stack by hand: real embedded Pitch Sans first, standard Courier as
+      // the fallback svg2pdf uses if a glyph is missing from our font.
+      clone.querySelectorAll("[style]").forEach((el) => {
+        const s = el.getAttribute("style");
+        if (s && s.includes("var(--font-mono)")) {
+          el.setAttribute("style", s.replace(/var\(--font-mono\)/g, '"Pitch Sans", Courier, monospace'));
+        }
+      });
+
+      // Clamp to the PDF spec's max page dimension (14400pt / 200in) so
+      // large timelines don't get silently clipped by PDF viewers.
+      const PX_TO_PT = 0.75;
+      const MAX_PDF_PT = 14400;
+      const scale = Math.min(1, MAX_PDF_PT / (Math.max(totalW, totalH) * PX_TO_PT));
+      const outW = totalW * PX_TO_PT * scale;
+      const outH = totalH * PX_TO_PT * scale;
+
+      const pdf = new jsPDF({
+        orientation: outW >= outH ? "landscape" : "portrait",
+        unit: "pt",
+        format: [outW, outH],
+        compress: true,
+      });
+
+      // jsPDF only embeds TrueType (glyf) outlines, but our webfont is a
+      // CFF-flavored .otf — Pitch_Semibold.ttf is a pre-converted (quadratic
+      // outline) copy of the same font kept alongside it for this purpose.
+      const ttfB64 = await (async () => {
+        if (!_fontTtfB64) {
+          const buf = await (await fetch("/fonts/Pitch_Semibold.ttf")).arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let bin = "";
+          for (const b of bytes) bin += String.fromCharCode(b);
+          _fontTtfB64 = btoa(bin);
+        }
+        return _fontTtfB64;
+      })();
+      pdf.addFileToVFS("PitchSans-Semibold.ttf", ttfB64);
+      pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "normal");
+      pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "bold");
+
+      await pdf.svg(clone, { x: 0, y: 0, width: outW, height: outH });
+      pdf.save("timeline-categories.pdf");
+    } finally {
+      exportingPdf = false;
+    }
   }
 </script>
 
@@ -655,8 +850,10 @@
   hasRows={placed.length > 0}
   {exporting}
   {exportingPng}
+  {exportingPdf}
   onExportSVG={exportSVG}
   onExportPNG={exportPNG}
+  onExportPDF={exportPDF}
 />
 
 <style>
