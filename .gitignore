@@ -11,3 +11,4 @@ notebooks/*.svg
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 fonts/*
+*.ttf
