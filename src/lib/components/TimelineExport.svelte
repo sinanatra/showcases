@@ -2,8 +2,10 @@
   let {
     onExportSVG = () => {},
     onExportPNG = () => {},
+    onExportPDF = () => {},
     exporting = false,
     exportingPng = false,
+    exportingPdf = false,
     translating = false,
     hasRows = false,
   } = $props();
@@ -14,10 +16,13 @@
     {#if translating}
       <span class="status">translating…</span>
     {/if}
-    <button onclick={onExportPNG} disabled={exporting || exportingPng}>
+    <button onclick={onExportPNG} disabled={exporting || exportingPng || exportingPdf}>
       {exportingPng ? "rendering…" : "↓ PNG"}
     </button>
-    <button onclick={onExportSVG} disabled={exporting || exportingPng}>
+    <button onclick={onExportPDF} disabled={exporting || exportingPng || exportingPdf}>
+      {exportingPdf ? "rendering…" : "↓ PDF"}
+    </button>
+    <button onclick={onExportSVG} disabled={exporting || exportingPng || exportingPdf}>
       {exporting ? "translating…" : "↓ SVG"}
     </button>
   </div>
