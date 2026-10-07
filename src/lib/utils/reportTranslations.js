@@ -16,9 +16,7 @@ export function loadReportTranslations() {
         fetch(`/translations/${y}.json`).then((r) => (r.ok ? r.json() : {}), () => ({})),
       ),
     );
-    // translations.json: older snippet-only translations, used until the backlog is translated.
-    const legacy = await fetch("/translations.json").then((r) => (r.ok ? r.json() : {}), () => ({}));
-    loaded = Object.assign({}, legacy, ...parts);
+    loaded = Object.assign({}, ...parts);
     return loaded;
   })().catch(() => ({}));
   return loading;
@@ -46,14 +44,3 @@ export function translateText(/** @type {string} */ text, /** @type {Record<stri
     .join(" ");
 }
 
-/** English of the sentence that contains `term` (or of the first sentence), "" if not translated. */
-export function translateSentenceWith(
-  /** @type {string} */ text,
-  /** @type {string} */ term,
-  /** @type {Record<string,string>} */ map,
-) {
-  const sentences = splitSentences(text);
-  const needle = String(term || "").toLowerCase();
-  const sentence = (needle && sentences.find((s) => s.toLowerCase().includes(needle))) || sentences[0];
-  return (sentence && map[sentence]) || "";
-}

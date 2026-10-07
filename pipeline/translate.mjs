@@ -36,8 +36,6 @@ import { parseDateLoose } from "../src/lib/utils/parseDate.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = path.join(__dirname, "../static/all_merged.csv");
 const OUT_DIR = path.join(__dirname, "../static/translations");
-// Snippet-only translations from before whole reports were translated — reused where a sentence matches.
-const LEGACY_PATH = path.join(__dirname, "../static/translations.json");
 
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 const providerArg = arg("provider");
@@ -168,7 +166,7 @@ async function main() {
   const reports = loadReports();
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const known = readJson(LEGACY_PATH);
+  const known = {};
   for (const file of fs.readdirSync(OUT_DIR)) {
     if (/^(\d{4}|undated)\.json$/.test(file)) Object.assign(known, readJson(path.join(OUT_DIR, file)));
   }

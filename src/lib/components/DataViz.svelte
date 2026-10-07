@@ -8,6 +8,7 @@
     filteredData,
     parseDateLoose,
     getKeywordVariants,
+    applyFilters,
     record,
     isMobile,
   } from "$lib/stores";
@@ -80,43 +81,12 @@
     ? ($articles || []).filter((a) => customUrlKeys.has(toKey(a?.URL || "")))
     : []);
 
-  function applyLightFilters(list, filters) {
-    const f = filters || {};
-    let out = Array.isArray(list) ? list : [];
-    if (f.keyword) {
-      const variants = getKeywordVariants(f.keyword).map((s) =>
-        String(s).toLowerCase()
-      );
-      out = out.filter(
-        (a) =>
-          Array.isArray(a.KeywordMatch) &&
-          a.KeywordMatch.some((k) => variants.includes(String(k).toLowerCase()))
-      );
-    }
-    if (f.text) {
-      const q = String(f.text).toLowerCase();
-      out = out.filter((a) => (a.Text || "").toLowerCase().includes(q));
-    }
-    if (f.showOnlyLatest) {
-      const sorted = [...out].sort((a, b) => {
-        const da = parseDateLoose(a.ExtractedDate || a.Date);
-        const db = parseDateLoose(b.ExtractedDate || b.Date);
-        if (da && db) return db - da;
-        if (db) return 1;
-        if (da) return -1;
-        return 0;
-      });
-      out = sorted.length ? [sorted[0]] : [];
-    }
-    return out;
-  }
-
   let filteredDataValue = $derived($filteredData);
   let vizData = $state([]);
 
   $effect(() => {
     vizData = (customUrls.length > 0
-      ? applyLightFilters(baseCustom, $filters)
+      ? applyFilters(baseCustom, $filters)
       : filteredDataValue) || [];
   });
 

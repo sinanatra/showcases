@@ -10,6 +10,8 @@
 
   const MAX_SUGGESTIONS = 12;
 
+  let { showLabel = true } = $props();
+
   let value = $state($filters.text ?? "");
   let translationsReady = $state(false);
   $effect(() => {
@@ -52,6 +54,10 @@
     clearTimeout(timer);
     timer = setTimeout(() => apply(value), 300);
   }
+  // Something else reset the filters (e.g. "only the latest"): empty the box too.
+  $effect(() => {
+    if (!$filters.text) untrack(() => { if (value.trim()) value = ""; });
+  });
   // Switching language changes what the text is matched against.
   $effect(() => {
     const textLang = english ? "en" : "";
@@ -62,7 +68,7 @@
 </script>
 
 <label>
-  {$t("filters.search")}
+  {#if showLabel}{$t("filters.search")}{/if}
   <input
     type="search"
     list="search-words"
