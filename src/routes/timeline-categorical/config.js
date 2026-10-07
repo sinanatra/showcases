@@ -41,6 +41,7 @@ export const YEAR_FS = 160;           // the year, written large where each year
 export const PRINT_TEXT_PT = null;
 export const PDF_WIDTH_CM = null;
 export const PDF_HEIGHT_CM = null;
+export const EXPORT_DIVISOR = 1;      // 3 = the exported file is 1/3 of the print size (print it at 300 %)
 
 // side panel
 export const DEFAULT_SHOW_BERLIN = true;

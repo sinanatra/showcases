@@ -12,6 +12,8 @@
     pdfHeightCm = $bindable(null),
     /** wanted text size on paper (pt); null = follows from the size */
     textPtTarget = $bindable(null),
+    /** the exported file is 1/exportDivisor of the print size */
+    exportDivisor = $bindable(1),
     /** resulting text size (pt) and print size [w, h] in cm */
     textPt = null,
     /** @type {number[]|null} */
@@ -62,6 +64,23 @@
     </div>
     {#if fitNote}
       <span class="size" class:warn={tooTall}>{fitNote}</span>
+    {/if}
+    <div class="pdf-size" title="Export the file smaller than the print size. Everything is vector, so the printer scales it back up without loss.">
+      <span class="unit">file 1 /</span>
+      <input
+        type="number"
+        min="1"
+        step="1"
+        value={exportDivisor}
+        onchange={(e) => (exportDivisor = Math.max(1, Number(e.currentTarget.value) || 1))}
+      />
+    </div>
+    {#if exportDivisor > 1 && printSizeCm}
+      <span class="size">
+        file {Math.round(printSizeCm[0] / exportDivisor)} × {Math.round(printSizeCm[1] / exportDivisor)} cm,
+        text {textPt ? Math.round((textPt / exportDivisor) * 10) / 10 : "–"} pt.
+        Print at {exportDivisor * 100} %.
+      </span>
     {/if}
     <div class="export-buttons">
       <button onclick={onExportPNG} disabled={exporting || exportingPng || exportingPdf}>
