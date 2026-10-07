@@ -43,6 +43,25 @@ export function segmentText(seg, translations, langMode) {
   return { de, en, stacked, deW, enW, gap, tw };
 }
 
+// Sentences that several reports share word for word (police boilerplate such as
+// "Die Kriminalpolizei ermittelt wegen…" or the standard reasoning of an assembly ban).
+// Quoting them makes different reports look like copies of each other.
+const BOILERPLATE_MIN_REPORTS = 3;
+let boilerplate = new Set();
+let boilerplateFor = null;
+export function findBoilerplate(articles) {
+  if (boilerplateFor === articles) return;
+  boilerplateFor = articles;
+  const counts = new Map();
+  for (const a of articles) {
+    for (const k of new Set(splitSentences(a.Text || "").map(sentenceKey))) counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  boilerplate = new Set([...counts].filter(([, n]) => n >= BOILERPLATE_MIN_REPORTS).map(([k]) => k));
+}
+// Compared by how they begin, so small variations of the same formula still count.
+const sentenceKey = (s) => s.slice(0, 80).toLowerCase();
+const isBoilerplate = (s) => boilerplate.has(sentenceKey(s));
+
 export function matchesCategory(a, cat) {
   if (cat.keyword) {
     const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
@@ -202,7 +221,7 @@ function sentenceForCategory(item, cat) {
   }
   const isProse = (t) => t.length >= 40 && /[.!?…]["“”']?$/.test(t);
 
-  let fallback = -1;
+  let fallback = -1, shared = -1;
   sourceLoop: for (const [terms, directTerms] of sources) {
     for (const term of terms) {
       const needles = directTerms
@@ -211,14 +230,22 @@ function sentenceForCategory(item, cat) {
       for (const needle of needles) {
         if (!needle) continue;
         for (let idx = lower.indexOf(needle), n = 0; idx !== -1 && n < 20; idx = lower.indexOf(needle, idx + 1), n++) {
-          if (isProse(sentenceAt(idx).text)) { pos = idx; break sourceLoop; }
+          const sentence = sentenceAt(idx).text;
+          if (isBoilerplate(sentence)) { if (shared === -1) shared = idx; continue; }
+          if (isProse(sentence)) { pos = idx; break sourceLoop; }
           if (fallback === -1) fallback = idx;
         }
       }
     }
   }
   if (pos === -1) pos = fallback;
-  if (pos === -1) return null;
+  if (pos === -1) {
+    if (shared === -1) return null;
+    // The term only occurs in boilerplate: show the headline, which is the
+    // one thing that tells such reports apart.
+    if (item.title) return { text: item.title, key: "title", full: item.title };
+    pos = shared;
+  }
 
   const { start: sentStart, end: sentEnd } = sentenceAt(pos);
 
@@ -285,7 +312,7 @@ export function snippetSegments(item, categories) {
   }
   if (!segments.length) {
     const first = item.text ? splitSentences(item.text)[0] : "";
-    const full = first || item.title || "";
+    const full = (first && !isBoilerplate(first) ? first : item.title) || first || "";
     let text = full;
     if (text.length > settings.SEGMENT_SNIP_MAX) {
       let e = settings.SEGMENT_SNIP_MAX;

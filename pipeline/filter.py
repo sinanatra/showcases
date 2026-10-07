@@ -183,6 +183,20 @@ for key, r in reports.items():
 parsed.sort(key=lambda p: p[1])
 parsed.sort(key=lambda p: p[0], reverse=True)
 
+# The same report is sometimes published under several URLs (Brandenburg posts
+# one text per region): keep one copy per text.
+seen_texts = set()
+unique = []
+for item in parsed:
+    text = re.sub(r"\s+", " ", item[2]["Text"]).strip().lower()
+    if len(text) > 50:
+        if text in seen_texts:
+            continue
+        seen_texts.add(text)
+    unique.append(item)
+print(f"Dropped {len(parsed) - len(unique)} reports that repeat another report's text")
+parsed = unique
+
 with open(master_file, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=columns, lineterminator="\n")
     writer.writeheader()

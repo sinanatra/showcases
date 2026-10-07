@@ -18,7 +18,7 @@
     DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
   import { settings, charW, distCW, lineH, lineHBoth, axisPad } from "./settings.svelte.js";
-  import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence, segmentText } from "./catTimeline.js";
+  import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence, segmentText, findBoilerplate } from "./catTimeline.js";
   import { loadReportTranslations } from "$lib/utils/reportTranslations";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
@@ -67,6 +67,7 @@
   let branchCats = [];
 
   function computeItems() {
+    findBoilerplate($articles);
     const arts = $articles.filter(a => passesRegion(a) && passesBilanz(a));
     if (!arts.length || !categories.length) {
       builtItems = [];
