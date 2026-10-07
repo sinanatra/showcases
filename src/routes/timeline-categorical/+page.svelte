@@ -17,9 +17,9 @@
     DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
   } from "./config.js";
-  import { settings, charW, distCW, lineH, lineHBoth, axisPad } from "./settings.svelte.js";
+  import { settings, charW, distCW, lineH, lineHBoth, axisPad, boxBelow } from "./settings.svelte.js";
   import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence, segmentText, findBoilerplate } from "./catTimeline.js";
-  import { loadReportTranslations } from "$lib/utils/reportTranslations";
+  import { loadReportTranslations, englishText } from "$lib/utils/reportTranslations";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
   let langMode = $state("both");
@@ -57,6 +57,9 @@
   let placed = $state.raw([]);
   let branchPaths = $state.raw([]);
   let counts = $state.raw({});
+  const LIVE_ID = "__live";
+  let liveQuery = $state("");
+  let liveTimer;
   let dataSvgW = $state(4000);
   let svgH = $state(600);
   // Size of everything drawn, including what hangs outside the axis (district
@@ -102,9 +105,26 @@
     branchCats = categories.filter((c) => c.type === "canonical");
     const highlightCats = categories.filter((c) => c.type !== "canonical");
 
+    // Live commentary: whatever is typed in the panel's search box highlights
+    // the reports containing it (German text or its English translation),
+    // ahead of the fixed commentary entries.
+    const live = liveQuery.trim().toLowerCase();
+    if (live.length >= 2) {
+      const paint = highlightCats[0] ?? {};
+      highlightCats.unshift({
+        id: LIVE_ID,
+        on: true,
+        color: paint.color ?? "#ffe600",
+        colorEnd: paint.colorEnd ?? "#ffffff",
+        match: (a) =>
+          `${a.Title || ""} ${a.Text || ""}`.toLowerCase().includes(live) || englishText(a).includes(live),
+      });
+    }
+
     const items = [];
     const newCounts = {};
     for (const cat of categories) newCounts[cat.id] = 0;
+    newCounts[LIVE_ID] = 0;
 
     for (const p of parsed) {
       const matchedBranches = branchCats.filter((cat) => matchesCategory(p.raw, cat));
@@ -128,7 +148,7 @@
           colorEnd: matchedHighlight ? matchedHighlight.colorEnd : primaryCat.colorEnd,
           highlightId: matchedHighlight?.id ?? null,
         };
-        items.push({ ...pre, segments: snippetSegments(pre, categories) });
+        items.push({ ...pre, segments: snippetSegments(pre, [...categories, ...highlightCats.filter((c) => c.id === LIVE_ID)]) });
       }
     }
 
@@ -245,7 +265,7 @@
     let maxY = 0;
     for (const r of usedRows) {
       const h = tallRows.has(r) ? lineHBoth() : lineH();
-      rowY.set(r, maxY + 0.2 * lineH());
+      rowY.set(r, maxY + boxBelow() - 1);
       maxY += h;
     }
     const allPlaced = placedRaw.map((p) => ({ ...p, y: rowY.get(rowOf(p)) }));
@@ -439,6 +459,8 @@
       void c.color;
       void c.colorEnd;
     }
+    void liveQuery;
+    void translatedMap;
     void categories.length;
     void showBerlin;
     void showBrandenburg;
@@ -609,11 +631,15 @@
 
   async function injectFontStyle(clone) {
     if (!_fontB64) {
-      const buf = await (await fetch('/fonts/Pitch_Semibold.otf')).arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let bin = '';
-      for (const b of bytes) bin += String.fromCharCode(b);
-      _fontB64 = btoa(bin);
+      // The font file is local only (git-ignored): where it is missing, the SVG
+      // just names the font and does not embed it.
+      const res = await fetch('/fonts/Pitch_Semibold.otf').catch(() => null);
+      const bytes = res?.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      if (bytes && String.fromCharCode(...bytes.slice(0, 4)) === 'OTTO') {
+        let bin = '';
+        for (const b of bytes) bin += String.fromCharCode(b);
+        _fontB64 = btoa(bin);
+      }
     }
     const ns = 'http://www.w3.org/2000/svg';
     let defs = clone.querySelector('defs');
@@ -624,11 +650,15 @@
     const style = document.createElementNS(ns, 'style');
     style.textContent = [
       ':root, svg { --font-mono: "Pitch Sans", Courier, monospace; }',
-      '@font-face {',
-      '  font-family: "Pitch Sans";',
-      `  src: url("data:font/otf;base64,${_fontB64}") format("opentype");`,
-      '  font-weight: 600; font-style: normal;',
-      '}',
+      ...(_fontB64
+        ? [
+            '@font-face {',
+            '  font-family: "Pitch Sans";',
+            `  src: url("data:font/otf;base64,${_fontB64}") format("opentype");`,
+            '  font-weight: 600; font-style: normal;',
+            '}',
+          ]
+        : []),
     ].join('\n');
     defs.insertBefore(style, defs.firstChild);
   }
@@ -945,6 +975,19 @@
 
 <div class="page">
   <div class="data-col">
+    <label class="live-search" title="Highlight every report that contains this word, in German or English">
+      <input
+        type="search"
+        placeholder="search…"
+        value={liveQuery}
+        oninput={(e) => {
+          const v = e.currentTarget.value;
+          clearTimeout(liveTimer);
+          liveTimer = setTimeout(() => (liveQuery = v), 250);
+        }}
+      />
+      {#if liveQuery.trim().length >= 2}<span>{counts[LIVE_ID] ?? 0}</span>{/if}
+    </label>
     <div class="chart-wrap">
       {#if !$articles.length}
         <p class="loading">Loading…</p>
@@ -1030,6 +1073,26 @@
   :global(.item) { cursor: pointer; }
   :global(.item:hover) { opacity: 0.55 !important; }
   :global(.item-link) { cursor: pointer; }
+
+  .live-search {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #555;
+  }
+  .live-search input {
+    width: 180px;
+    border: 1px solid #bbb;
+    background: #fff;
+    font: inherit;
+    padding: 4px 6px;
+  }
 
   .loading {
     padding: 32px;

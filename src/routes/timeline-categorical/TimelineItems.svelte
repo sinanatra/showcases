@@ -1,12 +1,15 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { settings, distCW } from "./settings.svelte.js";
+  import { settings, distCW, boxH, boxAbove } from "./settings.svelte.js";
   import { segmentText } from "./catTimeline.js";
   import { GRADIENT_END_AT } from "../../lib/constants/categories.js";
 
   let FS = $derived(settings.FS);
   let STACK_GAP = $derived(settings.STACK_GAP);
+  let BOX_H = $derived(boxH());
+  let BOX_ABOVE = $derived(boxAbove());
+  let LINE_STEP = $derived(settings.FS * (settings.BOX_ASCENT + settings.BOX_DESCENT) + settings.STACK_GAP);
   let DIST_FS = $derived(settings.DIST_FS);
   let DIST_GAP = $derived(settings.DIST_GAP);
   let DIST_CW = $derived(distCW());
@@ -95,12 +98,12 @@
           {@const rectW =
             seg.tw + (i === 0 ? 2 : 0) + (i === segs.length - 1 ? 2 : 0)}
           {#if seg.stacked}
-            {@const deY = textY - FS - STACK_GAP}
+            {@const deY = textY - LINE_STEP}
             <rect
               x={rectX}
-              y={deY - FS}
+              y={deY - BOX_ABOVE}
               width={rectW}
-              height={2 * FS + STACK_GAP + 3}
+              height={BOX_H + LINE_STEP}
               fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
               stroke="none"
               stroke-width={0}
@@ -128,9 +131,9 @@
             {@const split = !!seg.de && !!seg.en}
             <rect
               x={rectX}
-              y={textY - FS}
+              y={textY - BOX_ABOVE}
               width={split ? seg.deW + (i === 0 ? 2 : 0) : rectW}
-              height={FS + 3}
+              height={BOX_H}
               fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
               stroke="none"
               stroke-width={0}
@@ -138,9 +141,9 @@
             {#if split}
               <rect
                 x={seg.x + seg.deW + seg.gap}
-                y={textY - FS}
+                y={textY - BOX_ABOVE}
                 width={seg.enW + (i === segs.length - 1 ? 2 : 0)}
-                height={FS + 3}
+                height={BOX_H}
                 fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
                 stroke="none"
                 stroke-width={0}
@@ -179,12 +182,12 @@
       {@const rectW =
         seg.tw + (i === 0 ? 2 : 0) + (i === segs.length - 1 ? 2 : 0)}
       {#if seg.stacked}
-        {@const deY = textY - FS - STACK_GAP}
+        {@const deY = textY - LINE_STEP}
         <rect
           x={rectX}
-          y={deY - FS}
+          y={deY - BOX_ABOVE}
           width={rectW}
-          height={2 * FS + STACK_GAP + 3}
+          height={BOX_H + LINE_STEP}
           fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
           stroke="none"
           stroke-width={0}
@@ -212,9 +215,9 @@
         {@const split = !!seg.de && !!seg.en}
         <rect
           x={rectX}
-          y={textY - FS}
+          y={textY - BOX_ABOVE}
           width={split ? seg.deW + (i === 0 ? 2 : 0) : rectW}
-          height={FS + 3}
+          height={BOX_H}
           fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
           stroke="none"
           stroke-width={0}
@@ -222,9 +225,9 @@
         {#if split}
           <rect
             x={seg.x + seg.deW + seg.gap}
-            y={textY - FS}
+            y={textY - BOX_ABOVE}
             width={seg.enW + (i === segs.length - 1 ? 2 : 0)}
-            height={FS + 3}
+            height={BOX_H}
             fill={`url(#${gradId(seg.color, seg.colorEnd)})`}
             stroke="none"
             stroke-width={0}

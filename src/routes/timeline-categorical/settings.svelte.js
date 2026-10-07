@@ -3,6 +3,7 @@ import * as config from "./config.js";
 export const EDITABLE = [
   ["PX_PER_DAY", "Day spacing", "Horizontal space per day. Larger = wider chart with fewer stacked rows. Solved automatically when two of width / height / text size are fixed."],
   ["SEGMENT_SNIP_MAX", "Snippet length", "Longest quoted snippet in characters. Shorter boxes pack into fewer rows."],
+  ["BOX_PAD", "Box padding", "Space inside each box above and below the text. 0 = the box hugs the text; larger = taller rows and smaller text at a fixed print size."],
   ["DIST_FS", "District size", "Size of the district label left of each item."],
   ["DATE_FS", "Date label size", "Size of the dates on the axis."],
   ["YEAR_FS", "Year size", "Size of the year written where each year starts. 0 = off."],
@@ -18,7 +19,7 @@ export const EDITABLE = [
 
 const KEYS = [
   ...EDITABLE.map(([key]) => key),
-  "FS", "CHAR_RATIO", "LANG_STACKED", "DIST_GAP",
+  "FS", "CHAR_RATIO", "BOX_ASCENT", "BOX_DESCENT", "LANG_STACKED", "DIST_GAP",
   "MAX_SEGMENTS_PER_ITEM", "H_PAD", "TOP_PAD", "ITEM_ROW_GAP", "STACK_GAP",
   "TICK_MID_LINES", "TICK_LABEL_FORMAT",
 ];
@@ -55,6 +56,10 @@ export const isChanged = () => KEYS.some((k) => settings[k] !== defaults[k]);
 export const charW = () => settings.FS * settings.CHAR_RATIO;
 export const distCW = () => settings.DIST_FS * settings.CHAR_RATIO;
 export const dateCW = () => settings.DATE_FS * settings.CHAR_RATIO;
-export const lineH = () => settings.FS + 3 + settings.ITEM_ROW_GAP;
-export const lineHBoth = () => 2 * settings.FS + 3 + settings.STACK_GAP + settings.ITEM_ROW_GAP;
+// one line of text with its background box
+export const boxH = () => settings.FS * (settings.BOX_ASCENT + settings.BOX_DESCENT) + 2 * settings.BOX_PAD;
+export const boxAbove = () => settings.FS * settings.BOX_ASCENT + settings.BOX_PAD;   // box top above the baseline
+export const boxBelow = () => settings.FS * settings.BOX_DESCENT + settings.BOX_PAD;  // box bottom below it
+export const lineH = () => boxH() + settings.ITEM_ROW_GAP;
+export const lineHBoth = () => 2 * settings.FS * (settings.BOX_ASCENT + settings.BOX_DESCENT) + settings.STACK_GAP + 2 * settings.BOX_PAD + settings.ITEM_ROW_GAP;
 export const axisPad = () => settings.AXIS_LABEL_GAP + settings.DATE_FS + settings.YEAR_FS + 20;
