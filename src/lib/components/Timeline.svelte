@@ -3,7 +3,7 @@
   import { onMount, onDestroy, tick } from "svelte";
   import { browser } from "$app/environment";
   import { lang } from "$lib/i18n";
-  import { translateDE_EN } from "$lib/utils/translate";
+  import { loadReportTranslations, translateSentenceWith } from "$lib/utils/reportTranslations";
   import { shortenAroundKeyword } from "$lib/utils/textUtils";
 
   function typescale(size) {
@@ -63,28 +63,28 @@
     }
     return null;
   }
-  async function translateVisible() {
-    const seen = new Set(Object.keys(translatedMap));
-    const toAdd = new Map();
+  // Precomputed (static/translations/): English of the sentence around the match, cut to snippet length.
+  let reportTranslations = {};
+  function cut(text, max = 200) {
+    if (text.length <= max) return text;
+    let e = max;
+    while (e < text.length && text[e] !== " ") e++;
+    return text.slice(0, e) + (e < text.length ? "…" : "");
+  }
+  function translateVisible() {
+    const add = {};
     for (const item of visible) {
       const sKey = snippetKey(item);
-      if (!seen.has(sKey)) toAdd.set(sKey, translateDE_EN(sKey));
-      if (item.match) {
-        const kKey = `__k:${item.match}`;
-        if (!seen.has(kKey)) toAdd.set(kKey, translateDE_EN(item.match));
-      }
+      if (!(sKey in translatedMap)) add[sKey] = cut(translateSentenceWith(item.text, item.match, reportTranslations));
+      if (item.match) add[`__k:${item.match}`] = reportTranslations[item.match.toLowerCase()] || "";
       const oKey = origKey(item);
-      if (!seen.has(oKey)) toAdd.set(oKey, translateDE_EN(oKey));
-      if (item.origMatch) {
-        const okKey = `__ok:${item.origMatch}`;
-        if (!seen.has(okKey)) toAdd.set(okKey, translateDE_EN(item.origMatch));
-      }
+      if (!(oKey in translatedMap)) add[oKey] = cut(translateSentenceWith(item.text, item.origMatch, reportTranslations));
+      if (item.origMatch) add[`__ok:${item.origMatch}`] = reportTranslations[item.origMatch.toLowerCase()] || "";
     }
-    if (!toAdd.size) return;
-    const results = await Promise.all([...toAdd.entries()].map(async ([k, p]) => [k, await p]));
-    translatedMap = { ...translatedMap, ...Object.fromEntries(results) };
+    translatedMap = { ...translatedMap, ...add };
   }
-  $: if ($lang === "en" && visible.length) translateVisible();
+  $: if ($lang === "en") loadReportTranslations().then((t) => { translatedMap = {}; reportTranslations = t; });
+  $: if ($lang === "en" && visible.length && reportTranslations) translateVisible();
 
   let rows = [];
   let start = null;
@@ -178,7 +178,7 @@
         const origBefore = origSp ? origSp.pre : origSnippet;
         const origMatch = origSp ? origSp.hit : "";
         const origAfter = origSp ? origSp.post : "";
-        return { date: d, before, match, after, origBefore, origMatch, origAfter, url: a.URL };
+        return { date: d, before, match, after, origBefore, origMatch, origAfter, url: a.URL, text };
       })
       .filter(Boolean)
       .sort((a, b) => b.date - a.date);

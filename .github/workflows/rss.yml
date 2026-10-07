@@ -22,21 +22,17 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        working-directory: notebooks/rss
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r pipeline/requirements.txt
 
-      - name: Run RSS scraper
-        working-directory: notebooks/rss
-        run: python rss.py
+      # 1. scrape everything new into pipeline/data (unfiltered)
+      - name: Scrape RSS feeds
+        run: python pipeline/scrape_rss.py
 
-      - name: Run analysis script
-        working-directory: notebooks/rss
-        run: python analysis.py
-
-      - name: Copy merged CSV
-        run: cp notebooks/rss/output/all_merged.csv static/all_merged.csv
+      # 2. filter the full scrape by categories.json -> static/all_merged.csv
+      - name: Filter by categories
+        run: python pipeline/filter.py
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -47,15 +43,16 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Precompute new translations
+      - name: Translate new entries
+        continue-on-error: true
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-        run: node scripts/precompute-translations.mjs
+        run: node pipeline/translate.mjs --days=30
 
       - name: Commit and push changes
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add static/all_merged.csv notebooks/rss/output/all_merged.csv static/translations.json
+          git add pipeline/data static/all_merged.csv static/translations
           git commit -m "Update and parse RSS feeds" || echo "No changes to commit"
           git push

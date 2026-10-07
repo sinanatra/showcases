@@ -1,0 +1,229 @@
+{
+  "_readme": [
+    "Single source of truth for categories. Read by pipeline/filter.py and by the site (src/lib/constants/categories.js).",
+    "",
+    "categories  decide what goes into the dataset. Each term is a word stem looked up in ALL scraped reports",
+    "            ('nazi' also matches 'nazis', 'naziparole'). A report matching any term of any category is kept.",
+    "            Term order = which sentence is quoted on the timeline: the first term found wins, so put generic wording last.",
+    "            kind says what a category records: 'offence' = the law the police cite (kennzeichen also lists the",
+    "            symbols themselves), 'motive' = the motive as the police word it.",
+    "            color / colorEnd: each box on the timeline fades from color to colorEnd, reaching it at",
+    "            gradientEndAt percent of the box width.",
+    "commentary  curated views on top of the dataset. Terms are searched only within reports already in the dataset",
+    "            (plain text match, 'a+b' = both words). They never pull a report in. On the categorical timeline a",
+    "            matching report is highlighted (all commentary shares one yellow).",
+    "            An entry with 'region' instead of 'terms' matches by which police force published the report."
+  ],
+  "gradientEndAt": 50,
+  "categories": [
+    {
+      "id": "kennzeichen",
+      "kind": "offence",
+      "label": "Symbols of unconstitutional organisations",
+      "labelDe": "Kennzeichen verfassungswidriger und terroristischer Organisationen",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Use of symbols of unconstitutional and terrorist organisations (§86a StGB): swastikas, Hitler salutes, SS runes, the red Hamas triangle. The largest category in the dataset.",
+      "terms": [
+        "hakenkreuz",
+        "hitlergruß",
+        "hitler gruß",
+        "heil hitler",
+        "sieg heil",
+        "nazi",
+        "ss-rune",
+        "hamas-dreieck",
+        "rotes dreieck",
+        "roten dreieck",
+        "rote dreieck",
+        "verfassungswidrig"
+      ]
+    },
+    {
+      "id": "volksverhetzung",
+      "kind": "offence",
+      "label": "Incitement to hatred",
+      "labelDe": "Volksverhetzung",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes under §130 StGB: incitement to hatred.",
+      "terms": ["volksverhetz"]
+    },
+    {
+      "id": "antisemitismus",
+      "kind": "motive",
+      "label": "Antisemitism",
+      "labelDe": "Antisemitismus",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes focussed on antisemitic incidents: graffiti, threats, physical attacks.",
+      "terms": ["antisem", "judenfeind"]
+    },
+    {
+      "id": "rassismus",
+      "kind": "motive",
+      "label": "Racism",
+      "labelDe": "Rassismus",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes directed at a person's attributed or actual ethnic origin or skin colour.",
+      "terms": ["rassis"]
+    },
+    {
+      "id": "fremdenfeindlichkeit",
+      "kind": "motive",
+      "label": "Xenophobia",
+      "labelDe": "Fremdenfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes recorded as xenophobic: the police umbrella term for hostility towards people perceived as foreign.",
+      "terms": ["fremdenfeind"]
+    },
+    {
+      "id": "auslaenderfeindlichkeit",
+      "kind": "motive",
+      "label": "Hostility towards foreigners",
+      "labelDe": "Ausländerfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes in which the prejudice refers to a nationality other than German.",
+      "terms": ["ausländerfeind"]
+    },
+    {
+      "id": "islamfeindlichkeit",
+      "kind": "motive",
+      "label": "Islamophobia",
+      "labelDe": "Islamfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes including incidents targeting Muslims and Muslim institutions.",
+      "terms": ["islamfeind"]
+    },
+    {
+      "id": "queerfeindlichkeit",
+      "kind": "motive",
+      "label": "Anti-LGBTQ+ violence",
+      "labelDe": "Queerfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes targeting LGBTQ+ people.",
+      "terms": ["homophob", "transphob", "transfeind", "queerfeind"]
+    },
+    {
+      "id": "frauenfeindlichkeit",
+      "kind": "motive",
+      "label": "Misogyny",
+      "labelDe": "Frauenfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes directed against women. It rarely appears in police reports and is therefore underrepresented.",
+      "terms": ["frauenfeind"]
+    },
+    {
+      "id": "behindertenfeindlichkeit",
+      "kind": "motive",
+      "label": "Ableism",
+      "labelDe": "Behindertenfeindlichkeit",
+      "color": "#ccc",
+      "colorEnd": "#efefef",
+      "on": true,
+      "desc": "Politically motivated crimes targeting people with disabilities.",
+      "terms": ["behindertenfeind"]
+    }
+  ],
+  "commentary": [
+    {
+      "id": "palaestina",
+      "label": "Palestine / Gaza",
+      "labelDe": "Palästina / Gaza",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "desc": "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
+      "terms": [
+        "palästina",
+        "palestine",
+        "gaza",
+        "pro-palästina",
+        "palästinensischer",
+        "palestinian",
+        "palestinensische",
+        "pro-palestinian",
+        "pro-palestine",
+        "pro-gaza",
+        "gazastre"
+      ]
+    },
+    {
+      "id": "demo",
+      "label": "Demo",
+      "labelDe": "Demo",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "terms": [
+        "demo",
+        "demonstration",
+        "protest",
+        "demonstrieren",
+        "protestieren",
+        "demonstrant",
+        "demonstrantin",
+        "demonstrierende",
+        "Versammlung",
+        "Versammlungen",
+        "Versammlungsrecht",
+        "Versammlungsfreiheit"
+      ]
+    },
+    {
+      "id": "kopftuch",
+      "label": "Headscarf",
+      "labelDe": "Kopftuch",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "desc": "Reports that mention a headscarf. The police rarely name Islamophobia as a motive, so these cases mostly appear under racism or xenophobia.",
+      "terms": ["kopftuch", "hidschab", "hijab", "Kopftü"]
+    },
+    {
+      "id": "staatsschutz",
+      "label": "State security police (LKA)",
+      "labelDe": "Polizeilicher Staatsschutz des Landeskriminalamts",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "desc": "Reports in which the state security division of the State Criminal Police Office takes over the investigation, i.e. the police themselves treat the case as politically motivated.",
+      "terms": ["staatsschutz"]
+    },
+    {
+      "id": "berlin",
+      "label": "Berlin",
+      "labelDe": "Berlin",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "desc": "Reports published by the Berlin police.",
+      "region": "Berlin"
+    },
+    {
+      "id": "brandenburg",
+      "label": "Brandenburg",
+      "labelDe": "Brandenburg",
+      "color": "#ffe600",
+      "colorEnd": "#efefef",
+      "on": false,
+      "desc": "Reports published by the Brandenburg police.",
+      "region": "Brandenburg"
+    }
+  ]
+}

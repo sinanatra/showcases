@@ -9,7 +9,11 @@
     "deploy": "gh-pages -d build --dotfiles  --cname showcases.giacomo.website",
     "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
-    "translate:precompute": "node --env-file=.env scripts/precompute-translations.mjs"
+    "scrape": "python3 pipeline/scrape_rss.py",
+    "filter": "python3 pipeline/filter.py",
+    "translate": "node --env-file=.env pipeline/translate.mjs",
+    "translate:local": "node pipeline/translate.mjs --provider=ollama",
+    "pipeline": "npm run scrape && npm run filter"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.0.0",

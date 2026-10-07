@@ -10,7 +10,17 @@
     hasRows = false,
     pdfWidthCm = $bindable(null),
     pdfHeightCm = $bindable(null),
+    /** wanted text size on paper (pt); null = follows from the size */
+    textPtTarget = $bindable(null),
+    /** resulting text size (pt) and print size [w, h] in cm */
+    textPt = null,
+    /** @type {number[]|null} */
+    printSizeCm = null,
+    fitNote = "",
+    tooTall = false,
   } = $props();
+
+  const parsePt = (/** @type {string} */ v) => (v === "" || !(Number(v) > 0) ? null : Number(v));
 
   const parseCm = (/** @type {string} */ v) => (v === "" ? null : Math.max(1, Number(v)));
 </script>
@@ -24,20 +34,35 @@
       <input
         type="number"
         min="1"
-        placeholder="auto"
+        placeholder={printSizeCm ? String(Math.round(printSizeCm[0])) : "auto"}
         value={pdfWidthCm ?? ""}
-        oninput={(e) => (pdfWidthCm = parseCm(e.currentTarget.value))}
+        onchange={(e) => (pdfWidthCm = parseCm(e.currentTarget.value))}
       />
       <span class="times">×</span>
       <input
         type="number"
         min="1"
-        placeholder="auto"
+        placeholder={printSizeCm ? String(Math.round(printSizeCm[1])) : "auto"}
         value={pdfHeightCm ?? ""}
-        oninput={(e) => (pdfHeightCm = parseCm(e.currentTarget.value))}
+        onchange={(e) => (pdfHeightCm = parseCm(e.currentTarget.value))}
       />
       <span class="unit">cm</span>
     </div>
+    <div class="pdf-size" title="Fix any of width, height and text size; what you leave empty follows from the chart and is shown in grey.">
+      <span class="unit">text</span>
+      <input
+        type="number"
+        min="1"
+        step="0.5"
+        placeholder={textPt ? String(Math.round(textPt * 10) / 10) : "auto"}
+        value={textPtTarget ?? ""}
+        onchange={(e) => (textPtTarget = parsePt(e.currentTarget.value))}
+      />
+      <span class="unit">pt</span>
+    </div>
+    {#if fitNote}
+      <span class="size" class:warn={tooTall}>{fitNote}</span>
+    {/if}
     <div class="export-buttons">
       <button onclick={onExportPNG} disabled={exporting || exportingPng || exportingPdf}>
         {exportingPng ? "rendering…" : "↓ PNG"}
@@ -107,5 +132,11 @@
   .status {
     font-size: 10px;
     color: #6b8e23;
+  }
+  .size {
+    color: #333;
+  }
+  .size.warn {
+    color: #c0392b;
   }
 </style>

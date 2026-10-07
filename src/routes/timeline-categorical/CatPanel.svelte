@@ -1,49 +1,76 @@
 <script>
   import CategoryJsonEditor from "./CategoryJsonEditor.svelte";
   import TimelineExport from "$lib/components/TimelineExport.svelte";
+  import { settings, defaults, EDITABLE, saveSettings, resetSettings, isChanged } from "./settings.svelte.js";
 
   let {
     categories = $bindable([]),
-    showBerlin = $bindable(true),
-    showBrandenburg = $bindable(false),
     langMode = $bindable("both"),
     pdfWidthCm = $bindable(null),
     pdfHeightCm = $bindable(null),
+    showBerlin = $bindable(true),
+    showBrandenburg = $bindable(true),
+    textPtTarget = $bindable(null),
+    textPt = null,
+    printSizeCm = null,
+    fitNote = "",
+    tooTall = false,
+    /** @type {number|null} day spacing worked out from the fixed print size; null = editable */
+    solvedDaySpacing = null,
+    onFitHeight = () => {},
+    onPrintSize = () => {},
     counts = {},
     hasRows = false,
     exporting = false,
     exportingPng = false,
     exportingPdf = false,
-    onRebuild = () => {},
     onResetZoom = () => {},
     onExportSVG = () => {},
     onExportPNG = () => {},
     onExportPDF = () => {},
   } = $props();
 
-  function notifyChange() {
-    onRebuild();
+  // The page rebuilds by itself when categories or settings change.
+  function notifyChange() {}
+
+  function setSetting(/** @type {string} */ key, /** @type {string} */ value) {
+    const n = Number(value);
+    settings[key] = value === "" || !Number.isFinite(n) ? defaults[key] : n;
+    saveSettings();
+  }
+
+  async function copySettings() {
+    const lines = Object.keys(defaults)
+      .filter((k) => settings[k] !== defaults[k])
+      .map((k) => `export const ${k} = ${JSON.stringify(settings[k])};`);
+    await navigator.clipboard.writeText(lines.join("\n") || "// nothing changed");
   }
 </script>
 
 <aside class="panel">
   <div class="panel-body">
     <div class="section-title">View</div>
-    <button class="plain-btn" onclick={onResetZoom}>Fit to viewport</button>
+    <div class="btn-row">
+      <button class="plain-btn" onclick={onResetZoom} title="Whole chart in view">Fit</button>
+      <button class="plain-btn" onclick={onFitHeight} title="Full height in view, scroll sideways through time">Height</button>
+      <button class="plain-btn" onclick={onPrintSize} title="Real size: text as big on screen as on paper (needs a print size or text size under Export)">1:1</button>
+    </div>
 
-    <div class="section-title" style="margin-top:16px">Categories</div>
-    {#each categories as cat}
-      <button
-        class="leg-row"
-        class:off={!cat.on}
-        onclick={() => {
-          cat.on = !cat.on;
-          notifyChange();
-        }}
-      >
-        <span class="leg-chip" style:background={cat.on ? (cat.color ?? "#999") : undefined}>{cat.label}</span>
-        <span class="leg-count">{counts[cat.id] ?? 0}</span>
-      </button>
+    {#each [["Categories", "canonical"], ["Commentary", "text"]] as [title, type]}
+      <div class="section-title" style="margin-top:16px">{title}</div>
+      {#each categories.filter((c) => (c.type === "canonical") === (type === "canonical")) as cat}
+        <button
+          class="leg-row"
+          class:off={!cat.on}
+          onclick={() => {
+            cat.on = !cat.on;
+            notifyChange();
+          }}
+        >
+          <span class="leg-chip" style:background={cat.on ? (cat.color ?? "#999") : undefined}>{cat.label}</span>
+          <span class="leg-count">{counts[cat.id] ?? 0}</span>
+        </button>
+      {/each}
     {/each}
 
     <CategoryJsonEditor bind:categories onChange={notifyChange} />
@@ -67,6 +94,40 @@
       {/each}
     </div>
 
+    <label class="check-row" title="Both languages: English under German, or after it on the same line"
+      ><input
+        type="checkbox"
+        checked={settings.LANG_STACKED}
+        onchange={(e) => { settings.LANG_STACKED = e.currentTarget.checked; saveSettings(); }}
+      /> Stack EN under DE</label
+    >
+
+    <div class="section-title" style="margin-top:16px">Layout</div>
+    {#each EDITABLE as [key, label, hint]}
+      <label class="param-row" title={hint}>
+        <span class:changed={settings[key] !== defaults[key]}>{label}</span>
+        {#if key === "PX_PER_DAY" && solvedDaySpacing != null}
+          <input
+            type="number"
+            value={Math.round(solvedDaySpacing * 100) / 100}
+            disabled
+            title="Worked out from the fixed size. Leave one of width / height / text size empty to set it yourself."
+          />
+        {:else}
+          <input
+            type="number"
+            step="any"
+            value={settings[key]}
+            onchange={(e) => setSetting(key, e.currentTarget.value)}
+          />
+        {/if}
+      </label>
+    {/each}
+    <div class="btn-row" style="margin-top:6px">
+      <button class="plain-btn" onclick={resetSettings} disabled={!isChanged()} title="Back to the values in config.js">Reset</button>
+      <button class="plain-btn" onclick={copySettings} title="Copy the changed values as lines for config.js">Copy</button>
+    </div>
+
     <div class="section-title" style="margin-top:16px">Export</div>
     <TimelineExport
       {hasRows}
@@ -75,6 +136,11 @@
       {exportingPdf}
       bind:pdfWidthCm
       bind:pdfHeightCm
+      bind:textPtTarget
+      {textPt}
+      {printSizeCm}
+      {fitNote}
+      {tooTall}
       {onExportSVG}
       {onExportPNG}
       {onExportPDF}
@@ -126,6 +192,43 @@
     background: #111;
     color: #fff;
     border-color: #111;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 4px;
+  }
+  .btn-row .plain-btn {
+    text-align: center;
+  }
+  .plain-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .param-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 1px 0;
+    font-size: 10px;
+    color: #555;
+  }
+  .param-row .changed {
+    color: #000;
+    font-weight: 700;
+  }
+  .param-row input:disabled {
+    background: #eee;
+    color: #999;
+  }
+  .param-row input {
+    width: 3.6rem;
+    border: 1px solid #d4d4d4;
+    background: #fff;
+    font: inherit;
+    padding: 2px 4px;
   }
 
   .leg-row {

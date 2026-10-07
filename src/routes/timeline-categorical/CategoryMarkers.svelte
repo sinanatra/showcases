@@ -1,7 +1,10 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { MARKER_LABEL_DY, MARKER_LABEL_FS } from "./config.js";
+  import { settings } from "./settings.svelte.js";
+
+  let MARKER_LABEL_DY = $derived(settings.MARKER_LABEL_DY);
+  let MARKER_LABEL_FS = $derived(settings.MARKER_LABEL_FS);
 
   let { branchPaths } = $props();
 </script>

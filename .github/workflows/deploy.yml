@@ -42,13 +42,26 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install
 
-      - name: Build site
-        run: npm run build
-
-      - name: Configure git author (required by gh-pages)
+      - name: Configure git author
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Precompute new translations
+        continue-on-error: true
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+        run: node pipeline/translate.mjs --days=30
+
+      - name: Commit new translations
+        continue-on-error: true
+        run: |
+          git add static/translations
+          git commit -m "Precompute new translations" || echo "No changes to commit"
+          git push
+
+      - name: Build site
+        run: npm run build
 
       - name: Deploy to GitHub Pages
         env:
