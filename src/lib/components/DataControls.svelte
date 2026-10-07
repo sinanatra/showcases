@@ -154,9 +154,14 @@
   <div>
     <h2>
       <span class="line-bg">
-        {fmtNum(totalFiltered)}
-        {$t("summary_l1_mid")}
-        {fmtRange(spanFiltered, "summary_l1_to")}.
+        {#if totalFiltered}
+          {fmtNum(totalFiltered)}
+          {$t("summary_l1_mid")}
+          {fmtRange(spanFiltered, "summary_l1_to")}.
+        {:else}
+          {fmtNum(0)}
+          {$t("summary_l1_mid").replace(/\s+(from|von)$/, "")}.
+        {/if}
       </span>
     </h2>
     <div>

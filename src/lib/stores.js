@@ -218,9 +218,9 @@ export const recentCount = derived(isMobile, ($isMobile) =>
   $isMobile ? 50 : 450
 );
 
-export const recent = derived([articles, recentCount], ([$articles, n]) => {
-  const list = Array.isArray($articles) ? $articles : [];
-  const sorted = [...list].sort((a, b) => {
+/** The n newest reports of a list. */
+function newest(list, n) {
+  const sorted = [...(Array.isArray(list) ? list : [])].sort((a, b) => {
     const da = parseDateLoose(a.ExtractedDate || a.Date);
     const db = parseDateLoose(b.ExtractedDate || b.Date);
     if (da && db) return db - da;
@@ -229,19 +229,22 @@ export const recent = derived([articles, recentCount], ([$articles, n]) => {
     return 0;
   });
   return sorted.slice(0, n);
-});
+}
+
+export const recent = derived([articles, recentCount], ([$articles, n]) => newest($articles, n));
 
 export const filtered = derived([articles, filters], ([$articles, $filters]) =>
   applyFilters($articles, $filters)
 );
 
-export const filteredTopN = derived([recent, filters], ([$recent, $filters]) =>
-  applyFilters($recent, $filters)
+// Filter first, then take the newest: a small category (or a rare search term)
+// whose reports are all older than the newest few hundred would otherwise show nothing.
+export const filteredTopN = derived(
+  [articles, filters, recentCount],
+  ([$articles, $filters, n]) => newest(applyFilters($articles, $filters), n)
 );
 
-export const filteredData = derived([recent, filters], ([$recent, $filters]) =>
-  applyFilters($recent, $filters)
-);
+export const filteredData = filteredTopN;
 
 export const record = writable(false);
 

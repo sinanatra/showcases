@@ -12,6 +12,10 @@
     isMobile,
   } from "$lib/stores";
   import { createSketch } from "$lib/components/dataViz/sketch";
+  import { lang } from "$lib/i18n";
+  import { shorten, shortenAroundKeyword } from "$lib/utils/textUtils";
+  import { splitSentences } from "$lib/utils/sentences";
+  import { loadReportTranslations } from "$lib/utils/reportTranslations";
   import { growthModes, growthParams } from "$lib/components/dataViz/growth";
   
   let { 
@@ -27,6 +31,17 @@
     growthMode: growthModeProp = "chaos",
     growthModeFixed = false
   } = $props();
+
+  // Stored English for every sentence of the dataset (static/translations/), loaded when needed.
+  let translations = $state.raw({});
+  $effect(() => {
+    if ($lang === "en") loadReportTranslations().then((t) => { translations = t; translationsReady = true; });
+  });
+  // In English the drawing waits for the translations, so it is built once, in English.
+  let translationsReady = $state(false);
+  let vizReady = $derived($lang !== "en" || translationsReady);
+  let english = $derived($lang === "en" && Object.keys(translations).length > 0);
+
 
   let growthMode = $state(growthModeProp);
 
@@ -229,7 +244,7 @@
     }
   });
 
-  let sketchKey = $derived(`${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}|kw:${$filters.keyword}|q:${$filters.text}`);
+  let sketchKey = $derived(`${dataSig}|${growthMode}|${$filters.showOnlyLatest ? "1" : "0"}|kw:${$filters.keyword}|q:${$filters.text}|${english ? "en" : "de"}`);
 
   let hoveredText = $state(""),
     hoveredUrl = $state(""),
@@ -257,11 +272,42 @@
     hoveredHitbox = hit;
   }
 
-  function currentFocusFor(text, fallbackKeyword) {
+
+  function snippetFor(item, fallbackKeyword) {
+    const full = item?.Text ?? item?.sentence ?? "";
+    const lower = full.toLowerCase();
     const q = ($filters.text || "").trim();
-    if (q) return q;
-    if ($filters.keyword) return $filters.keyword;
-    return fallbackKeyword || "";
+    const own = [
+      ...(Array.isArray(item?.KeywordExtracted) ? item.KeywordExtracted : []),
+      ...(Array.isArray(item?.KeywordMatch) ? item.KeywordMatch : []),
+    ].map(String);
+    const wanted = $filters.keyword ? getKeywordVariants($filters.keyword).map((v) => v.toLowerCase()) : [];
+    const candidates = q
+      ? [q]
+      : [
+          ...own.filter((k) => wanted.some((v) => k.toLowerCase().startsWith(v))),
+          ...wanted,
+          fallbackKeyword,
+          ...own,
+        ];
+    const focus = candidates.find((c) => c && lower.includes(String(c).toLowerCase())) || "";
+    const title = item?.Title || "";
+
+    if (english) {
+      const sentences = splitSentences(full);
+      const sentence = (focus && sentences.find((s) => s.toLowerCase().includes(focus.toLowerCase()))) || sentences[0];
+      const en = sentence && translations[sentence];
+      if (en) {
+        const term = translations[focus.toLowerCase()] || "";
+        const found = term && en.toLowerCase().includes(term.toLowerCase());
+        return {
+          text: found ? shortenAroundKeyword(en, term, 120) : shorten(en, 120),
+          title: translations[title.trim()] || title,
+          terms: found ? [term] : [],
+        };
+      }
+    }
+    return { text: shortenAroundKeyword(full, focus, 120), title, terms: focus ? [focus] : [] };
   }
 
   let isPinned = $state(false);
@@ -322,7 +368,7 @@
     getIsPinned: () => isPinned,
     getHoveredHitbox: () => hoveredHitbox,
     pinTooltip,
-    currentFocusFor,
+    snippetFor,
     registerControls: (controls) => {
       sketchControls = controls || sketchControls;
     },
@@ -341,8 +387,8 @@
 
 <div class="viz-container">
   {#if vizData.length}
-    {#key `${dataSig}|${growthMode}`}
-      <P5 {sketch} />
+    {#key `${dataSig}|${growthMode}|${english ? "en" : "de"}`}
+      {#if vizReady}<P5 {sketch} />{/if}
     {/key}
   {:else}
     <div class="empty-state">...</div>
@@ -359,9 +405,9 @@
   {hoveredUrl}
   {tooltipX}
   {tooltipY}
-  keywords={activeHighlightTerms.length
-    ? activeHighlightTerms
-    : hoveredHitbox?.keywords || []}
+  keywords={hoveredHitbox?.keywords?.length
+    ? hoveredHitbox.keywords
+    : activeHighlightTerms}
   date={hoveredHitbox?.date || ""}
   {isPinned}
 />
