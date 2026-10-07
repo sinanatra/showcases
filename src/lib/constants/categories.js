@@ -15,7 +15,15 @@ export const CATEGORIES = [
     keyword: c.id,
     type: c.highlight ? "text" : "canonical",
   })),
-  ...data.commentary.map((c) => ({ ...c, type: "text", query: (c.terms ?? []).join(",") })),
+  // commentary colours come from CSS (--highlight / --highlight-end in static/style.css);
+  // these are only the values used until the page has read them
+  ...data.commentary.map((c) => ({
+    color: "#ffe600",
+    colorEnd: "#ffffff",
+    ...c,
+    type: "text",
+    query: (c.terms ?? []).join(","),
+  })),
 ];
 
 // Every value KeywordMatch can hold (a matched term or the category id) -> category id.

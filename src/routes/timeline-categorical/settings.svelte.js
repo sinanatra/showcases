@@ -1,13 +1,11 @@
-// Live, editable copy of the layout parameters in config.js. Components read
-// from here, so a change in the side panel re-lays-out the chart immediately.
 import * as config from "./config.js";
 
-/** label + hint for every parameter the side panel can edit */
 export const EDITABLE = [
   ["PX_PER_DAY", "Day spacing", "Horizontal space per day. Larger = wider chart with fewer stacked rows. Solved automatically when two of width / height / text size are fixed."],
   ["SEGMENT_SNIP_MAX", "Snippet length", "Longest quoted snippet in characters. Shorter boxes pack into fewer rows."],
   ["DIST_FS", "District size", "Size of the district label left of each item."],
   ["DATE_FS", "Date label size", "Size of the dates on the axis."],
+  ["YEAR_FS", "Year size", "Size of the year written where each year starts. 0 = off."],
   ["AXIS_LABEL_GAP", "Date label offset", "Distance of the dates below the baseline."],
   ["TICK_EVERY_MONTHS", "Tick every (months)", "1 = monthly, 3 = quarters, 12 = years."],
   ["BRANCH_START_GAP", "Branch separation (rows)", "Each branch starts this many rows above the previous one, smallest category at the bottom. 0 = all start together."],
@@ -26,12 +24,11 @@ const KEYS = [
 ];
 const STORE_KEY = "timeline-categorical-settings";
 
-export const defaults = Object.fromEntries(KEYS.map((k) => [k, /** @type {any} */ (config)[k]]));
+export const defaults = Object.fromEntries(KEYS.map((k) => [k, (config)[k]]));
 
 function stored() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
-    // only what the panel can edit — anything else always comes from config.js
     const editable = new Set([...EDITABLE.map(([key]) => key), "LANG_STACKED"]);
     return Object.fromEntries(Object.entries(saved).filter(([k]) => editable.has(k)));
   } catch {
@@ -41,7 +38,6 @@ function stored() {
 
 export const settings = $state({ ...defaults, ...stored() });
 
-/** Remembers panel edits in this browser, so a reload keeps them. */
 export function saveSettings() {
   try {
     const changed = Object.fromEntries(Object.entries(settings).filter(([k, v]) => v !== defaults[k]));
@@ -56,10 +52,9 @@ export function resetSettings() {
 
 export const isChanged = () => KEYS.some((k) => settings[k] !== defaults[k]);
 
-// derived sizes
 export const charW = () => settings.FS * settings.CHAR_RATIO;
 export const distCW = () => settings.DIST_FS * settings.CHAR_RATIO;
 export const dateCW = () => settings.DATE_FS * settings.CHAR_RATIO;
 export const lineH = () => settings.FS + 3 + settings.ITEM_ROW_GAP;
 export const lineHBoth = () => 2 * settings.FS + 3 + settings.STACK_GAP + settings.ITEM_ROW_GAP;
-export const axisPad = () => settings.AXIS_LABEL_GAP + settings.DATE_FS + 20;
+export const axisPad = () => settings.AXIS_LABEL_GAP + settings.DATE_FS + settings.YEAR_FS + 20;

@@ -21,8 +21,8 @@
       "kind": "offence",
       "label": "Symbols of unconstitutional organisations",
       "labelDe": "Kennzeichen verfassungswidriger und terroristischer Organisationen",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Use of symbols of unconstitutional and terrorist organisations (§86a StGB): swastikas, Hitler salutes, SS runes, the red Hamas triangle. The largest category in the dataset.",
       "terms": [
@@ -45,8 +45,8 @@
       "kind": "offence",
       "label": "Incitement to hatred",
       "labelDe": "Volksverhetzung",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes under §130 StGB: incitement to hatred.",
       "terms": ["volksverhetz"]
@@ -56,8 +56,8 @@
       "kind": "motive",
       "label": "Antisemitism",
       "labelDe": "Antisemitismus",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes focussed on antisemitic incidents: graffiti, threats, physical attacks.",
       "terms": ["antisem", "judenfeind"]
@@ -67,8 +67,8 @@
       "kind": "motive",
       "label": "Racism",
       "labelDe": "Rassismus",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes directed at a person's attributed or actual ethnic origin or skin colour.",
       "terms": ["rassis"]
@@ -78,8 +78,8 @@
       "kind": "motive",
       "label": "Xenophobia",
       "labelDe": "Fremdenfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes recorded as xenophobic: the police umbrella term for hostility towards people perceived as foreign.",
       "terms": ["fremdenfeind"]
@@ -89,8 +89,8 @@
       "kind": "motive",
       "label": "Hostility towards foreigners",
       "labelDe": "Ausländerfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes in which the prejudice refers to a nationality other than German.",
       "terms": ["ausländerfeind"]
@@ -100,8 +100,8 @@
       "kind": "motive",
       "label": "Islamophobia",
       "labelDe": "Islamfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes including incidents targeting Muslims and Muslim institutions.",
       "terms": ["islamfeind"]
@@ -111,8 +111,8 @@
       "kind": "motive",
       "label": "Anti-LGBTQ+ violence",
       "labelDe": "Queerfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes targeting LGBTQ+ people.",
       "terms": ["homophob", "transphob", "transfeind", "queerfeind"]
@@ -122,8 +122,8 @@
       "kind": "motive",
       "label": "Misogyny",
       "labelDe": "Frauenfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes directed against women. It rarely appears in police reports and is therefore underrepresented.",
       "terms": ["frauenfeind"]
@@ -133,8 +133,8 @@
       "kind": "motive",
       "label": "Ableism",
       "labelDe": "Behindertenfeindlichkeit",
-      "color": "#ccc",
-      "colorEnd": "#efefef",
+      "color": "#efefef",
+      "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes targeting people with disabilities.",
       "terms": ["behindertenfeind"]
@@ -146,7 +146,7 @@
       "label": "Palestine / Gaza",
       "labelDe": "Palästina / Gaza",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "desc": "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
       "terms": [
@@ -168,7 +168,7 @@
       "label": "Demo",
       "labelDe": "Demo",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "terms": [
         "demo",
@@ -190,7 +190,7 @@
       "label": "Headscarf",
       "labelDe": "Kopftuch",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "desc": "Reports that mention a headscarf. The police rarely name Islamophobia as a motive, so these cases mostly appear under racism or xenophobia.",
       "terms": ["kopftuch", "hidschab", "hijab", "Kopftü"]
@@ -200,7 +200,7 @@
       "label": "State security police (LKA)",
       "labelDe": "Polizeilicher Staatsschutz des Landeskriminalamts",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "desc": "Reports in which the state security division of the State Criminal Police Office takes over the investigation, i.e. the police themselves treat the case as politically motivated.",
       "terms": ["staatsschutz"]
@@ -210,7 +210,7 @@
       "label": "Berlin",
       "labelDe": "Berlin",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "desc": "Reports published by the Berlin police.",
       "region": "Berlin"
@@ -220,7 +220,7 @@
       "label": "Brandenburg",
       "labelDe": "Brandenburg",
       "color": "#ffe600",
-      "colorEnd": "#efefef",
+      "colorEnd": "#ffffff",
       "on": false,
       "desc": "Reports published by the Brandenburg police.",
       "region": "Brandenburg"
