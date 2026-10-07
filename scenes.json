@@ -54,10 +54,9 @@
       "alt": "Source limitations and bias"
     },
     "subtitle": {
-      "en": "The data is drawn from official police reports, showing what is recorded, and what is left out. Because the source has its own perspective, we offer curated views that add context.",
-      "de": "Die Daten stammen aus offiziellen Polizeimeldungen und zeigen, was dokumentiert wird, und was nicht. Da die Quelle eine eigene Perspektive hat, bieten wir kuratierte Ansichten an, die Kontext sichtbar machen."
-    },
-    "embed": "stories"
+      "en": "The data is drawn from official police reports, showing what is recorded, and what is left out. Because the source has its own perspective, we offer <a href=\"/stories\">curated views</a> that add context.",
+      "de": "Die Daten stammen aus offiziellen Polizeimeldungen und zeigen, was dokumentiert wird, und was nicht. Da die Quelle eine eigene Perspektive hat, bieten wir <a href=\"/stories\">kuratierte Ansichten</a> an, die Kontext sichtbar machen."
+    }
   },
 
   {
