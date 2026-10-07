@@ -1,13 +1,14 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { TICK_STROKE, TICK_COLOR_YEAR, TICK_COLOR, TICK_COLOR_MID } from "./config.js";
+  import { TICK_STROKE, TICK_COLOR_YEAR, TICK_COLOR, TICK_COLOR_MID, DEFAULT_REVERSED } from "./config.js";
   import { settings, dateCW } from "./settings.svelte.js";
 
   let TOP_PAD = $derived(settings.TOP_PAD);
   let DATE_FS = $derived(settings.DATE_FS);
   let DATE_CW = $derived(dateCW());
   let AXIS_LABEL_GAP = $derived(settings.AXIS_LABEL_GAP);
+  let YEAR_FS = $derived(settings.YEAR_FS);
 
   let { ticks, baseline, dataSvgW } = $props();
 
@@ -32,7 +33,6 @@
   });
 </script>
 
-<!-- grid lines -->
 {#each ticks as t}
   <line
     x1={t.x}
@@ -44,7 +44,6 @@
   />
 {/each}
 
-<!-- baseline -->
 <line
   x1={0}
   y1={baseline}
@@ -54,7 +53,6 @@
   stroke-width=".5"
 />
 
-<!-- axis labels — month/year only, skip week ticks -->
 {#each visibleLabels as t}
   <text
     x={t.x}
@@ -66,3 +64,18 @@
     fill="#000"
   >{t.label}</text>
 {/each}
+
+{#if YEAR_FS > 0}
+  {#each ticks.filter((t) => t.isYear) as t}
+    <text
+      x={t.x}
+      y={baseline + AXIS_LABEL_GAP + DATE_FS * 0.4 + YEAR_FS}
+      dx={DEFAULT_REVERSED ? -YEAR_FS * 0.15 : YEAR_FS * 0.15}
+      text-anchor={DEFAULT_REVERSED ? "end" : "start"}
+      style="font-family: var(--font-mono)"
+      font-size={YEAR_FS}
+      font-weight={400}
+      fill="#000"
+    >{t.year}</text>
+  {/each}
+{/if}

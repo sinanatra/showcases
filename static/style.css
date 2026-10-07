@@ -6,6 +6,10 @@
 }
 
 html {
+  /* categorical timeline: reports matching a commentary entry are drawn from --highlight to --highlight-end */
+  --highlight: red;
+  --highlight-end: #ffffff;
+  --highlight-fade: 0.25;   /* opacity of the other reports while a highlight is on */
   --color-1: rgb(254, 216, 0);
   --color-1: rgb(231, 233, 91);
   --font-mono: "Pitch Sans", Courier, monospace;

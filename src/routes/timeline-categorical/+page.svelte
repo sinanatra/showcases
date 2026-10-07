@@ -22,30 +22,22 @@
   import { loadReportTranslations } from "$lib/utils/reportTranslations";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
-  /** @type {"de"|"en"|"both"} */ let langMode = $state("both");
+  let langMode = $state("both");
 
   const SIDEBAR_W = 220;
 
   const reversed = DEFAULT_REVERSED;
   const textAlign = DEFAULT_TEXT_ALIGN;
 
-  // Mutable so a custom PDF width+height (see exportPDF) can re-lay-out the
-  // chart itself — spreading dates out (or packing them tighter) shifts how
-  // many rows the greedy packer needs, which is what actually changes the
-  // chart's aspect ratio — instead of just stretching a fixed layout to fit.
   let pxPerDay = $state(settings.PX_PER_DAY);
   $effect(() => { pxPerDay = settings.PX_PER_DAY; });
 
-  // $state.raw: these hold thousands of entries that are only ever replaced
-  // wholesale — deep reactive proxies around them made every layout take seconds.
-  /** @type {Record<string,string>} */ let translatedMap = $state.raw({});
+  let translatedMap = $state.raw({});
   async function loadTranslations() {
     translatedMap = await loadReportTranslations();
   }
 
   // ── filters ───────────────────────────────────────────────────
-  // Region filter: hides a police force's reports entirely (the Berlin /
-  // Brandenburg commentary entries only highlight them).
   let showBerlin = $state(DEFAULT_SHOW_BERLIN);
   let showBrandenburg = $state(DEFAULT_SHOW_BRANDENBURG);
   function passesRegion(a) {
@@ -61,18 +53,18 @@
 
   // ── state ─────────────────────────────────────────────────────
   let hasInitialFit = false;
-  /** @type {any[]} */ let ticks = $state.raw([]);
-  /** @type {any[]} */ let placed = $state.raw([]);
-  /** @type {any[]} */ let branchPaths = $state.raw([]);
-  /** @type {Record<string,number>} */ let counts = $state.raw({});
+  let ticks = $state.raw([]);
+  let placed = $state.raw([]);
+  let branchPaths = $state.raw([]);
+  let counts = $state.raw({});
   let dataSvgW = $state(4000);
   let svgH = $state(600);
   let baselineY = $state(480);
 
   const baseline = () => baselineY;
 
-  /** @type {any[]} */ let builtItems = [];
-  /** @type {any[]} */ let branchCats = [];
+  let builtItems = [];
+  let branchCats = [];
 
   function computeItems() {
     const arts = $articles.filter(a => passesRegion(a) && passesBilanz(a));
@@ -105,14 +97,13 @@
     const highlightCats = categories.filter((c) => c.type !== "canonical");
 
     const items = [];
-    /** @type {Record<string,number>} */ const newCounts = {};
+    const newCounts = {};
     for (const cat of categories) newCounts[cat.id] = 0;
 
     for (const p of parsed) {
       const matchedBranches = branchCats.filter((cat) => matchesCategory(p.raw, cat));
-      if (!matchedBranches.length) continue; // no PMK category → not shown
+      if (!matchedBranches.length) continue;
 
-      // Every matching commentary is counted; the first one decides the colour.
       const matchedHighlights = highlightCats.filter(
         (cat) => cat.on && matchesCategory(p.raw, cat),
       );
@@ -180,19 +171,20 @@
       .domain([new Date(dMin.getFullYear(), 0, 1), dMax])
       .range(reversed ? [W - settings.H_PAD, settings.H_PAD] : [settings.H_PAD, W - settings.H_PAD]);
 
-    const pad2 = (/** @type {number} */ n) => String(n).padStart(2, "0");
+    const pad2 = (n) => String(n).padStart(2, "0");
     const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const formatTick = (/** @type {Date} */ d) =>
+    const formatTick = (d) =>
       settings.TICK_LABEL_FORMAT.replace(/YYYY|YY|MMM|MM|DD/g, (token) =>
         token === "YYYY" ? String(d.getFullYear())
         : token === "YY" ? pad2(d.getFullYear() % 100)
         : token === "MMM" ? MONTHS[d.getMonth()]
         : token === "MM" ? pad2(d.getMonth() + 1)
         : pad2(d.getDate()));
-    const makeTick = (/** @type {Date} */ d) => ({
+    const makeTick = (d) => ({
       x: xScale(d),
       isYear: d.getMonth() === 0,
       label: formatTick(d),
+      year: d.getFullYear(),
     });
     const monthTicks = xScale.ticks(d3.timeMonth.every(Math.max(1, Math.round(settings.TICK_EVERY_MONTHS) || 1))).map(makeTick);
     const lastTick = makeTick(dMax);
@@ -225,29 +217,22 @@
       return districtW + itemTw;
     };
     const rowH = langMode === "both" && settings.LANG_STACKED ? lineHBoth() : lineH();
-    // Start each branch in its own lane: smallest category lowest, so the fast
-    // growing ones climb away above instead of running through the others.
     const gapRows = Math.max(0, Math.round(settings.BRANCH_START_GAP) || 0);
-    /** @type {Map<string, number>} */ const perCat = new Map();
+    const perCat = new Map();
     for (const it of visibleItems) perCat.set(it.catId, (perCat.get(it.catId) ?? 0) + 1);
     const startRows = new Map(
       [...perCat.entries()].sort((a, b) => a[1] - b[1]).map(([id], i) => [id, i * gapRows]),
     );
     const placedRaw = placeItems(visibleItems, xScale, labelFn, textAlign, rowH, itemWidth, startRows);
 
-    // Rows are as tall as their content: a row only gets the double (DE over EN)
-    // height if one of its items really shows both lines. Untranslated reports
-    // would otherwise leave an empty line above every row they sit in.
-    const rowOf = (/** @type {any} */ p) => Math.round(p.y / rowH - 0.2);
-    const isStacked = (/** @type {any} */ p) =>
-      (p.segments ?? []).some((/** @type {any} */ seg) => segmentText(seg, translatedMap, langMode).stacked);
+    const rowOf = (p) => Math.round(p.y / rowH - 0.2);
+    const isStacked = (p) =>
+      (p.segments ?? []).some((seg) => segmentText(seg, translatedMap, langMode).stacked);
     const tallRows = new Set(placedRaw.filter(isStacked).map(rowOf));
-    // Empty rows are dropped, except the lanes that keep the branches apart at the start.
     const laneTop = gapRows * Math.max(0, startRows.size - 1);
     const used = new Set(placedRaw.map(rowOf));
     const maxRow = Math.max(-1, ...used);
     const usedRows = [];
-    // (with a clearance between branches, empty rows are that clearance: keep them all)
     const keepEmpty = (Math.round(settings.BRANCH_CLEARANCE) || 0) > 0;
     for (let r = 0; r <= maxRow; r++) if (used.has(r) || r < laneTop || keepEmpty) usedRows.push(r);
     const rowY = new Map();
@@ -268,23 +253,20 @@
     const OUTLIER_PX = 100;
     const MARKER_LABEL_FS = settings.MARKER_LABEL_FS;
     const MARKER_LABEL_DY = settings.MARKER_LABEL_DY;
-    // real width of one character of a category name (was overestimated, which
-    // centred each name on a much longer stretch and pushed it away from the start)
     const LABEL_CW = MARKER_LABEL_FS * (settings.CHAR_RATIO + 0.03);
     const LABEL_GAP_PX = 40;
     const MAX_TILT_DEG = 130;
     const MAX_REPEATS = Math.max(1, Math.round(settings.MARKER_LABEL_REPEATS) || 1);
     const LABEL_START_RATIO = Math.min(0.95, Math.max(0, settings.MARKER_LABEL_START / 100));
 
-    /** @param {any} cat */
     const wordsFor = (cat) => {
       if (langMode === "de") return [cat.labelDe || cat.label];
       if (langMode === "en") return [cat.label];
       return [cat.labelDe || cat.label, cat.label];
     };
 
-    /** @type {any[]} */ const labels = [];
-    /** @type {any[]} */ const labelBounds = [];
+    const labels = [];
+    const labelBounds = [];
 
     for (const cat of branchCats.filter((c) => c.on)) {
       const items = allPlaced
@@ -293,7 +275,7 @@
       if (!items.length) continue;
 
       const raw = items.map((it) => ({ x: it.x, y: bl - it.y }));
-      /** @type {any[]} */ const trend = [raw[0]];
+      const trend = [raw[0]];
       let stuck = 0;
       for (let i = 1; i < raw.length; i++) {
         const prev = trend[trend.length - 1];
@@ -304,15 +286,12 @@
         trend.push(raw[i]);
         stuck = 0;
       }
-      // A branch with a single report (or all in one spot) still gets a name:
-      // a short straight run to the right of it.
       if (trend.length < 2) {
         const longest = Math.max(...wordsFor(cat).map((w) => w.length)) * LABEL_CW;
         trend.push({ x: trend[0].x + longest, y: trend[0].y });
       }
 
-
-      /** @type {number[]} */ const segLens = [];
+      const segLens = [];
       let length = 0;
       for (let i = 1; i < trend.length; i++) {
         const l = Math.hypot(trend[i].x - trend[i - 1].x, trend[i].y - trend[i - 1].y);
@@ -321,7 +300,7 @@
       }
       if (!length) continue;
 
-      const pointAt = (/** @type {number} */ offset) => {
+      const pointAt = (offset) => {
         let acc = 0;
         for (let i = 0; i < segLens.length; i++) {
           if (acc + segLens[i] >= offset || i === segLens.length - 1) {
@@ -341,8 +320,7 @@
 
       const words = wordsFor(cat);
 
-      /** Puts `word` on the branch starting at `start` along it; false if it collides (unless forced). */
-      const place = (/** @type {string} */ word, /** @type {number} */ start, force = false) => {
+      const place = (word, start, force = false) => {
         const halfW = (word.length * LABEL_CW) / 2;
         const offset = start + halfW;
         const p = pointAt(offset);
@@ -350,7 +328,7 @@
         if (tiltDeg > MAX_TILT_DEG && !force) return false;
 
         const SUB_SAMPLES = 5;
-        /** @type {any[]} */ const subPts = [];
+        const subPts = [];
         for (let k = 0; k < SUB_SAMPLES; k++) {
           const sp = pointAt(start + (halfW * 2 * k) / (SUB_SAMPLES - 1));
           subPts.push({ x: sp.x, y: sp.y - LABEL_CLEARANCE });
@@ -368,13 +346,25 @@
         );
         if (overlapsLabel && !force) return false;
 
+        // The path is made a little longer than the name at both ends: a name
+        // wider than its path loses the letters that fall off the ends.
+        const extend = (from, to) => {
+          const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+          const pad = halfW * 0.2 + MARKER_LABEL_FS;
+          return { x: to.x + ((to.x - from.x) / len) * pad, y: to.y + ((to.y - from.y) / len) * pad };
+        };
+        const pathPts = [
+          extend(subPts[1], subPts[0]),
+          ...subPts,
+          extend(subPts[subPts.length - 2], subPts[subPts.length - 1]),
+        ];
         const d = d3.line()
-          .x(/** @param {any} sp */ (sp) => sp.x)
-          .y(/** @param {any} sp */ (sp) => sp.y)
-          .curve(d3.curveCatmullRom.alpha(1.8))(subPts);
+          .x((sp) => sp.x)
+          .y((sp) => sp.y)
+          .curve(d3.curveCatmullRom.alpha(1.8))(pathPts);
         let pathLen = 0;
-        for (let k = 1; k < subPts.length; k++)
-          pathLen += Math.hypot(subPts[k].x - subPts[k - 1].x, subPts[k].y - subPts[k - 1].y);
+        for (let k = 1; k < pathPts.length; k++)
+          pathLen += Math.hypot(pathPts[k].x - pathPts[k - 1].x, pathPts[k].y - pathPts[k - 1].y);
         labels.push({ cat, id: `branch-label-${cat.id}-${labels.length}`, d, startOffset: pathLen / 2, text: word });
         labelBounds.push(bounds);
         return true;
@@ -387,9 +377,6 @@
         const progress = MAX_REPEATS > 1 ? wi / (MAX_REPEATS - 1) : 0;
         const labelStart = length * LABEL_START_RATIO +
           Math.max(0, length * (1 - LABEL_START_RATIO) - wordW) * progress;
-        // If the name would sit on another category's name (branches start in
-        // the same corner), slide it along its branch to the first free spot,
-        // up to where the next repeat would go.
         const slot = MAX_REPEATS > 1
           ? Math.max(0, length * (1 - LABEL_START_RATIO) - wordW) / (MAX_REPEATS - 1)
           : length - labelStart - wordW;
@@ -398,8 +385,6 @@
           if (place(word, labelStart + shift)) { placedAny = true; break; }
         }
       }
-      // Every branch carries its name at least once: the first free spot anywhere
-      // along it. Names never overlap — a branch with no free spot stays unnamed.
       if (!placedAny) {
         const word = words[0];
         const wordW = word.length * LABEL_CW;
@@ -415,8 +400,6 @@
     if (!hasInitialFit) { hasInitialFit = true; requestAnimationFrame(fitContent); }
   }
 
-  // Bumped whenever the chart's content or layout parameters change, so a fixed
-  // width / height / text size gets solved again (see solvePrintLayout).
   let contentVersion = $state(0);
 
   function build() {
@@ -432,23 +415,21 @@
       void c.query;
       void c.keyword;
       void c.type;
+      void c.color;
+      void c.colorEnd;
     }
     void categories.length;
     void showBerlin;
     void showBrandenburg;
     void settings.SEGMENT_SNIP_MAX;
     void settings.MAX_SEGMENTS_PER_ITEM;
-    // untrack: build() reads plenty of state (day spacing among it) that must
-    // not re-trigger it — only the inputs listed above do.
     if ($articles.length) untrack(build);
   });
 
-  // Language mode / translations change the width of every box on screen,
-  // so re-layout (not a full re-match) is enough to keep spacing correct.
   $effect(() => {
     void langMode;
     void translatedMap;
-    JSON.stringify(settings);   // any layout parameter
+    JSON.stringify(settings);
     if (builtItems.length) {
       untrack(() => {
         layout();
@@ -457,7 +438,7 @@
     }
   });
 
-  let fitDebounceTimer = /** @type {ReturnType<typeof setTimeout>|null} */ (null);
+  let fitDebounceTimer = (null);
   $effect(() => {
     void pdfWidthCm; void pdfHeightCm; void textPtTarget; void contentVersion; void settings.PX_PER_DAY;
     if (fitDebounceTimer) clearTimeout(fitDebounceTimer);
@@ -465,15 +446,27 @@
     fitDebounceTimer = setTimeout(solvePrintLayout, 300);
   });
 
+  let highlightFade = $state(0.25);
+
   onMount(() => {
+    const css = getComputedStyle(document.documentElement);
+    const highlight = css.getPropertyValue("--highlight").trim();
+    const highlightEnd = css.getPropertyValue("--highlight-end").trim();
+    const fadeValue = parseFloat(css.getPropertyValue("--highlight-fade"));
+    if (Number.isFinite(fadeValue)) highlightFade = fadeValue;
+    for (const c of categories) {
+      if (c.type === "canonical") continue;
+      if (highlight) c.color = highlight;
+      if (highlightEnd) c.colorEnd = highlightEnd;
+    }
     loadArticles();
     loadTranslations();
   });
 
   // ── zoom ──────────────────────────────────────────────────────
-  /** @type {SVGSVGElement|null} */ let svgEl = $state(null);
+  let svgEl = $state(null);
   let zoomTransform = $state(d3.zoomIdentity);
-  let zoomBehavior = /** @type {any} */ (null);
+  let zoomBehavior = (null);
 
   $effect(() => {
     if (!svgEl) return;
@@ -495,8 +488,6 @@
     const cH = svgEl.clientHeight;
     if (!cW || !cH) return;
     const scale = Math.min(cW / dataSvgW, cH / svgH) * 0.97;
-    // Widen the scaleExtent floor to include the fit scale first — otherwise d3 silently
-    // clamps transform() to the old floor, desyncing it from the computed (tx, ty).
     zoomBehavior.scaleExtent([Math.min(0.1, scale), 10]);
     const tx = (cW - dataSvgW * scale) / 2;
     const ty = Math.max(4, (cH - svgH * scale) / 2);
@@ -510,7 +501,6 @@
     fitContent();
   }
 
-  /** Applies a zoom scale with the chart's bottom-left corner in the bottom-left of the view. */
   function zoomTo(scale) {
     if (!svgEl || !zoomBehavior) return;
     const cW = svgEl.clientWidth, cH = svgEl.clientHeight;
@@ -520,17 +510,11 @@
     d3.select(svgEl).call(zoomBehavior.transform, d3.zoomIdentity.translate(4, ty).scale(scale));
   }
 
-  /** Whole height in view (scroll sideways through time). */
   function fitHeight() {
     if (!svgEl) return;
     zoomTo((svgEl.clientHeight / svgH) * 0.97);
   }
 
-  /**
-   * Real size: one drawing unit takes on screen the space it takes on paper
-   * (CSS reference pixel, 96 per inch — close to true size on most screens).
-   * Without a print size set, 100 % means one unit = one pixel.
-   */
   function showPrintSize() {
     zoomTo(printScale ? (printScale * 96) / 25.4 : 1);
   }
@@ -539,18 +523,12 @@
   let exporting = $state(false);
   let exportingPng = $state(false);
   let exportingPdf = $state(false);
-  /** UI-editable PDF page size (cm); null = auto. Seeded from config.js defaults. */
   let pdfWidthCm = $state(PDF_WIDTH_CM);
   let pdfHeightCm = $state(PDF_HEIGHT_CM);
 
-  // The chart has no size of its own: its text is FS units in a drawing of
-  // dataSvgW × svgH units, so the printed text size follows from the print size.
   const MM_PER_PT = 25.4 / 72;
-  /** wanted text size on paper (pt); null = follows from the print size */
   let textPtTarget = $state(PRINT_TEXT_PT);
-  /** With nothing fixed, one drawing unit prints as one CSS pixel (text = 7.5 pt). */
   const DEFAULT_PRINT_SCALE = 25.4 / 96;
-  /** mm per drawing unit on paper */
   let printScale = $derived(
     textPtTarget
       ? (textPtTarget * MM_PER_PT) / settings.FS
@@ -563,11 +541,9 @@
             : DEFAULT_PRINT_SCALE,
   );
   let textPt = $derived(printScale ? (settings.FS * printScale) / MM_PER_PT : null);
-  /** resulting print size in cm, shown in the panel */
   let printSizeCm = $derived(
     printScale ? [(dataSvgW * printScale) / 10, (svgH * printScale) / 10] : null,
   );
-  /** The print size, always shown; flagged when a fixed height is exceeded. */
   let tooTall = $derived(
     !!(textPtTarget && pdfWidthCm && pdfHeightCm && printSizeCm && printSizeCm[1] > pdfHeightCm + 0.5),
   );
@@ -575,12 +551,10 @@
     printSizeCm ? `${Math.round(printSizeCm[0])} × ${Math.round(printSizeCm[1])} cm` : "",
   );
 
-  /** Day spacing is solved (not editable) once two of width / height / text size are fixed. */
   let solvedDaySpacing = $derived(
     [pdfWidthCm, pdfHeightCm, textPtTarget].filter(Boolean).length >= 2 ? pxPerDay : null,
   );
 
-  /** Binary search on day spacing until `measure()` reaches `target`. */
   function searchPxPerDay(measure, target, increasing) {
     let lo = 0.05, hi = 2000;
     for (let i = 0; i < 18; i++) {
@@ -593,10 +567,6 @@
     layout(true);
   }
 
-  /**
-   * Lays the chart out for whichever of width / height / text size are fixed
-   * (see the table in config.js). Day spacing is the free variable.
-   */
   async function solvePrintLayout() {
     if (!builtItems.length) return;
     const w = pdfWidthCm, h = pdfHeightCm, pt = textPtTarget;
@@ -611,10 +581,8 @@
     await tick();
   }
 
-  /** Cached base64 font data so we only fetch once per session. */
-  let _fontB64 = /** @type {string|null} */ (null);
-  /** Same font, pre-converted to TTF (quadratic outlines) for PDF embedding — see exportPDF. */
-  let _fontTtfB64 = /** @type {string|null} */ (null);
+  let _fontB64 = (null);
+  let _fontTtfB64 = (null);
 
   async function injectFontStyle(clone) {
     if (!_fontB64) {
@@ -642,18 +610,10 @@
     defs.insertBefore(style, defs.firstChild);
   }
 
-  /**
-   * fitContent() sizes the zoom viewport to (dataSvgW × svgH), but actual
-   * content — long district labels hanging left of an item, branch-curve
-   * label placement extrapolating past the plotted range — can spill
-   * slightly outside that nominal box, most visibly at the timeline's start
-   * where items sit close to x=0. Exports need the *real* bounds so nothing
-   * at the edges gets clipped by the SVG/canvas/PDF viewport.
-   */
   function getContentBounds() {
     const fallback = { minX: 0, minY: 0, maxX: dataSvgW, maxY: svgH };
     if (!svgEl) return fallback;
-    const group = /** @type {SVGGraphicsElement|null} */ (svgEl.querySelector(".zoom-group"));
+    const group = (svgEl.querySelector(".zoom-group"));
     if (!group || typeof group.getBBox !== "function") return fallback;
     try {
       const bbox = group.getBBox();
@@ -671,17 +631,15 @@
   async function exportSVG() {
     if (!svgEl) return;
     exporting = true;
-    const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+    const clone = (svgEl.cloneNode(true));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
     const { minX, minY, maxX, maxY } = getContentBounds();
     const width = maxX - minX;
     const height = maxY - minY;
     clone.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
-    // With a print size set, the SVG carries it (mm), so print tools know the real size.
     clone.setAttribute("width", printScale ? `${(width * printScale).toFixed(2)}mm` : String(width));
     clone.setAttribute("height", printScale ? `${(height * printScale).toFixed(2)}mm` : String(height));
     await injectFontStyle(clone);
-    // Print tools (rsvg, Inkscape) can't resolve CSS variables — write the font stack out.
     clone.querySelectorAll("[style]").forEach((el) => {
       const s = el.getAttribute("style");
       if (s && s.includes("var(--font-mono)")) {
@@ -700,10 +658,9 @@
     exporting = false;
   }
 
-  /** Rasterizes the chart to a canvas at up to 3× scale, within Chrome's canvas limits. */
   async function renderCanvas() {
     if (!svgEl) return null;
-    const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+    const clone = (svgEl.cloneNode(true));
     clone.querySelector(".zoom-group")?.setAttribute("transform", "");
     const { minX, minY, maxX, maxY } = getContentBounds();
     const totalW = maxX - minX;
@@ -718,8 +675,6 @@
       defs.insertBefore(style, defs.firstChild);
     }
 
-    // Scale up to 3× but stay within Chrome's canvas limits:
-    // 32 767 px per side, 268 M px total area.
     const MAX_DIM  = 32767;
     const MAX_AREA = 268_000_000;
     const scale = Math.min(
@@ -777,14 +732,6 @@
     exportingPng = false;
   }
 
-  /**
-   * svg2pdf.js has no support for <textPath>, so the curved branch labels
-   * (drawn along a bent micro-path, see `labels.push` in layout()) can't be
-   * handed to it as-is. Instead we manually lay out each character along the
-   * same path — position + tangent read via the browser's native path
-   * geometry (getPointAtLength) — which reproduces the curve using plain,
-   * individually rotated <text> glyphs that svg2pdf can render.
-   */
   function flattenBranchLabels(clone) {
     const ns = "http://www.w3.org/2000/svg";
     const textPaths = clone.querySelectorAll("text > textPath");
@@ -799,10 +746,6 @@
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) { document.body.removeChild(measureSvg); return; }
-    // svg2pdf.js ignores `paint-order` and always paints fill then stroke, so
-    // a single element with both would draw the white halo *over* the black
-    // fill and eat into the glyph. Emulate stroke-then-fill by hand instead:
-    // one stroke-only halo element, followed by a fill-only element on top.
     const HALO_ATTRS = ["dy", "font-size", "stroke", "stroke-width"];
     const FILL_ATTRS = ["dy", "font-size", "fill", "style"];
 
@@ -865,15 +808,12 @@
     if (!svgEl) return;
     exportingPdf = true;
     try {
-      // svg2pdf.js touches browser globals on import, so it must stay out of
-      // the SSR bundle — load it lazily, client-side only.
       await import("svg2pdf.js");
 
-      // make sure the layout for the fixed width / height / text size is in place
       if (fitDebounceTimer) clearTimeout(fitDebounceTimer);
       await solvePrintLayout();
 
-      const clone = /** @type {SVGSVGElement} */ (svgEl.cloneNode(true));
+      const clone = (svgEl.cloneNode(true));
       clone.querySelector(".zoom-group")?.setAttribute("transform", "");
       const { minX, minY, maxX, maxY } = getContentBounds();
       const totalW = maxX - minX;
@@ -884,9 +824,6 @@
 
       flattenBranchLabels(clone);
 
-      // svg2pdf can't resolve CSS custom properties, so resolve the font
-      // stack by hand: real embedded Pitch Sans first, standard Courier as
-      // the fallback svg2pdf uses if a glyph is missing from our font.
       clone.querySelectorAll("[style]").forEach((el) => {
         const s = el.getAttribute("style");
         if (s && s.includes("var(--font-mono)")) {
@@ -898,7 +835,6 @@
       const MAX_PDF_PT = 14400;
       let outW, outH;
       if (printScale) {
-        // true size on paper
         outW = (totalW * printScale) / MM_PER_PT;
         outH = (totalH * printScale) / MM_PER_PT;
       } else {
@@ -906,8 +842,6 @@
         outW = totalW * PX_TO_PT * scale;
         outH = totalH * PX_TO_PT * scale;
       }
-      // A PDF page can be at most 14400 units (5.08 m). Beyond that, keep the
-      // real size by making each unit bigger (UserUnit) instead of shrinking the chart.
       const userUnit = Math.max(1, Math.ceil(Math.max(outW, outH) / MAX_PDF_PT));
       outW /= userUnit;
       outH /= userUnit;
@@ -920,9 +854,6 @@
         compress: true,
       });
 
-      // jsPDF only embeds TrueType (glyf) outlines, but our webfont is a
-      // CFF-flavored .otf — Pitch_Semibold.ttf is a pre-converted (quadratic
-      // outline) copy of the same font kept alongside it for this purpose.
       const ttfB64 = await (async () => {
         if (!_fontTtfB64) {
           const buf = await (await fetch("/fonts/Pitch_Semibold.ttf")).arrayBuffer();
@@ -946,7 +877,6 @@
 </script>
 
 <div class="page">
-  <!-- chart -->
   <div class="data-col">
     <div class="chart-wrap">
       {#if !$articles.length}
@@ -956,7 +886,14 @@
           <g class="zoom-group" transform={zoomTransform}>
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
             <CategoryMarkers {branchPaths} />
-            <TimelineItems {placed} baseline={baseline()} {textAlign} {translatedMap} {langMode} />
+            <TimelineItems
+              {placed}
+              baseline={baseline()}
+              {textAlign}
+              {translatedMap}
+              {langMode}
+              fade={placed.some((p) => p.highlightId) ? highlightFade : 1}
+            />
           </g>
         </svg>
       {/if}

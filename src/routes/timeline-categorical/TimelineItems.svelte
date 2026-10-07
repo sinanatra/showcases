@@ -21,11 +21,11 @@
     textAlign = "start",
     translatedMap = {},
     langMode = "both",
+    fade = 1,
   } = $props();
 
   const clean = (c) => String(c).replace(/[^a-zA-Z0-9]/g, "");
   const gradId = (color, end) => `grad-${clean(color)}-${clean(end ?? "#ffffff")}`;
-  // one gradient per start/end pair in use
   let gradients = $derived([
     ...new Map(
       placed.flatMap((item) =>
@@ -38,8 +38,6 @@
   ]);
 </script>
 
-<!-- one gradient per color, reused by every box of that color: objectBoundingBox
-     units make it sweep left-to-right across each rect's own width. -->
 <defs>
   {#each gradients as g}
     <linearGradient id={g.id} x1="0" x2="1" y1="0" y2="0">
@@ -78,9 +76,10 @@
     acc.push({ ...s, x: prevEnd });
     return acc;
   }, [])}
+  {@const opacity = item.highlightId ? 1 : fade}
   {#if item.raw?.URL}
     <a href={item.raw.URL} target="_blank" rel="noreferrer" class="item-link">
-      <g>
+      <g {opacity}>
         {#if districtLabel}
           <text
             x={districtX}
@@ -164,6 +163,7 @@
       </g>
     </a>
   {:else}
+    <g {opacity}>
     {#if districtLabel}
       <text
         x={districtX}
@@ -244,5 +244,6 @@
         >
       {/if}
     {/each}
+    </g>
   {/if}
 {/each}

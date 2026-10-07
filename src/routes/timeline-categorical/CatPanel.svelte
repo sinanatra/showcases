@@ -15,7 +15,6 @@
     printSizeCm = null,
     fitNote = "",
     tooTall = false,
-    /** @type {number|null} day spacing worked out from the fixed print size; null = editable */
     solvedDaySpacing = null,
     onFitHeight = () => {},
     onPrintSize = () => {},
@@ -30,10 +29,9 @@
     onExportPDF = () => {},
   } = $props();
 
-  // The page rebuilds by itself when categories or settings change.
   function notifyChange() {}
 
-  function setSetting(/** @type {string} */ key, /** @type {string} */ value) {
+  function setSetting(key, value) {
     const n = Number(value);
     settings[key] = value === "" || !Number.isFinite(n) ? defaults[key] : n;
     saveSettings();

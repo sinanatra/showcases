@@ -5,9 +5,6 @@ import { detectRegion } from "../../lib/utils/detectRegion.js";
 
 export { stripBoilerplate, splitSentences };
 
-
-// Lower-cased "title text" per report and parsed terms per query, computed once:
-// commentary matching runs for every report × entry on each rebuild.
 const hayCache = new WeakMap();
 function haystack(a) {
   let hay = hayCache.get(a);
@@ -31,14 +28,9 @@ function queryTerms(query) {
   return terms;
 }
 
-/**
- * What one snippet shows for the chosen language mode: German, English, whether
- * the two are stacked (EN under DE) or run on one line, and the widths.
- */
 export function segmentText(seg, translations, langMode) {
   const translated = translateSegment(seg, translations);
   const showEn = langMode !== "de" && !!translated;
-  // "en" mode falls back to German for anything not (yet) translated.
   const showDe = langMode !== "en" || !translated;
   const de = showDe ? seg.text : "";
   const en = showEn ? translated : "";
@@ -46,19 +38,17 @@ export function segmentText(seg, translations, langMode) {
   const stacked = both && settings.LANG_STACKED;
   const deW = Math.ceil(de.length * charW());
   const enW = Math.ceil(en.length * charW());
-  // On one line, each language gets its own background box, directly after the other.
   const gap = 0;
   const tw = stacked ? Math.max(deW, enW) : deW + gap + enW;
   return { de, en, stacked, deW, enW, gap, tw };
 }
 
 export function matchesCategory(a, cat) {
-  // Dataset categories match through the terms the pipeline found; commentary by text search.
   if (cat.keyword) {
     const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
     return kws.some(
       (k) =>
-        /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] ===
+        (keywordsGroup)[String(k).toLowerCase()] ===
         cat.keyword,
     );
   }
@@ -67,7 +57,7 @@ export function matchesCategory(a, cat) {
 
   const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
   const matchedViaKeywordGroup = kws.some((k) =>
-    terms.some(({ term }) => term === /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()]),
+    terms.some(({ term }) => term === (keywordsGroup)[String(k).toLowerCase()]),
   );
   if (matchedViaKeywordGroup) return true;
 
@@ -75,10 +65,6 @@ export function matchesCategory(a, cat) {
   return terms.some(({ parts }) => parts.every((t) => hay.includes(t)));
 }
 
-/**
- * @param {((it: any) => number)|null} [widthFn]
- * @param {Map<string, number>|null} [startRows] first row each category may use
- */
 export function placeItems(preItems, xScale, labelFn, textAlign = "middle", rowH = lineH(), widthFn = null, startRows = null) {
   const GAP = 6;
 
@@ -98,14 +84,7 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", rowH
   }
   const withWave = [...withX].sort((a, b) => a.wave - b.wave || a.x - b.x);
 
-  // What is already placed in each row, as [xStart, xEnd] spans. Items arrive
-  // category by category, not left to right, so a row can still be free at one
-  // place while something sits in it far away — remembering only the row's
-  // last end (as before) blocked the whole row and left empty rows in between.
   const rowSpans = new Map();
-  // A report needs its own row to be free where it sits, and must stay
-  // `clearance` rows away from reports of any other category there — that
-  // empty band is what keeps two branches from running into each other.
   const clearance = Math.max(0, Math.round(settings.BRANCH_CLEARANCE) || 0);
   const isFree = (row, a, b, catId) => {
     for (let r = Math.max(0, row - clearance); r <= row + clearance; r++) {
@@ -117,7 +96,7 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", rowH
     }
     return true;
   };
-  const catFloor = new Map();  // per (primary) category: never below its own last row
+  const catFloor = new Map();
 
   return withWave.map((it) => {
     const tw = widthFn ? widthFn(it) : Math.ceil(it.label.length * charW());
@@ -137,7 +116,6 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", rowH
   });
 }
 
-/** English for a snippet segment: its full sentence's translation, cut to snippet length. */
 export function translateSegment(seg, translations) {
   const exact = translations?.[seg.text];
   if (exact) return exact;
@@ -149,26 +127,18 @@ export function translateSegment(seg, translations) {
   return en.slice(0, e).trim() + (e < en.length ? "…" : "");
 }
 
-/** Extracts the sentence around this category's matched keyword, or "" if none is found. */
 function sentenceForCategory(item, cat) {
   const raw = item.text || item.title || "";
   if (!raw) return "";
 
-
-  /** @type {[string[], boolean][]} */ const sources = [];
+  const sources = [];
   if (cat.keyword) {
     const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
     const matchedKws = kws
-      .filter((k) => /** @type {any} */ (keywordsGroup)[String(k).toLowerCase()] === cat.keyword)
+      .filter((k) => (keywordsGroup)[String(k).toLowerCase()] === cat.keyword)
       .map((k) => String(k));
-    // 1. the category's own terms that the pipeline found, searched as written
-    //    (short ones like "nazi" too); 2. any other term of the category;
-    // 3. the exact words the pipeline matched, which covers misspellings;
-    // 4. loosened forms of the matched terms.
-    // The order of a category's terms in categories.json is the order of
-    // preference: put generic wording ("verfassungswidrig") last.
-    const order = (/** @type {string} */ k) => {
-      const i = (cat.terms ?? []).findIndex((/** @type {string} */ t) => t.toLowerCase() === k.toLowerCase());
+    const order = (k) => {
+      const i = (cat.terms ?? []).findIndex((t) => t.toLowerCase() === k.toLowerCase());
       return i === -1 ? Infinity : i;
     };
     const found = matchedKws
@@ -189,7 +159,7 @@ function sentenceForCategory(item, cat) {
     const kws = Array.isArray(item.raw?.KeywordMatch) ? item.raw.KeywordMatch : [];
     const lowerLiteralTerms = literalTerms.map((t) => t.toLowerCase());
     const matchedKws = kws
-      .filter((k) => lowerLiteralTerms.includes(/** @type {any} */ (keywordsGroup)[String(k).toLowerCase()]))
+      .filter((k) => lowerLiteralTerms.includes((keywordsGroup)[String(k).toLowerCase()]))
       .map((k) => String(k));
 
     if (matchedKws.length) sources.push([matchedKws, false]);
@@ -221,8 +191,7 @@ function sentenceForCategory(item, cat) {
     return [...out];
   }
 
-  /** The sentence around a position in the cleaned text. */
-  function sentenceAt(/** @type {number} */ at) {
+  function sentenceAt(at) {
     let start = at;
     while (start > 0 && !isSentBoundary(clean, start - 1)) start--;
     while (start < at && /\s/.test(clean[start])) start++;
@@ -231,11 +200,8 @@ function sentenceForCategory(item, cat) {
     if (end < clean.length) end++;
     return { start, end, text: clean.slice(start, end).trim().replace(/\s+/g, " ") };
   }
-  // A real sentence, not an in-text headline or a list fragment.
-  const isProse = (/** @type {string} */ t) => t.length >= 40 && /[.!?…]["“”']?$/.test(t);
+  const isProse = (t) => t.length >= 40 && /[.!?…]["“”']?$/.test(t);
 
-  // Take the first occurrence that sits in a real sentence; a headline or
-  // fragment containing the term is only used if nothing better exists.
   let fallback = -1;
   sourceLoop: for (const [terms, directTerms] of sources) {
     for (const term of terms) {
@@ -265,13 +231,11 @@ function sentenceForCategory(item, cat) {
   const half = Math.floor(settings.SEGMENT_SNIP_MAX / 2);
   let s = Math.max(0, relPos - half);
   let e = Math.min(sentence.length, relPos + half);
-  // Snap to word boundaries
   while (s > 0 && sentence[s] !== " ") s--;
   while (e < sentence.length && sentence[e] !== " ") e++;
   const text = (s > 0 ? "…" : "") + sentence.slice(s, e).trim() + (e < sentence.length ? "…" : "");
   return { text, key, full: sentence };
 }
-
 
 export function groupBranchesBySentence(item, branchCats) {
   const groups = [];
@@ -289,7 +253,6 @@ export function groupBranchesBySentence(item, branchCats) {
   }
   return groups;
 }
-
 
 export function snippetSegments(item, categories) {
   const raw = item.text || item.title || "";
@@ -311,7 +274,6 @@ export function snippetSegments(item, categories) {
   const seenKeys = new Set();
   const segments = [];
 
-  // Commentary only recolours the report's own snippets; it never adds one.
   for (const cat of canonicalCats) {
     if (segments.length >= settings.MAX_SEGMENTS_PER_ITEM) break;
     const result = sentenceForCategory(item, cat);
@@ -322,7 +284,6 @@ export function snippetSegments(item, categories) {
     segments.push({ color: paint.color, colorEnd: paint.colorEnd, text: result.text, full: result.full, on: cat.on });
   }
   if (!segments.length) {
-    // No term located: quote the report's first sentence rather than its headline.
     const first = item.text ? splitSentences(item.text)[0] : "";
     const full = first || item.title || "";
     let text = full;
