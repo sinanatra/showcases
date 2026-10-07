@@ -18,9 +18,25 @@ export function loadReportTranslations() {
     );
     // translations.json: older snippet-only translations, used until the backlog is translated.
     const legacy = await fetch("/translations.json").then((r) => (r.ok ? r.json() : {}), () => ({}));
-    return Object.assign({}, legacy, ...parts);
+    loaded = Object.assign({}, legacy, ...parts);
+    return loaded;
   })().catch(() => ({}));
   return loading;
+}
+
+/** @type {Record<string,string>|null} */
+let loaded = null;
+const englishCache = new WeakMap();
+
+/** Headline + text of a report in English, lower-cased, for searching. "" until the translations are loaded. */
+export function englishText(/** @type {any} */ a) {
+  if (!loaded || !a) return "";
+  let text = englishCache.get(a);
+  if (text === undefined) {
+    text = `${loaded[(a.Title || "").trim()] ?? ""} ${translateText(a.Text || "", loaded)}`.toLowerCase();
+    englishCache.set(a, text);
+  }
+  return text;
 }
 
 /** A whole report text in English; sentences not translated yet stay German. */

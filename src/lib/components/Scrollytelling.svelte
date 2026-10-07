@@ -2,7 +2,6 @@
   import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import { lang, setLang, availableLangs } from "$lib/i18n";
-  import Stories from "$lib/components/Stories.svelte";
   import HeroViz from "$lib/components/HeroViz.svelte";
   import DataControls from "$lib/components/DataControls.svelte";
 
@@ -11,7 +10,6 @@
     src = null,
     threshold = 0.6,
     data = {},
-    storiesData = null,
     heroStartGap = 120,
     heroStartZoom = 1
   } = $props();
@@ -247,7 +245,7 @@
           </HeroViz>
         {:else}
           <section class="step" aria-label={"section-" + i}>
-            <article class:with-aside={s.embed === "stories"}>
+            <article>
               {#if s._heading}<h1>
                   <span class="line-bg">{@html s._heading}</span>
                 </h1>{/if}
@@ -272,11 +270,6 @@
                 </div>
               {/if}
             </article>
-            {#if s.embed === "stories"}
-              <aside class="aside">
-                <Stories data={storiesData} />
-              </aside>
-            {/if}
           </section>
         {/if}
       {/each}
@@ -420,8 +413,4 @@
     border-radius: 0;
   }
 
-  .aside {
-    width: 100%;
-    margin: 0 auto;
-  }
 </style>

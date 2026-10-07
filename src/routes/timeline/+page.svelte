@@ -5,8 +5,6 @@
   import RegionFilter from "$lib/components/RegionFilter.svelte";
   import DistrictFilter from "$lib/components/DistrictFilter.svelte";
   import KeywordFilter from "$lib/components/KeywordFilter.svelte";
-  import YearSlider from "$lib/components/YearSlider.svelte";
-  import TimeClusterFilter from "$lib/components/TimeClusterFilter.svelte";
   import TextSearch from "$lib/components/TextSearch.svelte";
   import Timeline from "$lib/components/Timeline.svelte";
 
@@ -99,10 +97,6 @@
     <div class="filters-grid">
       <RegionFilter />
       <DistrictFilter />
-
-      <YearSlider />
-      <TimeClusterFilter />
-
       <KeywordFilter />
       <TextSearch />
     </div>
@@ -117,9 +111,11 @@
 <!-- <button type="button" on:click={copy}>Copy URLs</button> -->
 
 <style>
+
   .page {
-    display: flex;
-    flex-direction: column;
+    width: max-content;
+    min-width: 100%;
+    background-color: black;
   }
 
   article {
@@ -130,10 +126,10 @@
     flex-direction: column;
     gap: 8px;
     padding: 10px;
-  }
-
-  main {
-    width: 100%;
+    position: sticky;
+    left: 0;
+    width: 100vw;
+    box-sizing: border-box;
   }
 
   h2 {

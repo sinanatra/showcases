@@ -13,6 +13,7 @@ import {
 import { genderMap, GENDER_LABELS } from "$lib/constants/genders";
 import { TIME_LABELS, timeCluster } from "$lib/constants/times";
 import { normalizeDistrict } from "$lib/constants/districts";
+import { englishText } from "$lib/utils/reportTranslations";
 
 export {
   parseDateLoose,
@@ -34,6 +35,7 @@ const filterDefaults = {
   gender: "",
   timeCluster: "",
   text: "",
+  textLang: "",   // "en" = the search text is English and is matched against the English translation
   showOnlyLatest: false,
   region: "",
   yearMin: null,
@@ -129,7 +131,7 @@ function splitOutsideQuotes(str, sepRegex) {
   return parts;
 }
 
-export function buildTextPredicate(query) {
+export function buildTextPredicate(query, textLang = "") {
   const raw = String(query || "").trim();
   if (!raw) return () => true;
 
@@ -146,7 +148,7 @@ export function buildTextPredicate(query) {
   if (orGroups.length === 0) return () => true;
 
   return (item) => {
-    const hay = String(item?.Text || "").toLowerCase();
+    const hay = textLang === "en" ? englishText(item) : String(item?.Text || "").toLowerCase();
     return orGroups.some((andTerms) => andTerms.every((t) => hay.includes(t)));
   };
 }
@@ -282,6 +284,7 @@ function applyFilters(list, f) {
     gender = "",
     timeCluster: timeClusterFilter = "",
     text = "",
+    textLang = "",
     showOnlyLatest = false,
     region = "",
     yearMin = null,
@@ -313,7 +316,7 @@ function applyFilters(list, f) {
   }
 
   if (text) {
-    const test = buildTextPredicate(text);
+    const test = buildTextPredicate(text, textLang);
     out = out.filter((a) => test(a));
   }
 
