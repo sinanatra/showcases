@@ -4,6 +4,9 @@
 // text
 export const FS = 10;                 // snippet text (not the size on paper: see PRINT_TEXT_PT)
 export const CHAR_RATIO = 0.615;      // character width / text size
+export const BOX_ASCENT = 0.8;        // box above the text baseline, as a share of the text size
+export const BOX_DESCENT = 0.25;      // box below the baseline (room for g, p, y)
+export const BOX_PAD = 0;             // extra space inside the box, above and below
 export const ITEM_ROW_GAP = 0;
 export const LANG_STACKED = false;     // both languages: EN under DE (true) or after it (false)
 export const STACK_GAP = 0;

@@ -63,6 +63,7 @@ const sentenceKey = (s) => s.slice(0, 80).toLowerCase();
 const isBoilerplate = (s) => boilerplate.has(sentenceKey(s));
 
 export function matchesCategory(a, cat) {
+  if (cat.match) return cat.match(a);
   if (cat.keyword) {
     const kws = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
     return kws.some(
@@ -135,15 +136,28 @@ export function placeItems(preItems, xScale, labelFn, textAlign = "middle", rowH
   });
 }
 
+// A stretch of `max` characters of `text` with `centre` in its middle, cut at
+// word boundaries. Near either end the window slides instead of shrinking, so
+// the snippet keeps its length and the found word stays inside it.
+function windowAround(text, centre, max) {
+  if (text.length <= max) return text;
+  let s = Math.round(centre - max / 2);
+  s = Math.max(0, Math.min(s, text.length - max));
+  let e = s + max;
+  while (s > 0 && text[s - 1] !== " ") s--;
+  while (e < text.length && text[e] !== " ") e++;
+  return (s > 0 ? "…" : "") + text.slice(s, e).trim() + (e < text.length ? "…" : "");
+}
+
 export function translateSegment(seg, translations) {
-  const exact = translations?.[seg.text];
-  if (exact) return exact;
   const en = translations?.[seg.full ?? seg.text];
   if (!en) return "";
-  if (!seg.full || seg.full === seg.text || en.length <= settings.SEGMENT_SNIP_MAX) return en;
-  let e = settings.SEGMENT_SNIP_MAX;
-  while (e < en.length && en[e] !== " ") e++;
-  return en.slice(0, e).trim() + (e < en.length ? "…" : "");
+  // Centre the English on the translated word if it is there; otherwise on the
+  // same relative position the word has in the German sentence.
+  const word = seg.word ? translations?.[seg.word.toLowerCase()] : "";
+  const at = word ? en.toLowerCase().indexOf(word.toLowerCase()) : -1;
+  const centre = at !== -1 ? at + word.length / 2 : en.length * (seg.at ?? 0);
+  return windowAround(en, centre, settings.SEGMENT_SNIP_MAX);
 }
 
 function sentenceForCategory(item, cat) {
@@ -252,16 +266,15 @@ function sentenceForCategory(item, cat) {
   const key = `${sentStart}-${sentEnd}`;
 
   const sentence = clean.slice(sentStart, sentEnd).trim().replace(/\s+/g, " ");
-  if (sentence.length <= settings.SEGMENT_SNIP_MAX) return { text: sentence, key, full: sentence };
+  // The word that was found, whole, and where its middle is in the sentence.
+  let from = pos, to = pos;
+  while (to < clean.length && /[\p{L}\p{N}-]/u.test(clean[to])) to++;
+  const word = clean.slice(from, to);
+  const found = word ? sentence.toLowerCase().indexOf(word.toLowerCase()) : -1;
+  const centre = found !== -1 ? found + word.length / 2 : pos - sentStart;
 
-  const relPos = pos - sentStart;
-  const half = Math.floor(settings.SEGMENT_SNIP_MAX / 2);
-  let s = Math.max(0, relPos - half);
-  let e = Math.min(sentence.length, relPos + half);
-  while (s > 0 && sentence[s] !== " ") s--;
-  while (e < sentence.length && sentence[e] !== " ") e++;
-  const text = (s > 0 ? "…" : "") + sentence.slice(s, e).trim() + (e < sentence.length ? "…" : "");
-  return { text, key, full: sentence };
+  const text = windowAround(sentence, centre, settings.SEGMENT_SNIP_MAX);
+  return { text, key, full: sentence, word, at: sentence.length ? centre / sentence.length : 0 };
 }
 
 export function groupBranchesBySentence(item, branchCats) {
@@ -308,7 +321,7 @@ export function snippetSegments(item, categories) {
     if (seenKeys.has(result.key)) continue;
     seenKeys.add(result.key);
     const paint = highlightCat ?? cat;
-    segments.push({ color: paint.color, colorEnd: paint.colorEnd, text: result.text, full: result.full, on: cat.on });
+    segments.push({ color: paint.color, colorEnd: paint.colorEnd, text: result.text, full: result.full, word: result.word, at: result.at, on: cat.on });
   }
   if (!segments.length) {
     const first = item.text ? splitSentences(item.text)[0] : "";
