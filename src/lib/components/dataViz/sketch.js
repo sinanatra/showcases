@@ -1,4 +1,3 @@
-import { shorten, shortenAroundKeyword } from "$lib/utils/textUtils";
 import { parseList } from "$lib/utils/parseList";
 import { applyGrowthDirection } from "$lib/components/dataViz/growth";
 
@@ -20,7 +19,7 @@ export function createSketch({
   getIsPinned,
   getHoveredHitbox,
   pinTooltip,
-  currentFocusFor,
+  snippetFor,
   registerControls,
 }) {
   return (p) => {
@@ -162,9 +161,8 @@ export function createSketch({
       if (!data.length) return result;
       const kw0 = data[0]?.KeywordMatch?.[0] || "";
       const action0 = actionForItem(data[0]);
-      const text0 = data[0]?.Text ?? data[0]?.sentence ?? "";
-      const focus0 = currentFocusFor(text0, kw0);
-      const trunkText = shortenAroundKeyword(text0, focus0, 120);
+      const snippet0 = snippetFor(data[0], kw0);
+      const trunkText = snippet0.text;
       const trunkDir = p.createVector(0, -1);
       const trunkNodes = [p.createVector(cx, cy)];
       const trunkOffset = trunkDir
@@ -190,7 +188,8 @@ export function createSketch({
         finished: false,
         url: data[0]?.URL || "",
         date: data[0]?.ExtractedDate || data[0]?.Date || "",
-        title: data[0]?.Title || "",
+        title: snippet0.title,
+        terms: snippet0.terms,
         renderOffset: startMargin,
       });
       for (let i = 1; i < data.length; i++) {
@@ -207,9 +206,8 @@ export function createSketch({
           .normalize();
         const kw = data[i]?.KeywordMatch?.[0] || "";
         const action = actionForItem(data[i]);
-        const txtFull = data[i]?.Text ?? data[i]?.sentence ?? "";
-        const focus = currentFocusFor(txtFull, kw);
-        const txt = shortenAroundKeyword(txtFull, focus, 120);
+        const snippet = snippetFor(data[i], kw);
+        const txt = snippet.text;
         result.push({
           kw,
           action,
@@ -227,7 +225,8 @@ export function createSketch({
           finished: false,
           url: data[i]?.URL || "",
           date: data[i]?.ExtractedDate || data[i]?.Date || "",
-          title: data[i]?.Title || "",
+          title: snippet.title,
+          terms: snippet.terms,
           renderOffset: 0,
         });
       }
@@ -386,7 +385,7 @@ export function createSketch({
                 radius: textSize * 2,
                 url: br.url || "",
                 text: br.sentence,
-                keywords: [br.kw],
+                keywords: br.terms?.length ? br.terms : [br.kw],
                 date: br.date,
                 title: br.title,
               });
