@@ -8,8 +8,9 @@
     filteredData,
     parseDateLoose,
   } from "$lib/stores";
-  import Record from "$lib/components/Record.svelte";
-  import { t, tn, lang, setLang, availableLangs } from "$lib/i18n";
+  import KeywordFilter from "$lib/components/KeywordFilter.svelte";
+  import TextSearch from "$lib/components/TextSearch.svelte";
+  import { t, lang } from "$lib/i18n";
 
   let { floating = true } = $props();
 
@@ -29,16 +30,6 @@
     hasCycledSinceIdle = false;
   }
 
-  function setKeywordFilter(val) {
-    markActivity();
-    filters.update((f) => ({ ...f, keyword: val }));
-  }
-
-  function setTextFilter(val) {
-    markActivity();
-    const q = String(val || "").trim();
-    filters.update((f) => ({ ...f, text: q.length >= 3 ? q : "" }));
-  }
   function setShowOnlyLatest(val) {
     markActivity();
     if (val) {
@@ -182,31 +173,13 @@
   </div>
   <br />
   <div>
-    {#if $availableKeywordsLabeled.length}
-      <p>
-        <span>
-          {$t("controls_filter")}
-        </span>
-      </p>
-      <select
-        class="control"
-        value={$filters.keyword}
-        on:change={(e) => setKeywordFilter(e.target.value)}
-      >
-        <option value="">{$t("controls_any")}</option>
-        {#each $availableKeywordsLabeled as opt}
-          <option value={opt.value}>{opt.label}</option>
-        {/each}
-      </select>
-    {/if}
-    <input
-      type="text"
-      value={$filters.text}
-      on:input={(e) => setTextFilter(e.target.value)}
-      minlength="3"
-      placeholder={$t("controls_textPlaceholder")}
-      class="inline-input control"
-    />
+    <p>
+      <span>
+        {$t("controls_filter")}
+      </span>
+    </p>
+    <KeywordFilter showLabel={false} />
+    <TextSearch showLabel={false} />
 
     <label class="inline-checkbox">
       <input
@@ -272,46 +245,25 @@
     color: var(--color-2);
   }
 
-  /* .lang-switch {
-    position: fixed;
-    bottom: 1rem;
-    right: 1rem;
-    z-index: 10;
-    display: flex;
-    gap: 0.2rem;
-  }
 
-  .lang-switch button {
-    background: #111;
-    color: #eee;
-    font-size: 0.9rem;
-    cursor: pointer;
-    border: none;
-  }
-
-  .lang-switch button.active {
-    color: #000;
-    background: #fff;
-    opacity: 1;
-  } */
-
-  .controls select,
-  .controls .inline-input {
+  /* the shared filter components, in this panel's black-on-white-border look */
+  .controls :global(select),
+  .controls :global(input[type="search"]) {
     display: block;
-    margin: 0;
-    margin-bottom: 5px;
+    width: auto;
+    min-width: 120px;
+    margin: 0 0 5px;
+    padding: 2px;
     font-family: Arial, Helvetica, sans-serif;
+    background-color: black;
+    color: white;
+    border: 1px solid;
   }
 
   label {
     font-family: Arial, Helvetica, sans-serif;
   }
 
-  .control {
-    min-width: 120px;
-    padding: 2px;
-    margin: 0;
-  }
   select,
   input {
     background-color: black;

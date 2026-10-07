@@ -5,20 +5,6 @@ import { detectRegion } from "../../lib/utils/detectRegion.js";
 
 export { stripBoilerplate, splitSentences };
 
-const WORD_END = /[\s,;:.!?()[\]"'…–—/\\]/;
-
-export function matchInText(text, terms) {
-  const lower = text.toLowerCase();
-  for (const term of terms) {
-    const idx = lower.indexOf(term.toLowerCase());
-    if (idx === -1) continue;
-    // extend to full word (catches "-isch", "-en", "-e" suffixes, German umlauts, etc.)
-    let end = idx + term.length;
-    while (end < text.length && !WORD_END.test(text[end])) end++;
-    return { idx, pre: text.slice(0, idx), kw: text.slice(idx, end), post: text.slice(end) };
-  }
-  return null;
-}
 
 // Lower-cased "title text" per report and parsed terms per query, computed once:
 // commentary matching runs for every report × entry on each rebuild.

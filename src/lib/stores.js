@@ -1,3 +1,4 @@
+// Shared state of the site: the dataset, the active filters, and what they leave.
 import { readable, writable, derived } from "svelte/store";
 import { lang } from "$lib/i18n";
 import { browser } from "$app/environment";
@@ -5,21 +6,19 @@ import { parseDateLoose } from "$lib/utils/parseDate";
 import { detectRegion } from "$lib/utils/detectRegion";
 import {
   keywordsGroup,
-  canonicalKeywords,
   KEYWORD_LABELS,
   getKeywordVariants,
   augmentKeywordMatch,
 } from "$lib/constants/categories";
 import { genderMap, GENDER_LABELS } from "$lib/constants/genders";
-import { TIME_LABELS, timeCluster } from "$lib/constants/times";
+import { TIME_LABELS } from "$lib/constants/times";
 import { normalizeDistrict } from "$lib/constants/districts";
 import { englishText } from "$lib/utils/reportTranslations";
 
+// Re-exported so pages can take everything dataset-related from one place.
 export {
   parseDateLoose,
-  detectRegion,
   keywordsGroup,
-  canonicalKeywords,
   getKeywordVariants,
   augmentKeywordMatch,
   genderMap,
@@ -27,21 +26,17 @@ export {
   TIME_LABELS,
 };
 
+/** Every report of the dataset (static/all_merged.csv), filled by loadArticles(). */
 export const articles = writable([]);
 
+// ── filters ───────────────────────────────────────────────────
 const filterDefaults = {
+  region: "",       // "Berlin" | "Brandenburg"
   district: "",
-  keyword: "",
-  gender: "",
-  timeCluster: "",
-  text: "",
-  textLang: "",   // "en" = the search text is English and is matched against the English translation
+  keyword: "",      // a category id from categories.json
+  text: "",         // free text; "a,b" = either, "a+b" = both
+  textLang: "",     // "en" = `text` is English and is matched against the translations
   showOnlyLatest: false,
-  region: "",
-  yearMin: null,
-  yearMax: null,
-  dateMin: null,
-  dateMax: null,
 };
 
 export function createFilterState(overrides = {}) {
@@ -50,77 +45,26 @@ export function createFilterState(overrides = {}) {
 
 export const filters = writable(createFilterState());
 
-export const yearsExtent = derived(articles, ($articles) => {
-  let min = Infinity,
-    max = -Infinity;
-  for (const a of Array.isArray($articles) ? $articles : []) {
-    const d = parseDateLoose(a.ExtractedDate || a.Date);
-    if (!d || isNaN(+d)) continue;
-    const y = d.getFullYear();
-    if (y < min) min = y;
-    if (y > max) max = y;
-  }
-  if (!isFinite(min) || !isFinite(max)) {
-    const y = new Date().getFullYear();
-    return { min: y, max: y };
-  }
-  return { min, max };
-});
+const byNewest = (a, b) => {
+  const da = parseDateLoose(a.ExtractedDate || a.Date);
+  const db = parseDateLoose(b.ExtractedDate || b.Date);
+  if (da && db) return db - da;
+  if (db) return 1;
+  if (da) return -1;
+  return 0;
+};
 
-export const datesExtent = derived(articles, ($articles) => {
-  let min = null;
-  let max = null;
-  for (const a of Array.isArray($articles) ? $articles : []) {
-    const d = parseDateLoose(a.ExtractedDate || a.Date);
-    if (!d || isNaN(+d)) continue;
-    if (!min || d < min) min = d;
-    if (!max || d > max) max = d;
-  }
-  return { min, max };
-});
-
-export const effectiveYearRange = derived(
-  [filters, yearsExtent],
-  ([$filters, $extent]) => ({
-    min: $filters.yearMin ?? $extent.min,
-    max: $filters.yearMax ?? $extent.max,
-  })
-);
-
-export function filterArticles(list, { district, keyword }, exclude) {
-  const variants = keyword ? getKeywordVariants(keyword) : [];
-  return (Array.isArray(list) ? list : []).filter((a) => {
-    if (exclude !== "district" && district && a.ExtractedDistrict !== district)
-      return false;
-    if (
-      exclude !== "keyword" &&
-      keyword &&
-      !(
-        Array.isArray(a.KeywordMatch) &&
-        a.KeywordMatch.some((k) =>
-          variants
-            .map(String)
-            .map((s) => s.toLowerCase())
-            .includes(String(k).toLowerCase())
-        )
-      )
-    )
-      return false;
-    return true;
-  });
-}
+/** The n newest reports of a list. */
+const newest = (list, n) => [...(Array.isArray(list) ? list : [])].sort(byNewest).slice(0, n);
 
 function splitOutsideQuotes(str, sepRegex) {
   const parts = [];
   let buf = "";
   let inQuotes = false;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
+  for (const ch of str) {
     if (ch === '"') {
       inQuotes = !inQuotes;
-      continue;
-    }
-    if (!inQuotes && sepRegex.test(ch)) {
+    } else if (!inQuotes && sepRegex.test(ch)) {
       if (buf.trim()) parts.push(buf.trim());
       buf = "";
     } else {
@@ -131,183 +75,31 @@ function splitOutsideQuotes(str, sepRegex) {
   return parts;
 }
 
-export function buildTextPredicate(query, textLang = "") {
-  const raw = String(query || "").trim();
-  if (!raw) return () => true;
-
-  const orGroups = splitOutsideQuotes(raw, /,/)
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .map((g) =>
-      splitOutsideQuotes(g, /\+/)
-        .map((t) => t.trim().toLowerCase())
-        .filter(Boolean)
-    )
+/** "a,b" matches either, "a+b" needs both; quotes keep a comma or plus literal. */
+function buildTextPredicate(query, textLang = "") {
+  const orGroups = splitOutsideQuotes(String(query || "").trim(), /,/)
+    .map((group) => splitOutsideQuotes(group, /\+/).map((term) => term.toLowerCase()))
     .filter((group) => group.length > 0);
-
-  if (orGroups.length === 0) return () => true;
+  if (!orGroups.length) return () => true;
 
   return (item) => {
     const hay = textLang === "en" ? englishText(item) : String(item?.Text || "").toLowerCase();
-    return orGroups.some((andTerms) => andTerms.every((t) => hay.includes(t)));
+    return orGroups.some((andTerms) => andTerms.every((term) => hay.includes(term)));
   };
 }
 
-export const availableDistricts = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    const base = applyFilters($articles, { ...$filters, district: "" });
-    const set = new Set();
-    for (const a of base) {
-      const r = detectRegion(a);
-      const d = normalizeDistrict(a.ExtractedDistrict, r);
-      if (d) set.add(d);
-    }
-    return Array.from(set).sort();
-  }
-);
-
-export const availableGenders = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    const base = applyFilters($articles, { ...$filters, gender: "" });
-    const clusters = base
-      .flatMap((a) =>
-        Array.isArray(a.ExtractedGender) ? a.ExtractedGender : []
-      )
-      .map((g) => genderMap[String(g).toLowerCase()] || "Other");
-    return Array.from(new Set(clusters)).filter(Boolean).sort();
-  }
-);
-
-export const availableTimeClusters = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    const base = applyFilters($articles, { ...$filters, timeCluster: "" });
-    const set = new Set();
-    base.forEach((a) =>
-      (Array.isArray(a.ExtractedTime) ? a.ExtractedTime : []).forEach((t) => {
-        const h = Number(String(t).split(":")[0]);
-        set.add(timeCluster(h));
-      })
-    );
-    return Array.from(set).sort();
-  }
-);
-
-export const availableKeywords = derived(
-  [articles, filters],
-  ([$articles, $filters]) => {
-    const base = applyFilters($articles, { ...$filters, keyword: "" });
-    return Array.from(
-      new Set(
-        base
-          .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
-          .map((k) => keywordsGroup[String(k).toLowerCase()] || String(k))
-      )
-    )
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, "de"));
-  }
-);
-
-export const isMobile = readable(false, (set) => {
-  if (!browser) return;
-  set(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-});
-
-export const recentCount = derived(isMobile, ($isMobile) =>
-  $isMobile ? 50 : 450
-);
-
-/** The n newest reports of a list. */
-function newest(list, n) {
-  const sorted = [...(Array.isArray(list) ? list : [])].sort((a, b) => {
-    const da = parseDateLoose(a.ExtractedDate || a.Date);
-    const db = parseDateLoose(b.ExtractedDate || b.Date);
-    if (da && db) return db - da;
-    if (db) return 1;
-    if (da) return -1;
-    return 0;
-  });
-  return sorted.slice(0, n);
-}
-
-export const recent = derived([articles, recentCount], ([$articles, n]) => newest($articles, n));
-
-export const filtered = derived([articles, filters], ([$articles, $filters]) =>
-  applyFilters($articles, $filters)
-);
-
-// Filter first, then take the newest: a small category (or a rare search term)
-// whose reports are all older than the newest few hundred would otherwise show nothing.
-export const filteredTopN = derived(
-  [articles, filters, recentCount],
-  ([$articles, $filters, n]) => newest(applyFilters($articles, $filters), n)
-);
-
-export const filteredData = filteredTopN;
-
-export const record = writable(false);
-
-export const availableGendersLabeled = derived(
-  [availableGenders, lang],
-  ([$availableGenders, $lang]) =>
-    $availableGenders.map((v) => ({
-      value: v,
-      label: GENDER_LABELS[$lang]?.[v] ?? v,
-    }))
-);
-
-export const availableTimeClustersLabeled = derived(
-  [availableTimeClusters, lang],
-  ([$availableTimeClusters, $lang]) =>
-    $availableTimeClusters.map((v) => ({
-      value: v,
-      label: TIME_LABELS[$lang]?.[v] ?? v,
-    }))
-);
-
-export const availableKeywordsLabeled = derived(
-  [availableKeywords, lang],
-  ([$availableKeywords, $lang]) =>
-    $availableKeywords.map((canon) => ({
-      value: canon,
-      label: KEYWORD_LABELS[canon]?.[$lang] ?? canon,
-    }))
-);
-
-function applyFilters(list, f) {
-  const {
-    district = "",
-    keyword = "",
-    gender = "",
-    timeCluster: timeClusterFilter = "",
-    text = "",
-    textLang = "",
-    showOnlyLatest = false,
-    region = "",
-    yearMin = null,
-    yearMax = null,
-    dateMin = null,
-    dateMax = null,
-  } = f || {};
-
+export function applyFilters(list, f) {
+  const { region, district, keyword, text, textLang, showOnlyLatest } = { ...filterDefaults, ...f };
   let out = Array.isArray(list) ? list : [];
 
   if (region) out = out.filter((a) => detectRegion(a) === region);
 
   if (district) {
-    out = out.filter(
-      (a) =>
-        normalizeDistrict(a.ExtractedDistrict, detectRegion(a)) === district
-    );
+    out = out.filter((a) => normalizeDistrict(a.ExtractedDistrict, detectRegion(a)) === district);
   }
 
   if (keyword) {
-    const variants = getKeywordVariants(keyword).map((s) =>
-      String(s).toLowerCase()
-    );
+    const variants = getKeywordVariants(keyword).map((s) => String(s).toLowerCase());
     out = out.filter(
       (a) =>
         Array.isArray(a.KeywordMatch) &&
@@ -315,79 +107,62 @@ function applyFilters(list, f) {
     );
   }
 
-  if (text) {
-    const test = buildTextPredicate(text, textLang);
-    out = out.filter((a) => test(a));
-  }
+  if (text) out = out.filter(buildTextPredicate(text, textLang));
 
-  if (gender) {
-    out = out.filter((a) => {
-      const gs = Array.isArray(a.ExtractedGender) ? a.ExtractedGender : [];
-      const mapped = gs.map(
-        (g) => genderMap[String(g).toLowerCase()] || "Other"
-      );
-      return mapped.includes(gender);
-    });
-  }
-
-  if (timeClusterFilter) {
-    out = out.filter((a) => {
-      const times = Array.isArray(a.ExtractedTime) ? a.ExtractedTime : [];
-      return times.some((t) => {
-        const h = Number(String(t).split(":")[0]);
-        return timeCluster(h) === timeClusterFilter;
-      });
-    });
-  }
-
-  const parsedDateMin = dateMin ? parseDateLoose(dateMin) : null;
-  const parsedDateMax = dateMax ? parseDateLoose(dateMax) : null;
-  const hasYearMin = yearMin != null && Number.isFinite(Number(yearMin));
-  const hasYearMax = yearMax != null && Number.isFinite(Number(yearMax));
-
-  const startDate =
-    parsedDateMin && !isNaN(+parsedDateMin)
-      ? parsedDateMin
-      : hasYearMin
-      ? new Date(Number(yearMin), 0, 1)
-      : null;
-  const endDate =
-    parsedDateMax && !isNaN(+parsedDateMax)
-      ? parsedDateMax
-      : hasYearMax
-      ? new Date(Number(yearMax), 11, 31, 23, 59, 59, 999)
-      : null;
-
-  if (startDate || endDate) {
-    out = out.filter((a) => {
-      const d = parseDateLoose(a.ExtractedDate || a.Date);
-      if (!d) return false;
-      if (startDate && d < startDate) return false;
-      if (endDate && d > endDate) return false;
-      return true;
-    });
-  }
-
-  if (showOnlyLatest) {
-    const sorted = [...out].sort((a, b) => {
-      const da = parseDateLoose(a.ExtractedDate || a.Date);
-      const db = parseDateLoose(b.ExtractedDate || b.Date);
-      if (da && db) return db - da;
-      if (db) return 1;
-      if (da) return -1;
-      return 0;
-    });
-    return sorted.length ? [sorted[0]] : [];
-  }
-
-  return out;
+  return showOnlyLatest ? newest(out, 1) : out;
 }
 
-export const availableRegions = derived(articles, ($articles) => {
-  const set = new Set(
-    (Array.isArray($articles) ? $articles : [])
-      .map(detectRegion)
-      .filter(Boolean)
-  );
+/** Everything the filters leave (used by the timeline). */
+export const filtered = derived([articles, filters], ([$articles, $filters]) =>
+  applyFilters($articles, $filters)
+);
+
+// ── the "latest" views ────────────────────────────────────────
+export const isMobile = readable(false, (set) => {
+  if (!browser) return;
+  set(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+});
+
+/** How many reports the drawing shows at once. */
+const recentCount = derived(isMobile, ($isMobile) => ($isMobile ? 50 : 450));
+
+export const recent = derived([articles, recentCount], ([$articles, n]) => newest($articles, n));
+
+// Filter first, then take the newest: a small category (or a rare search term)
+// whose reports are all older than the newest few hundred would otherwise show nothing.
+export const filteredData = derived(
+  [articles, filters, recentCount],
+  ([$articles, $filters, n]) => newest(applyFilters($articles, $filters), n)
+);
+
+/** Set while the drawing is being recorded to video. */
+export const record = writable(false);
+
+// ── options for the filter dropdowns ──────────────────────────
+export const availableRegions = derived(articles, ($articles) =>
+  Array.from(new Set(($articles ?? []).map(detectRegion).filter(Boolean))).sort()
+);
+
+export const availableDistricts = derived([articles, filters], ([$articles, $filters]) => {
+  const set = new Set();
+  for (const a of applyFilters($articles, { ...$filters, district: "" })) {
+    const d = normalizeDistrict(a.ExtractedDistrict, detectRegion(a));
+    if (d) set.add(d);
+  }
   return Array.from(set).sort();
 });
+
+export const availableKeywordsLabeled = derived(
+  [articles, filters, lang],
+  ([$articles, $filters, $lang]) => {
+    const present = new Set(
+      applyFilters($articles, { ...$filters, keyword: "" })
+        .flatMap((a) => (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []))
+        .map((k) => keywordsGroup[String(k).toLowerCase()] || String(k))
+        .filter(Boolean)
+    );
+    return [...present]
+      .sort((a, b) => a.localeCompare(b, "de"))
+      .map((canon) => ({ value: canon, label: KEYWORD_LABELS[canon]?.[$lang] ?? canon }));
+  }
+);

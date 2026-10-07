@@ -7,10 +7,12 @@
   export let options;
   export let getValue = (o) => o?.value ?? o;
   export let getLabel = (o) => o?.label ?? o;
+  /** false = just the dropdown, for places that bring their own heading */
+  export let showLabel = true;
 </script>
 
 <label>
-  {$t(labelKey)}
+  {#if showLabel}{$t(labelKey)}{/if}
   <select
     value={$filters[filterKey]}
     on:change={(e) => filters.update((f) => ({ ...f, [filterKey]: e.target.value }))}

@@ -64,7 +64,6 @@
   /** @type {any[]} */ let ticks = $state.raw([]);
   /** @type {any[]} */ let placed = $state.raw([]);
   /** @type {any[]} */ let branchPaths = $state.raw([]);
-  /** @type {any[]} */ let debugPaths = $state.raw([]);
   /** @type {Record<string,number>} */ let counts = $state.raw({});
   let dataSvgW = $state(4000);
   let svgH = $state(600);
@@ -284,7 +283,6 @@
       return [cat.labelDe || cat.label, cat.label];
     };
 
-    /** @type {any[]} */ const debugList = [];
     /** @type {any[]} */ const labels = [];
     /** @type {any[]} */ const labelBounds = [];
 
@@ -313,11 +311,6 @@
         trend.push({ x: trend[0].x + longest, y: trend[0].y });
       }
 
-      const pathD = d3.line()
-        .x(/** @param {any} p */ (p) => p.x)
-        .y(/** @param {any} p */ (p) => p.y)
-        .curve(d3.curveMonotoneX)(trend);
-      debugList.push({ id: `debug-run-${cat.id}`, d: pathD, color: cat.color ?? "red" });
 
       /** @type {number[]} */ const segLens = [];
       let length = 0;
@@ -384,7 +377,6 @@
           pathLen += Math.hypot(subPts[k].x - subPts[k - 1].x, subPts[k].y - subPts[k - 1].y);
         labels.push({ cat, id: `branch-label-${cat.id}-${labels.length}`, d, startOffset: pathLen / 2, text: word });
         labelBounds.push(bounds);
-        debugList.push({ id: `debug-seg-${labels.length}`, d, color: "red", thick: true });
         return true;
       };
 
@@ -417,7 +409,6 @@
     }
 
     branchPaths = labels;
-    debugPaths = debugList;
 
     svgH = bl + axisPad();
 
@@ -966,9 +957,6 @@
             <TimelineGrid {ticks} baseline={baseline()} {dataSvgW} />
             <CategoryMarkers {branchPaths} />
             <TimelineItems {placed} baseline={baseline()} {textAlign} {translatedMap} {langMode} />
-            <!-- {#each debugPaths as dp}
-              <path id={dp.id} d={dp.d} fill="none" stroke={dp.color} stroke-width={dp.thick ? 6 : 2} opacity={dp.thick ? 0.9 : 0.5} />
-            {/each} -->
           </g>
         </svg>
       {/if}
