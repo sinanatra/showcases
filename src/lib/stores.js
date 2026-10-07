@@ -9,7 +9,7 @@ import {
   KEYWORD_LABELS,
   getKeywordVariants,
   augmentKeywordMatch,
-} from "$lib/constants/keywords";
+} from "$lib/constants/categories";
 import { genderMap, GENDER_LABELS } from "$lib/constants/genders";
 import { TIME_LABELS, timeCluster } from "$lib/constants/times";
 import { normalizeDistrict } from "$lib/constants/districts";

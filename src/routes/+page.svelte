@@ -101,8 +101,8 @@
     const m = new Map();
     for (const { a } of withDates) {
       const ks = Array.isArray(a.KeywordMatch) ? a.KeywordMatch : [];
-      for (const k of ks) {
-        const canon = canonicalKeyword(k);
+      // once per report and category, however many of its terms matched
+      for (const canon of new Set(ks.map(canonicalKeyword))) {
         if (!canon) continue;
         m.set(canon, (m.get(canon) || 0) + 1);
       }

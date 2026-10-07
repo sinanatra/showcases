@@ -9,7 +9,10 @@ import datetime
 
 base_url = "https://www.berlin.de"
 years = list(range(datetime.date.today().year, 2013, -1))
-file_path = 'data/berlin_police_results.csv'
+file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'berlin_police_results.csv')
+# FULL_SCAN=1 walks every archive page instead of stopping after a few pages
+# without new articles (use it to catch reports missed by earlier runs).
+full_scan = os.environ.get("FULL_SCAN") == "1"
 
 existing_urls = set()
 existing_rows = []
@@ -29,6 +32,14 @@ session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 new_rows = []
 
+def save():
+    if not new_rows:
+        return
+    with open(file_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=["Title", "Date", "Location", "Text", "URL"])
+        writer.writeheader()
+        writer.writerows(existing_rows + new_rows)
+
 for year in years:
     year_url = f"https://www.berlin.de/polizei/polizeimeldungen/archiv/{year}/"
     if not rp.can_fetch("*", year_url):
@@ -38,6 +49,7 @@ for year in years:
     page = 1
     consecutive_duplicate_pages = 0
     max_consecutive_duplicate_pages = 3
+    previous_page_urls = None
 
     while consecutive_duplicate_pages < max_consecutive_duplicate_pages:
         page_url = year_url if page == 1 else f"{year_url}?page_at_1_0={page}#headline_1_0"
@@ -56,6 +68,12 @@ for year in years:
         if not items:
             print("📭 No more list items found.")
             break
+
+        page_urls = [a["href"] for a in soup.select("ul.list--tablelist > li div.text a[href]")]
+        if page_urls == previous_page_urls:
+            print("📭 Same page served again, end of year.")
+            break
+        previous_page_urls = page_urls
 
         new_found_this_page = 0
 
@@ -107,7 +125,7 @@ for year in years:
             existing_urls.add(article_url)
             new_found_this_page += 1
 
-        consecutive_duplicate_pages = 0 if new_found_this_page > 0 else consecutive_duplicate_pages + 1
+        consecutive_duplicate_pages = 0 if new_found_this_page > 0 or full_scan else consecutive_duplicate_pages + 1
         if consecutive_duplicate_pages >= max_consecutive_duplicate_pages:
             print(f"🛑 {max_consecutive_duplicate_pages} pages in a row with no new articles, stopping.")
             break
@@ -115,11 +133,6 @@ for year in years:
         page += 1
         time.sleep(2)
 
-all_rows = existing_rows + new_rows
-if len(new_rows) > 0:
-    with open(file_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["Title", "Date", "Location", "Text", "URL"])
-        writer.writeheader()
-        writer.writerows(all_rows)
+    save()
 
 print(f"\nScraping complete. {len(new_rows)} new articles saved.")

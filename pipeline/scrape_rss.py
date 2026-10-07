@@ -2,6 +2,7 @@ import requests
 import feedparser
 from bs4 import BeautifulSoup
 import csv
+import glob
 import os
 import datetime
 from urllib.parse import urljoin
@@ -35,18 +36,22 @@ feed_urls = [
     "https://polizei.brandenburg.de/pressemeldungen/rss/region/56958",
 ]
 
-file_path = 'data/police_rss.csv'
+# One file per month: a daily run only rewrites the current month's small file,
+# older months never change (keeps the daily commit tiny).
+data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+file_path = os.path.join(data_dir, f"police_rss_{datetime.date.today():%Y-%m}.csv")
 min_date = datetime.date(2016, 1, 1)  
 
-os.makedirs(os.path.dirname(file_path), exist_ok=True)
+os.makedirs(data_dir, exist_ok=True)
 
 existing_urls = set()
 existing_data = []
-if os.path.exists(file_path):
-    with open(file_path, 'r', newline='', encoding='utf-8') as f:
+for path in sorted(glob.glob(os.path.join(data_dir, '*.csv'))):
+    with open(path, 'r', newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            existing_data.append(row)
+            if path == file_path:
+                existing_data.append(row)
             existing_urls.add(row["URL"])
 
 session = requests.Session()

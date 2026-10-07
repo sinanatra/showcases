@@ -9,11 +9,15 @@ import datetime
 
 base_url = "https://polizei.brandenburg.de"
 url_template = f"{base_url}/suche/typ/null/kategorie/Kriminalit%C3%A4t/{{page}}/1?reset=1"
-file_path = 'data/brandenburg_police_results.csv'
+file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'brandenburg_police_results.csv')
 max_date = datetime.date(2019, 1, 1)
 
-start_page = 4279 #459                    
-max_page = 5000                
+start_page = int(os.environ.get("START_PAGE", "1"))
+max_page = 10000
+# Newest reports come first: stop once a few pages in a row hold nothing new.
+# FULL_SCAN=1 walks the whole archive instead (to catch reports missed earlier).
+full_scan = os.environ.get("FULL_SCAN") == "1"
+max_known_pages = 3
 max_empty = 10        
 sleep_between = 0.3           
 
@@ -39,9 +43,21 @@ session = requests.Session()
 session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 new_rows = []
+
+def save():
+    if not new_rows:
+        return
+    with open(file_path, 'w', newline='', encoding='utf-8') as f:
+        fieldnames = ["Title", "Date", "Location", "Text", "URL"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in existing_data + new_rows:
+            writer.writerow({k: r.get(k, "") for k in fieldnames})
+
 page = start_page
 stop_scraping = False
 consecutive_empty = 0
+consecutive_known_pages = 0
 
 while not stop_scraping and page - start_page < max_page:
     page_url = url_template.format(page=page)
@@ -96,6 +112,7 @@ while not stop_scraping and page - start_page < max_page:
 
     
     consecutive_empty = 0
+    rows_before_page = len(new_rows)
 
     for li in items:
         h4 = li.find("h4")
@@ -170,17 +187,17 @@ while not stop_scraping and page - start_page < max_page:
     if stop_scraping:
         break
 
+    consecutive_known_pages = 0 if len(new_rows) > rows_before_page else consecutive_known_pages + 1
+    if not full_scan and consecutive_known_pages >= max_known_pages:
+        print(f"🛑 {max_known_pages} pages in a row with no new articles, stopping.")
+        break
+
+    if page % 50 == 0:
+        save()
+
     page += 1
     time.sleep(sleep_between)
 
-combined = existing_data + new_rows
-
-if new_rows:
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        fieldnames = ["Title", "Date", "Location", "Text", "URL"]
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for r in combined:
-            writer.writerow({k: r.get(k, "") for k in fieldnames})
+save()
 
 print(f"\nScraping complete. {len(new_rows)} new articles saved. Last attempted page {page}.")

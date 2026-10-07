@@ -14,6 +14,7 @@ export async function loadArticles() {
         parseList(d.KeywordMatch),
         `${d.Title || ""} ${d.Text || ""}`
       ),
+      KeywordExtracted: parseList(d.KeywordExtracted),
       ExtractedGender: parseList(d.ExtractedGender),
       ExtractedTime: parseList(d.ExtractedTime),
       ExtractedAction: parseList(d.ExtractedAction),

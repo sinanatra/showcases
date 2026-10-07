@@ -22,8 +22,8 @@
   let byKeyword = $derived.by(() => {
     const m = new Map();
     ($filtered ?? []).forEach((a) => {
-      (Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []).forEach((k) => {
-        const c = canon(k);
+      // once per report and category, however many of its terms matched
+      new Set((Array.isArray(a.KeywordMatch) ? a.KeywordMatch : []).map(canon)).forEach((c) => {
         m.set(c, (m.get(c) ?? 0) + 1);
       });
     });

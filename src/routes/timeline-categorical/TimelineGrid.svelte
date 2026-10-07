@@ -1,12 +1,18 @@
 <svelte:options namespace="svg" />
 
 <script>
-  import { TOP_PAD, DATE_FS, DATE_CW, AXIS_LABEL_GAP } from "./config.js";
+  import { TICK_STROKE, TICK_COLOR_YEAR, TICK_COLOR, TICK_COLOR_MID } from "./config.js";
+  import { settings, dateCW } from "./settings.svelte.js";
+
+  let TOP_PAD = $derived(settings.TOP_PAD);
+  let DATE_FS = $derived(settings.DATE_FS);
+  let DATE_CW = $derived(dateCW());
+  let AXIS_LABEL_GAP = $derived(settings.AXIS_LABEL_GAP);
 
   let { ticks, baseline, dataSvgW } = $props();
 
   let visibleLabels = $derived.by(() => {
-    const labelW = 8 * DATE_CW;
+    const labelW = Math.max(...ticks.map((t) => t.label?.length ?? 0), 1) * DATE_CW;
     const GAP = 6;
     const monthTicks = ticks.filter((t) => !t.isWeek);
     const yearTicks = monthTicks.filter((t) => t.isYear);
@@ -33,8 +39,8 @@
     y1={TOP_PAD}
     x2={t.x}
     y2={baseline}
-    stroke={t.isYear ? "#888" : t.isWeek ? "#f0f0f0" : "#e0e0e0"}
-    stroke-width=".5"
+    stroke={t.isYear ? TICK_COLOR_YEAR : t.isWeek ? TICK_COLOR_MID : TICK_COLOR}
+    stroke-width={TICK_STROKE}
   />
 {/each}
 
