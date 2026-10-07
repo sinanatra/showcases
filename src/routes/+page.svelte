@@ -162,4 +162,4 @@
       });
 </script>
 
-<Scrollytelling src="/scenes.json" data={scrollyData} storiesData={data} />
+<Scrollytelling src="/scenes.json" data={scrollyData} />
