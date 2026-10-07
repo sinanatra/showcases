@@ -11,6 +11,7 @@
     showBerlin = $bindable(true),
     showBrandenburg = $bindable(true),
     textPtTarget = $bindable(null),
+    exportDivisor = $bindable(1),
     textPt = null,
     printSizeCm = null,
     fitNote = "",
@@ -135,6 +136,7 @@
       bind:pdfWidthCm
       bind:pdfHeightCm
       bind:textPtTarget
+      bind:exportDivisor
       {textPt}
       {printSizeCm}
       {fitNote}

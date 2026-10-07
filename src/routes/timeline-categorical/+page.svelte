@@ -12,7 +12,7 @@
   import CategoryMarkers from "./CategoryMarkers.svelte";
   import { jsPDF } from "jspdf";
   import {
-    PDF_WIDTH_CM, PDF_HEIGHT_CM, PRINT_TEXT_PT,
+    PDF_WIDTH_CM, PDF_HEIGHT_CM, PRINT_TEXT_PT, EXPORT_DIVISOR,
     DEFAULT_CATEGORIES,
     DEFAULT_SHOW_BERLIN, DEFAULT_SHOW_BRANDENBURG,
     DEFAULT_REVERSED, DEFAULT_TEXT_ALIGN,
@@ -59,6 +59,11 @@
   let counts = $state.raw({});
   let dataSvgW = $state(4000);
   let svgH = $state(600);
+  // Size of everything drawn, including what hangs outside the axis (district
+  // labels on the left, the last boxes on the right, names above the top row).
+  // This is what the print size refers to.
+  let contentW = $state(4000);
+  let contentH = $state(600);
   let baselineY = $state(480);
 
   const baseline = () => baselineY;
@@ -398,6 +403,21 @@
 
     svgH = bl + axisPad();
 
+    let minX = 0, maxX = W, minY = 0;
+    for (const p of allPlaced) {
+      const districtW = p.district ? Math.ceil(p.district.length * DIST_CW) + settings.DIST_GAP : 0;
+      minX = Math.min(minX, p.x - districtW - 2);
+      maxX = Math.max(maxX, p.x + itemWidth(p) - districtW + 2);
+    }
+    const pad = MARKER_LABEL_FS * 0.65;
+    for (const b of labelBounds) {
+      minX = Math.min(minX, b.left + pad);
+      maxX = Math.max(maxX, b.right - pad);
+      minY = Math.min(minY, b.top + pad - MARKER_LABEL_FS * 0.8);
+    }
+    contentW = maxX - minX;
+    contentH = svgH - minY;
+
     if (!hasInitialFit) { hasInitialFit = true; requestAnimationFrame(fitContent); }
   }
 
@@ -529,21 +549,23 @@
 
   const MM_PER_PT = 25.4 / 72;
   let textPtTarget = $state(PRINT_TEXT_PT);
+  let exportDivisor = $state(EXPORT_DIVISOR);
   const DEFAULT_PRINT_SCALE = 25.4 / 96;
   let printScale = $derived(
     textPtTarget
       ? (textPtTarget * MM_PER_PT) / settings.FS
       : pdfWidthCm && pdfHeightCm
-        ? Math.min((pdfWidthCm * 10) / dataSvgW, (pdfHeightCm * 10) / svgH)
+        ? Math.min((pdfWidthCm * 10) / contentW, (pdfHeightCm * 10) / contentH)
         : pdfWidthCm
-          ? (pdfWidthCm * 10) / dataSvgW
+          ? (pdfWidthCm * 10) / contentW
           : pdfHeightCm
-            ? (pdfHeightCm * 10) / svgH
+            ? (pdfHeightCm * 10) / contentH
             : DEFAULT_PRINT_SCALE,
   );
+  let fileScale = $derived(printScale / Math.max(1, Number(exportDivisor) || 1));
   let textPt = $derived(printScale ? (settings.FS * printScale) / MM_PER_PT : null);
   let printSizeCm = $derived(
-    printScale ? [(dataSvgW * printScale) / 10, (svgH * printScale) / 10] : null,
+    printScale ? [(contentW * printScale) / 10, (contentH * printScale) / 10] : null,
   );
   let tooTall = $derived(
     !!(textPtTarget && pdfWidthCm && pdfHeightCm && printSizeCm && printSizeCm[1] > pdfHeightCm + 0.5),
@@ -572,9 +594,9 @@
     if (!builtItems.length) return;
     const w = pdfWidthCm, h = pdfHeightCm, pt = textPtTarget;
     const scale = pt ? (pt * MM_PER_PT) / settings.FS : null;
-    if (scale && w) searchPxPerDay(() => dataSvgW, (w * 10) / scale, true);
-    else if (scale && h) searchPxPerDay(() => svgH, (h * 10) / scale, false);
-    else if (w && h) searchPxPerDay(() => dataSvgW / svgH, w / h, true);
+    if (scale && w) searchPxPerDay(() => contentW, (w * 10) / scale, true);
+    else if (scale && h) searchPxPerDay(() => contentH, (h * 10) / scale, false);
+    else if (w && h) searchPxPerDay(() => contentW / contentH, w / h, true);
     else {
       pxPerDay = settings.PX_PER_DAY;
       layout();
@@ -638,8 +660,8 @@
     const width = maxX - minX;
     const height = maxY - minY;
     clone.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
-    clone.setAttribute("width", printScale ? `${(width * printScale).toFixed(2)}mm` : String(width));
-    clone.setAttribute("height", printScale ? `${(height * printScale).toFixed(2)}mm` : String(height));
+    clone.setAttribute("width", `${(width * fileScale).toFixed(2)}mm`);
+    clone.setAttribute("height", `${(height * fileScale).toFixed(2)}mm`);
     await injectFontStyle(clone);
     clone.querySelectorAll("[style]").forEach((el) => {
       const s = el.getAttribute("style");
@@ -747,7 +769,7 @@
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) { document.body.removeChild(measureSvg); return; }
-    const HALO_ATTRS = ["dy", "font-size", "stroke", "stroke-width"];
+    const HALO_ATTRS = ["dy", "font-size", "stroke", "stroke-width", "style"];
     const FILL_ATTRS = ["dy", "font-size", "fill", "style"];
 
     textPaths.forEach((textPathEl) => {
@@ -825,10 +847,11 @@
 
       flattenBranchLabels(clone);
 
+      // svg2pdf can't resolve CSS variables: write the font stack out.
       clone.querySelectorAll("[style]").forEach((el) => {
-        const s = el.getAttribute("style");
-        if (s && s.includes("var(--font-mono)")) {
-          el.setAttribute("style", s.replace(/var\(--font-mono\)/g, '"Pitch Sans", Courier, monospace'));
+        const style = el.getAttribute("style");
+        if (style && style.includes("var(--font-mono)")) {
+          el.setAttribute("style", style.replace(/var\(--font-mono\)/g, '"Pitch Sans", Courier, monospace'));
         }
       });
 
@@ -836,8 +859,8 @@
       const MAX_PDF_PT = 14400;
       let outW, outH;
       if (printScale) {
-        outW = (totalW * printScale) / MM_PER_PT;
-        outH = (totalH * printScale) / MM_PER_PT;
+        outW = (totalW * fileScale) / MM_PER_PT;
+        outH = (totalH * fileScale) / MM_PER_PT;
       } else {
         const scale = Math.min(1, MAX_PDF_PT / (Math.max(totalW, totalH) * PX_TO_PT));
         outW = totalW * PX_TO_PT * scale;
@@ -855,22 +878,65 @@
         compress: true,
       });
 
-      const ttfB64 = await (async () => {
+      // Embed Pitch Sans if its TTF is available (static/fonts/Pitch_Semibold.ttf —
+      // git-ignored, so it exists locally but not on the deployed site).
+      let fontEmbedded = false;
+      try {
         if (!_fontTtfB64) {
-          const buf = await (await fetch("/fonts/Pitch_Semibold.ttf")).arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let bin = "";
-          for (const b of bytes) bin += String.fromCharCode(b);
-          _fontTtfB64 = btoa(bin);
+          const res = await fetch("/fonts/Pitch_Semibold.ttf");
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          // a real TrueType file starts with 00 01 00 00
+          if (res.ok && bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0) {
+            let bin = "";
+            for (const b of bytes) bin += String.fromCharCode(b);
+            _fontTtfB64 = btoa(bin);
+          }
         }
-        return _fontTtfB64;
-      })();
-      pdf.addFileToVFS("PitchSans-Semibold.ttf", ttfB64);
-      pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "normal");
-      pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "bold");
+        if (_fontTtfB64) {
+          pdf.addFileToVFS("PitchSans-Semibold.ttf", _fontTtfB64);
+          pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "normal");
+          pdf.addFont("PitchSans-Semibold.ttf", "Pitch Sans", "bold");
+          fontEmbedded = !!pdf.internal.getFont("Pitch Sans", "normal")?.metadata?.Unicode;
+        }
+      } catch {}
+
+      if (!fontEmbedded) {
+        // Without the embedded font the text goes into the PDF as plain strings
+        // with brackets left as they are. A snippet cut inside a bracket
+        // ("…Promille) beschimpfte…") then ends the string early and strict
+        // readers reject the file (Illustrator: "Too few operands"). Brackets
+        // without a partner become square ones.
+        console.warn("PDF export: Pitch Sans TTF not available, using a standard font.");
+        const balance = (text) => {
+          const chars = [...text];
+          const open = [];
+          chars.forEach((ch, k) => {
+            if (ch === "(") open.push(k);
+            else if (ch === ")") { if (open.length) open.pop(); else chars[k] = "]"; }
+          });
+          for (const k of open) chars[k] = "[";
+          return chars.join("");
+        };
+        const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (node.parentElement?.closest("text") && /[()]/.test(node.nodeValue ?? "")) {
+            node.nodeValue = balance(node.nodeValue ?? "");
+          }
+        }
+      }
 
       await pdf.svg(clone, { x: 0, y: 0, width: outW, height: outH });
-      pdf.save("timeline-categories.pdf");
+      if (userUnit > 1) {
+        // The page scale (UserUnit) is a PDF 1.6 feature, but jsPDF labels the
+        // file 1.3 — some programs then ignore the scale or refuse the file.
+        const bytes = new Uint8Array(pdf.output("arraybuffer"));
+        bytes.set(new TextEncoder().encode("%PDF-1.6"), 0);
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        Object.assign(document.createElement("a"), { href: url, download: "timeline-categories.pdf" }).click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        pdf.save("timeline-categories.pdf");
+      }
     } finally {
       exportingPdf = false;
     }
@@ -909,6 +975,7 @@
     bind:showBerlin
     bind:showBrandenburg
     bind:textPtTarget
+    bind:exportDivisor
     {textPt}
     {printSizeCm}
     {fitNote}
