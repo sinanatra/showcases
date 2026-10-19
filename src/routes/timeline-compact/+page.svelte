@@ -6,10 +6,8 @@
   import { parseDateLoose } from "$lib/utils/parseDate";
   import { detectRegion } from "$lib/utils/detectRegion";
   import { normalizeDistrict } from "$lib/constants/districts";
-  import {
-    loadReportTranslations,
-    translateText,
-  } from "$lib/utils/reportTranslations";
+  import { loadReportTranslations } from "$lib/utils/reportTranslations";
+  import { splitSentences } from "$lib/utils/sentences";
   import { CATEGORIES, GRADIENT_END_AT } from "$lib/constants/categories.js";
   import { CHAR_RATIO } from "../timeline-categorical/config.js";
   import { settings } from "../timeline-categorical/settings.svelte.js";
@@ -40,7 +38,7 @@
       meta: "#000000",
       label: "#000000",
       grid: "#e6e6e6",
-      axis: "#9a9a9a",
+      axis: "#000000",
     },
     dark: {
       background: "#000000",
@@ -49,7 +47,7 @@
       meta: "#ffffff",
       label: "#ffffff",
       grid: "#1c1c1c",
-      axis: "#6d6d6d",
+      axis: "#ffffff",
       blend: "difference",
     },
   };
@@ -67,19 +65,20 @@
   let roomPct = $state(105);
   let labelLanes = $state(2);
   let labelEveryCm = $state(100);
-  let waveCm = $state(10);
-  let waveLengthCm = $state(120);
-  let seed = $state(1);
+  let waveCm = $state(5);
+  let waveLengthCm = $state(20);
+  const seed = 1;                 // wave seed
   let dark = $state(false);
   let fillGaps = $state(true);
   let dateMode = $state("aligned");
-  let gapLines = $state(0.6);
+  let gapLines = $state(3);
   let smallFirst = $state(true);
   let newestLeft = $state(false);
   let showBerlin = $state(true);
   let showBrandenburg = $state(true);
   let highlightFade = $state(0.25);
   let translatedMap = $state.raw({});
+  let translationsReady = $state(false);
 
   let FS = $derived(Math.max(MIN_TEXT_PT, Number(textPt) || MIN_TEXT_PT));
   let charW = $derived(FS * CHAR_RATIO);
@@ -99,7 +98,10 @@
       if (highlightEnd) c.colorEnd = highlightEnd;
     }
     loadArticles();
-    loadReportTranslations().then((map) => (translatedMap = map));
+    loadReportTranslations().then((map) => {
+      translatedMap = map;
+      translationsReady = true;
+    });
   });
 
  
@@ -108,7 +110,7 @@
   const LIGHTEST = "#ededed";
  
   const FADE_BOTTOM = 0.7;
-  const FADE_TOP = 0.45;
+  const FADE_TOP = 0.85;
   const mixHex = (a, b, f) =>
     "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - f) + parseInt(b.slice(i, i + 2), 16) * f).toString(16).padStart(2, "0")).join("");
 
@@ -179,7 +181,11 @@
 
  
   const pad2 = (n) => String(n).padStart(2, "0");
-  const words = (runs) => runs.reduce((s, r) => s + r.text.length, 0);
+  // date and district are notes: set smaller than the text
+  const NOTE_SCALE = 0.7;
+  let noteFs = $derived(FS * NOTE_SCALE);
+  // how wide runs are, each in its own size
+  const runsWidth = (runs) => runs.reduce((s, r) => s + r.text.length * (r.fs ?? FS) * CHAR_RATIO, 0);
 
   let lineBase = $derived((lineH - FS * (ASCENT + DESCENT)) / 2 + FS * ASCENT);
   const line = (lane, runs) => ({
@@ -187,7 +193,7 @@
     runs,
     fs: FS,
     baseline: lineBase,
-    len: words(runs) * charW,
+    len: runsWidth(runs),
   });
 
   let span = $derived.by(() => {
@@ -217,52 +223,63 @@
 
  
  
- 
-  function windowAt(text, centre, n) {
-    if (text.length <= n) return text;
-    let a = Math.round(centre - n / 2);
-    a = Math.max(0, Math.min(a, text.length - n));
-    let b = a + n;
-   
-    if (a > 0) a++;
-    if (b < text.length) b--;
-    while (a > 0 && a < text.length && text[a - 1] !== " ") a++;
-    while (b < text.length && b > a && text[b] !== " ") b--;
-    return (
-      (a > 0 ? "…" : "") +
-      text.slice(a, b).trim() +
-      (b < text.length ? "…" : "")
-    );
-  }
-
- 
- 
-  function sources(it) {
+  // A report in German and in English, sentence by sentence, so the same
+  // stretch can be cut from both: a window of n German characters centred on
+  // the found word, and the English of exactly those sentences, cut at the
+  // same points within them. German and English always say the same thing.
+  function paired(it) {
     const seg = it.segment;
-    const de = (it.text || "").replace(/\s+/g, " ");
-    const full = (seg.full ?? seg.text ?? "").replace(/\s+/g, " ");
-    const at = full ? de.indexOf(full) : -1;
-    const out = {};
-    if (at >= 0)
-      out.de = { text: de, centre: at + (seg.at ?? 0.5) * full.length };
-    const enSentence = translatedMap[seg.full ?? seg.text];
-    if (enSentence) {
-      const en = translateText(it.raw.Text || "", translatedMap).replace(
-        /\s+/g,
-        " ",
-      );
-      const s0 = en.indexOf(enSentence.replace(/\s+/g, " "));
-      if (s0 >= 0) {
-        const word = seg.word ? translatedMap[seg.word.toLowerCase()] : "";
-        const w = word
-          ? enSentence.toLowerCase().indexOf(word.toLowerCase())
-          : -1;
-        const inner =
-          w >= 0 ? w + word.length / 2 : (seg.at ?? 0.5) * enSentence.length;
-        out.en = { text: en, centre: s0 + inner };
-      }
+    const raw = splitSentences(it.text || "");
+    if (!raw.length) return null;
+    const norm = (t) => String(t ?? "").replace(/\s+/g, " ").trim();
+    let D = "", E = "";
+    const dS = [], dL = [], eS = [], eL = [];
+    for (const sentence of raw) {
+      const d = norm(sentence), e = norm(translatedMap[sentence] ?? translatedMap[d] ?? "");
+      if (D) D += " ";
+      dS.push(D.length);
+      dL.push(d.length);
+      D += d;
+      if (E && e) E += " ";
+      eS.push(E.length);
+      eL.push(e.length);
+      E += e;
     }
-    return out;
+    const full = norm(seg.full ?? seg.text);
+    let k = raw.findIndex((x) => norm(x) === full);
+    if (k < 0) k = raw.findIndex((x) => norm(x).includes(full.replace(/^…|…$/g, "").slice(0, 40)));
+    if (k < 0) return null;
+    const centre = dS[k] + (seg.at ?? 0.5) * dL[k];
+    // a place in the German, as the same place in the English
+    const toEn = (pos) => {
+      let i = 0;
+      while (i + 1 < dS.length && dS[i + 1] <= pos) i++;
+      return eS[i] + Math.min(1, Math.max(0, (pos - dS[i]) / Math.max(1, dL[i]))) * eL[i];
+    };
+    // the found word in the English: its translation within the translated
+    // sentence, else the same place in it
+    let enCentre = toEn(centre);
+    const word = seg.word ? norm(translatedMap[seg.word.toLowerCase()] ?? "") : "";
+    if (word && eL[k]) {
+      const at = E.slice(eS[k], eS[k] + eL[k]).toLowerCase().indexOf(word.toLowerCase());
+      if (at >= 0) enCentre = eS[k] + at + word.length / 2;
+    }
+    // Whole words within `half` either side of `c`, cut the same on both
+    // sides, so the found word is always in the middle; "…" where text goes on.
+    const around = (text, c, half) => {
+      half = Math.max(0, Math.min(half, c, text.length - c));
+      let a = Math.round(c - half), b = Math.round(c + half);
+      while (a > 0 && a < b && text[a - 1] !== " ") a++;
+      while (b < text.length && b > a && text[b] !== " ") b--;
+      const body = text.slice(a, b).trim();
+      return body ? (a > 0 ? "…" : "") + body + (b < text.length ? "…" : "") : "";
+    };
+    return {
+      max: D.length,
+      de: (n) => around(D, centre, n / 2),
+      // as much English as the German window covers, centred on the word
+      en: (n) => (E ? around(E, enCentre, (toEn(centre + n / 2) - toEn(centre - n / 2)) / 2) : ""),
+    };
   }
 
   function labelItem(cat, x) {
@@ -301,14 +318,15 @@
           .filter((it) => it.catId === cat.id)
           .sort((a, b) => +a.date - +b.date);
         for (const it of own) {
-          const en =
-            langMode === "de"
-              ? ""
-              : translateSegment(it.segment, translatedMap);
-          const de = langMode === "en" && en ? "" : it.segment.text;
+          // German and English cut from the same stretch of the report
+          const pair = paired(it);
+          const snip = settings.SEGMENT_SNIP_MAX;
+          let en = langMode === "de" ? "" : pair ? pair.en(snip) : translateSegment(it.segment, translatedMap);
+          const de = langMode === "en" && en ? "" : pair ? pair.de(snip) : it.segment.text;
           const meta = {
             text: `${pad2(it.date.getDate())}.${pad2(it.date.getMonth() + 1)}.${pad2(it.date.getFullYear() % 100)} ${it.district ? it.district + " " : ""}`,
             style: "meta",
+            fs: noteFs,
           };
           const texts = [
             de && { text: de, style: "de" },
@@ -325,27 +343,32 @@
               ? [
                  
                   [
-                    { text: date.padStart(width - 1) + " ", style: "meta" },
+                    { text: date.padStart(width - 1) + " ", style: "meta", fs: noteFs },
                     texts[0],
                   ],
                   [
-                    { text: district.padStart(width - 1) + " ", style: "meta" },
+                    { text: district.padStart(width - 1) + " ", style: "meta", fs: noteFs },
                     texts[1],
                   ],
                 ]
-              : texts.map((t, i) => (i ? [t] : [meta, t]));
+              : // one long line: date and district, the German, then the English
+                [[meta, { text: texts.map((t) => t.text).join("   "), style: texts[0].style }]];
           const lines = rows.map((runs, i) => line(i, runs));
+          let itemJoint = null;
          
-          if (fillGaps) {
-            const src = sources(it);
-            lines.forEach((l) => {
-              const r = l.runs.length - 1;
-              if (l.runs[r].style === "meta") return;
-              const from = l.runs[r].style === "en" ? src.en : src.de;
-              if (!from) return;
-              l.resizeRun = r;
-              l.resize = (n) => windowAt(from.text, from.centre, n);
-            });
+          // Lines can grow to fill a gap: German and English together, from
+          // the same wider stretch of the report, still centred on the word.
+          if (fillGaps && pair) {
+            const growing = lines.filter((l) => l.runs.at(-1).style !== "meta");
+            for (const l of growing) {
+              l.resize = true;
+              l.resizeRun = l.runs.length - 1;
+            }
+            const texts = (n) => {
+              const d = de ? pair.de(n) : "", e = en ? pair.en(n) : "";
+              return rows.length === 1 && d && e ? [d + "   " + e] : [d, e].filter(Boolean);
+            };
+            itemJoint = { n: snip, max: pair.max + 2, texts };
           }
           const len = Math.max(...lines.map((l) => l.len));
           const x = xOf(it.date) - len / 2;
@@ -357,7 +380,7 @@
           const report = it.highlightId
             ? it
             : { ...it, color: grays[cat.id]?.band ?? it.color, fadeAt: grays[cat.id]?.fade };
-          items.push({ x, len: len + gap, h: lines.length, lines, report });
+          items.push({ x, len: len + gap, h: lines.length, lines, report, joint: itemJoint });
         }
         return { id: cat.id, cat, items };
       })
@@ -387,7 +410,7 @@
     const bend = makeWave({
       amplitude: Math.max(0, Number(waveCm) || 0) * CM,
       length: Math.max(10, Number(waveLengthCm) || 90) * CM,
-      seed: Number(seed) || 1,
+      seed,
       height: maxH * 2,
     });
     options.wave = bend.wave;
@@ -438,6 +461,28 @@
     settings.SEGMENT_SNIP_MAX = lo;
   }
 
+  let autoFit = $state(true);
+  let fitTimer;
+  let fitKey = $derived(
+    JSON.stringify([
+      W, maxH, FS, langMode, categories.map((c) => c.on), slackCm, smoothCm, maxSlope, roomPct,
+      labelLanes, labelEveryCm, waveCm, waveLengthCm, fillGaps, gapLines,
+      dateMode, smallFirst, newestLeft, showBerlin, showBrandenburg, $articles.length, translationsReady,
+    ]),
+  );
+  let fittedKey = $state(null);
+  let ready = $derived(!!$articles.length && translationsReady && (!autoFit || fittedKey === fitKey));
+  let fitting = $derived(!!$articles.length && !ready);
+  $effect(() => {
+    const key = fitKey;
+    if (!autoFit || !$articles.length || !translationsReady) return;
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => {
+      fitSnippets();
+      fittedKey = key;
+    }, 60);
+  });
+
  
  
  
@@ -473,7 +518,7 @@
   });
  
   $effect(() => {
-    if (!canvasEl || !chart) return;
+    if (!canvasEl || !chart || !ready) return;
     const style = { charRatio: CHAR_RATIO, fade: highlightFade };
     untrack(() => {
       renderer?.set(chart, style, look);
@@ -559,12 +604,8 @@
     );
     out.push(`<rect width="100%" height="100%" fill="${t.background}"/>`);
     for (const y of years) {
-      out.push(
-        `<line x1="${y.x.toFixed(1)}" x2="${y.x.toFixed(1)}" y1="0" y2="${chart.H.toFixed(1)}" stroke="${t.grid}" stroke-width="0.75"/>`,
-      );
-      out.push(
-        `<text x="${(y.lx + FS * 0.45).toFixed(1)}" y="${(chart.H + FS * 3.3).toFixed(1)}" font-size="${FS * 3}" fill="${t.axis}">${y.year}</text>`,
-      );
+      out.push(`<line x1="${y.x.toFixed(1)}" x2="${y.x.toFixed(1)}" y1="${(chart.H + FS * 0.45).toFixed(1)}" y2="${(chart.H + FS * 1.35).toFixed(1)}" stroke="${t.axis}" stroke-width="1.5"/>`);
+      out.push(`<text x="${y.x.toFixed(1)}" y="${(chart.H + FS * 3.9).toFixed(1)}" text-anchor="middle" font-size="${FS * 3}" fill="${t.axis}">${y.year}</text>`);
     }
     out.push("<defs>");
     chart.lines.forEach((l, i) => {
@@ -596,7 +637,7 @@
       const spans = x.line.runs
         .map(
           (r) =>
-            `<tspan fill="${t[r.style] ?? t.de}"${r.style === "label" ? ' font-weight="700"' : ""}>${esc(r.text)}</tspan>`,
+            `<tspan fill="${t[r.style] ?? t.de}"${r.fs ? ` font-size="${r.fs.toFixed(2)}"` : ""}${r.style === "label" ? ' font-weight="700"' : ""}>${esc(r.text)}</tspan>`,
         )
         .join("");
       const track = x.line.track
@@ -620,9 +661,10 @@
 
 <div class="page">
   <div class="chart-wrap" bind:clientWidth={viewW} bind:clientHeight={viewH}>
-    {#if !$articles.length}
-      <p class="loading">Loading…</p>
-    {:else if chart}
+    {#if !ready}
+      <p class="loading overlay">{$articles.length ? "Preparing…" : "Loading…"}</p>
+    {/if}
+    {#if $articles.length && chart}
       <canvas
         bind:this={canvasEl}
         class="chart"
@@ -634,309 +676,102 @@
     {/if}
   </div>
 
+  {#snippet num(label, title, value, set, min = 0, step = 1)}
+    <label class="param-row" {title}>
+      <span>{label}</span><input type="number" {min} {step} {value} onchange={(e) => set(+e.currentTarget.value)} />
+    </label>
+  {/snippet}
+  {#snippet choice(options, current, set)}
+    <div class="btn-row">
+      {#each options as [value, label]}
+        <button class="toggle-btn" class:active={current === value} onclick={() => set(value)}>{label}</button>
+      {/each}
+    </div>
+  {/snippet}
+
   <aside class="panel">
     <div class="section-title">Paper</div>
     <div class="paper" class:over={tooTall}>
-      {Math.round((chart?.W ?? W) / CM)} × {Math.round(totalH / CM)} cm
+      {#if ready}{Math.round((chart?.W ?? W) / CM)} × {Math.round(totalH / CM)} cm{:else}…{/if}
     </div>
     <div class="note">
-      {chart?.texts.filter((t) => t.item.report && t.line.lane === 0).length ??
-        0} snippets · text {FS} pt
-      {#if chart}<br /><span
-          title="share of the chart / of the streams that is text"
-          >text fills {Math.round(chart.fill.chart * 100)}% · {Math.round(
-            chart.fill.streams * 100,
-          )}%</span
-        >{/if}
-      {#if chart?.overflow}<br /><span class="over"
-          >{chart.overflow} reports did not fit their stream: more room</span
-        >{/if}
-      {#if chart && chart.steepest > 0.35}<br /><span class="over"
-          >steep bends: smooth more</span
-        >{/if}
+      {#if fitting}fitting…{:else if chart}text fills {Math.round(chart.fill.chart * 100)}% · snippets {settings.SEGMENT_SNIP_MAX} characters{/if}
+      {#if tooTall}<br /><span class="over">larger than the paper even with the shortest snippets</span>{/if}
     </div>
-    <label class="param-row" title="Width of the print: the time axis">
-      <span>Width (cm)</span><input
-        type="number"
-        min="50"
-        step="10"
-        value={widthCm}
-        onchange={(e) => (widthCm = +e.currentTarget.value)}
-      />
-    </label>
-    <label class="param-row" title="Highest print that is still fine">
-      <span>Max height (cm)</span><input
-        type="number"
-        min="20"
-        step="10"
-        value={maxHeightCm}
-        onchange={(e) => (maxHeightCm = +e.currentTarget.value)}
-      />
-    </label>
-    {#if tooTall}
-      <div class="note over">
-        Larger than {Math.round(W / CM)} × {Math.round(maxH / CM)} cm: shorten the
-        snippets or show one language.
-      </div>
-    {/if}
-    <button
-      class="plain-btn"
-      onclick={fitSnippets}
-      disabled={!chart}
-      title="Longest snippets with which the chart still fits the paper"
-      >Fit snippet length</button
-    >
+    <div class="pair">
+      {@render num("Width (cm)", "Width of the print: the time axis", widthCm, (v) => (widthCm = v), 50, 10)}
+      {@render num("Height (cm)", "Height of the print", maxHeightCm, (v) => (maxHeightCm = v), 20, 10)}
+    </div>
 
     <div class="section-title">View</div>
     <div class="btn-row">
-      <button class="plain-btn" onclick={fitAll} title="Whole chart in view"
-        >Fit</button
-      >
-      <button class="plain-btn" onclick={fitHeight} title="Full height in view"
-        >Height</button
-      >
-      <button
-        class="plain-btn"
-        onclick={() =>
-          canvasEl && d3.select(canvasEl).call(zoomer.scaleTo, PX_PER_PT)}
-        title="Real size: text as big on screen as on paper">1:1</button
-      >
-    </div>
-
-    <div class="section-title">Streams</div>
-    <label
-      class="param-row"
-      title="Longest quoted snippet in characters, per language"
-    >
-      <span>Snippet length</span><input
-        type="number"
-        min="20"
-        step="10"
-        value={settings.SEGMENT_SNIP_MAX}
-        onchange={(e) => (settings.SEGMENT_SNIP_MAX = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title={`Printed text size, never below ${MIN_TEXT_PT} pt`}
-    >
-      <span>Text (pt)</span><input
-        type="number"
-        min={MIN_TEXT_PT}
-        value={textPt}
-        onchange={(e) => (textPt = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="How much earlier than its date a report may start, to fill a gap"
-    >
-      <span>Time slack (cm)</span><input
-        type="number"
-        min="0"
-        step="5"
-        value={slackCm}
-        onchange={(e) => (slackCm = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="How far the amount of text is smoothed along time. More = calmer streams, reports further from their date."
-    >
-      <span>Smoothing (cm)</span><input
-        type="number"
-        min="2"
-        step="5"
-        value={smoothCm}
-        onchange={(e) => (smoothCm = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="Steepest an edge between two streams may be (height / width). Lower = calmer lines, a little more air where a stream grows fast."
-    >
-      <span>Max slope</span><input
-        type="number"
-        min="0.05"
-        max="1"
-        step="0.05"
-        value={maxSlope}
-        onchange={(e) => (maxSlope = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="Room in each stream, in % of its text. Less = tighter, but some reports end up on extra lines."
-    >
-      <span>Room (%)</span><input
-        type="number"
-        min="100"
-        step="5"
-        value={roomPct}
-        onchange={(e) => (roomPct = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="Height of the category names in lines. 0 = no names."
-    >
-      <span>Name size (lines)</span><input
-        type="number"
-        min="0"
-        max="10"
-        value={labelLanes}
-        onchange={(e) => (labelLanes = +e.currentTarget.value)}
-      />
-    </label>
-    <label
-      class="param-row"
-      title="A stream repeats its name every this many cm"
-    >
-      <span>Name every (cm)</span><input
-        type="number"
-        min="20"
-        step="10"
-        value={labelEveryCm}
-        onchange={(e) => (labelEveryCm = +e.currentTarget.value)}
-      />
-    </label>
-
-    <label
-      class="param-row"
-      title="How far the lines swing up and down. 0 = no wave."
-    >
-      <span>Wave (cm)</span><input
-        type="number"
-        min="0"
-        step="1"
-        value={waveCm}
-        onchange={(e) => (waveCm = +e.currentTarget.value)}
-      />
-    </label>
-    <label class="param-row" title="The length of one swing of the wave">
-      <span>Wave length (cm)</span><input
-        type="number"
-        min="10"
-        step="10"
-        value={waveLengthCm}
-        onchange={(e) => (waveLengthCm = +e.currentTarget.value)}
-      />
-    </label>
-    <div class="btn-row" style="margin-top:4px">
-      <button
-        class="plain-btn"
-        onclick={() => (seed = Math.floor(Math.random() * 10000))}
-        title="Another wave">New wave</button
-      >
-      <button
-        class="toggle-btn"
-        class:active={dark}
-        onclick={() => (dark = !dark)}
-        title="Light text on black">Dark</button
-      >
-    </div>
-
-    <label
-      class="check-row"
-      title="Each report grows, still centred on its word, into the free room beside it on its line, so the gaps fill up with the reports' own text"
-      ><input type="checkbox" bind:checked={fillGaps} /> Fill gaps with more text</label
-    >
-
-    <label class="param-row" title="White between two streams, in lines">
-      <span>Gap between streams</span><input
-        type="number"
-        min="0"
-        max="5"
-        step="0.2"
-        value={gapLines}
-        onchange={(e) => (gapLines = +e.currentTarget.value)}
-      />
-    </label>
-    <div class="section-title">Order</div>
-    <div class="btn-row">
-      <button
-        class="toggle-btn"
-        onclick={() => (smallFirst = !smallFirst)}
-        title="Which stream lies at the bottom"
-        >{smallFirst ? "Smallest at bottom" : "Biggest at bottom"}</button
-      >
-    </div>
-    <div class="btn-row" style="margin-top:4px">
-      <button
-        class="toggle-btn"
-        onclick={() => (newestLeft = !newestLeft)}
-        title="Which way time runs"
-        >{newestLeft ? "Newest → oldest" : "Oldest → newest"}</button
-      >
-    </div>
-
-    <div class="section-title">Date and district</div>
-    <div class="btn-row">
-      {#each [["aligned", "Aligned"], ["inline", "Inline"]] as [value, label]}
-        <button
-          class="toggle-btn"
-          class:active={dateMode === value}
-          onclick={() => (dateMode = value)}
-          title={value === "aligned"
-            ? "Date before the German, district before the English: German and English start right under each other"
-            : "Date and district before the German, the English under the date"}
-          >{label}</button
-        >
-      {/each}
+      <button class="plain-btn" onclick={fitAll} title="Whole chart in view">Fit</button>
+      <button class="plain-btn" onclick={fitHeight} title="Full height in view">Height</button>
+      <button class="plain-btn" onclick={() => canvasEl && d3.select(canvasEl).call(zoomer.scaleTo, PX_PER_PT)} title="Real size: text as big on screen as on paper">1:1</button>
     </div>
 
     <div class="section-title">Language</div>
+    {@render choice([["de", "DE"], ["en", "EN"], ["both", "Both"]], langMode, (v) => (langMode = v))}
+
+    <div class="section-title">Lines</div>
+    {@render choice([["aligned", "2 lines"], ["inline", "1 line"]], dateMode, (v) => (dateMode = v))}
+
+    <div class="section-title">Order</div>
+    {@render choice([[false, "Biggest at bottom"], [true, "Smallest at bottom"]], smallFirst, (v) => (smallFirst = v))}
+    <div style="height:4px"></div>
+    {@render choice([[false, "Oldest → newest"], [true, "Newest → oldest"]], newestLeft, (v) => (newestLeft = v))}
+
+    <div class="section-title">Look</div>
     <div class="btn-row">
-      {#each [["de", "DE"], ["en", "EN"], ["both", "Both"]] as [value, label]}
-        <button
-          class="toggle-btn"
-          class:active={langMode === value}
-          onclick={() => (langMode = value)}>{label}</button
-        >
-      {/each}
+      <button class="toggle-btn" class:active={dark} onclick={() => (dark = !dark)} title="Light text on black">Dark</button>
     </div>
 
     {#each [["Categories", true], ["Commentary", false]] as [title, canonical]}
       <div class="section-title">{title}</div>
       {#each categories.filter((c) => (c.type === "canonical") === canonical) as cat}
-        <button
-          class="leg-row"
-          class:off={!cat.on}
-          onclick={() => (cat.on = !cat.on)}
-        >
-          <span
-            class="leg-chip"
-            style:background={cat.on
-              ? (grays[cat.id]?.band ?? cat.color ?? "#999")
-              : undefined}>{cat.label}</span
-          >
+        <button class="leg-row" class:off={!cat.on} onclick={() => (cat.on = !cat.on)}>
+          <span class="leg-chip" style:background={cat.on ? (grays[cat.id]?.band ?? cat.color ?? "#999") : undefined}>{cat.label}</span>
           <span class="leg-count">{built.counts[cat.id] ?? 0}</span>
         </button>
       {/each}
     {/each}
 
     <div class="section-title">Region</div>
-    <label class="check-row"
-      ><input type="checkbox" bind:checked={showBerlin} /> Berlin</label
-    >
-    <label class="check-row"
-      ><input type="checkbox" bind:checked={showBrandenburg} /> Brandenburg</label
-    >
+    <label class="check-row"><input type="checkbox" bind:checked={showBerlin} /> Berlin</label>
+    <label class="check-row"><input type="checkbox" bind:checked={showBrandenburg} /> Brandenburg</label>
 
     <div class="section-title">Export</div>
-    <button
-      class="plain-btn"
-      onclick={exportPDF}
-      disabled={!chart || exportingPdf}
-      title="Vector PDF at print size, every letter on its curve; takes a little while"
-      >{exportingPdf ? "Making PDF…" : "PDF at print size"}</button
-    >
-    <button
-      class="plain-btn"
-      style="margin-top:4px"
-      onclick={exportSVG}
-      disabled={!chart}>SVG at print size</button
-    >
+    <div class="btn-row">
+      <button class="plain-btn" onclick={exportPDF} disabled={!chart || exportingPdf} title="Vector PDF at print size; takes a few seconds"
+        >{exportingPdf ? "Making…" : "PDF"}</button
+      >
+      <button class="plain-btn" onclick={exportSVG} disabled={!chart} title="SVG at print size">SVG</button>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced</summary>
+      {@render num(`Text (pt)`, `Printed text size, never below ${MIN_TEXT_PT} pt`, textPt, (v) => (textPt = v), MIN_TEXT_PT)}
+      <label class="check-row" title="Whenever something changes the size, the snippet length is found again so the chart fits the paper"
+        ><input type="checkbox" bind:checked={autoFit} /> Always fit the paper</label
+      >
+      {#if !autoFit}
+        {@render num("Snippet length", "Longest quoted snippet in characters, per language", settings.SEGMENT_SNIP_MAX, (v) => (settings.SEGMENT_SNIP_MAX = v), 20, 10)}
+        <button class="plain-btn" onclick={fitSnippets} disabled={!chart} title="Longest snippets with which the chart still fits the paper">Fit snippet length</button>
+      {/if}
+      <label class="check-row" title="Each report grows, still centred on its word, into the free room beside it on its line"
+        ><input type="checkbox" bind:checked={fillGaps} /> Fill gaps with more text</label
+      >
+      {@render num("Wave (cm)", "How far the lines swing up and down. 0 = no wave.", waveCm, (v) => (waveCm = v), 0, 1)}
+      {@render num("Wave length (cm)", "The length of one swing of the wave", waveLengthCm, (v) => (waveLengthCm = v), 10, 10)}
+      {@render num("Time slack (cm)", "How far a report may move from its date to fit", slackCm, (v) => (slackCm = v), 0, 5)}
+      {@render num("Smoothing (cm)", "How far the amount of text is smoothed along time", smoothCm, (v) => (smoothCm = v), 2, 5)}
+      {@render num("Max slope", "Steepest an edge between two streams may be (height / width)", maxSlope, (v) => (maxSlope = v), 0.05, 0.05)}
+      {@render num("Room (%)", "Room in each stream, in % of its text", roomPct, (v) => (roomPct = v), 100, 5)}
+      {@render num("Gap between streams", "White between two streams, in lines", gapLines, (v) => (gapLines = v), 0, 0.2)}
+      {@render num("Name size (lines)", "Height of the category names in lines. 0 = no names.", labelLanes, (v) => (labelLanes = v), 0, 1)}
+      {@render num("Name every (cm)", "A stream repeats its name every this many cm", labelEveryCm, (v) => (labelEveryCm = v), 20, 10)}
+      {#if chart?.overflow}<div class="note over">{chart.overflow} reports did not fit their stream: more room</div>{/if}
+    </details>
   </aside>
 </div>
 
@@ -954,6 +789,7 @@
     background: #fff;
   }
   .chart-wrap {
+    position: relative;
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -971,6 +807,13 @@
     cursor: pointer;
   }
 
+  .overlay {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    background: #fff;
+    z-index: 1;
+  }
   .loading {
     padding: 32px;
     color: #aaa;
@@ -1014,6 +857,30 @@
     padding: 3px 0;
   }
 
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .pair .param-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pair .param-row input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .advanced {
+    margin-top: 16px;
+  }
+  .advanced summary {
+    cursor: pointer;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #aaa;
+    margin-bottom: 6px;
+  }
   .btn-row {
     display: flex;
     gap: 4px;

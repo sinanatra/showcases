@@ -23,52 +23,73 @@ function place(chart, style) {
       ys = [],
       angles = [],
       kinds = [],
-      along = [];
+      along = [],
+      sizes = [];
+    const colAt = [0];
     let col = 0;
     for (const run of t.line.runs) {
+      const rfs = run.fs ?? fs;
+      const w = rfs * style.charRatio + (t.line.track ?? 0);
       for (const ch of run.text) {
         if (ch !== " ") {
-          const p = pointAt(line, t.offset + (col + 0.5) * cw);
+          const p = pointAt(line, t.offset + colAt[col] + w / 2);
           chars.push(ch);
           xs.push(p.x);
           ys.push(p.y);
           angles.push(p.angle);
           kinds.push(run.style);
           along.push(col);
+          sizes.push(rfs);
         }
+        colAt.push(colAt[col] + w);
         col++;
       }
     }
     if (!chars.length) continue;
 
-    let band = null;
+    const bands = [];
     if (report) {
-      const up = fs * 0.8 + 1.5,
-        down = fs * 0.25 + 1.5;
-      const top = [],
-        bottom = [];
+      const lineH = chart.lineH ?? fs * 1.1;
 
-      const all = t.line.runs.map((r) => r.text).join("");
-      const lead = all.length - all.trimStart().length;
-      const from = t.offset + lead * cw - 2,
-        to = t.offset + col * cw + 2;
-      const steps = Math.max(2, Math.ceil((to - from) / 30));
-      for (let i = 0; i <= steps; i++) {
-        const p = pointAt(line, from + ((to - from) * i) / steps);
-        const nx = -Math.sin(p.angle),
-          ny = Math.cos(p.angle);
-        top.push([p.x - nx * up, p.y - ny * up]);
-        bottom.push([p.x + nx * down, p.y + ny * down]);
+      const mid = (fs * (0.8 - 0.25)) / 2;
+      const up = lineH / 2 + mid,
+        down = lineH / 2 - mid;
+
+      const all = t.line.runs
+        .map((r) => (r.style === "meta" ? " ".repeat(r.text.length) : r.text))
+        .join("");
+      const parts = [];
+      for (const m of all.matchAll(/\S+(?: {1,2}\S+)*/g)) {
+        const last = parts[parts.length - 1];
+
+        if (last && m.index - last[1] < 3) last[1] = m.index + m[0].length;
+        else parts.push([m.index, m.index + m[0].length]);
       }
-      band = {
-        pts: [...top, ...bottom.reverse()],
-        a: pointAt(line, from),
-        b: pointAt(line, to),
-        color: report.color ?? "#dcdcdc",
-        end: report.colorEnd ?? "#ffffff",
-        fadeAt: report.fadeAt,
-        alpha: anyLit && !lit ? style.fade : 1,
-      };
+      for (let j = 0; j < parts.length; j++) {
+        const [c0, c1] = parts[j];
+        const from = t.offset + colAt[c0],
+          own = t.offset + colAt[c1],
+          to = own + cw * 0.3;
+        const top = [],
+          bottom = [];
+        const steps = Math.max(2, Math.ceil((to - from) / 30));
+        for (let i = 0; i <= steps; i++) {
+          const p = pointAt(line, from + ((to - from) * i) / steps);
+          const nx = -Math.sin(p.angle),
+            ny = Math.cos(p.angle);
+          top.push([p.x - nx * up, p.y - ny * up]);
+          bottom.push([p.x + nx * down, p.y + ny * down]);
+        }
+        bands.push({
+          pts: [...top, ...bottom.reverse()],
+          a: pointAt(line, from),
+          b: pointAt(line, to),
+          color: report.color ?? "#dcdcdc",
+          end: report.colorEnd ?? "#ffffff",
+          fadeAt: report.fadeAt,
+          alpha: anyLit && !lit ? style.fade : 1,
+        });
+      }
     }
     const box = [
       Math.min(...xs) - fs,
@@ -77,13 +98,14 @@ function place(chart, style) {
       Math.max(...ys) + fs,
     ];
     texts.push({
-      band,
+      bands,
       chars,
       xs,
       ys,
       angles,
       kinds,
       along,
+      sizes,
       fs,
       cw,
       box,
@@ -145,29 +167,24 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
   ctx.fillRect(0, 0, w, h);
   ctx.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
 
-  ctx.strokeStyle = theme.grid;
-  ctx.lineWidth = 1 / k;
+  ctx.strokeStyle = theme.axis;
+  ctx.lineWidth = Math.max(1 / k, 1.5);
   for (const y of theme.years) {
-    if (y.x < x0 - 1 || y.x > x1 + 1) continue;
     ctx.beginPath();
-    ctx.moveTo(y.x, 0);
-    ctx.lineTo(y.x, chart.H);
+    ctx.moveTo(y.x, chart.H + theme.yearSize * 0.15);
+    ctx.lineTo(y.x, chart.H + theme.yearSize * 0.45);
     ctx.stroke();
   }
   ctx.fillStyle = theme.axis;
   ctx.font = `400 ${theme.yearSize}px ${FONT}`;
+  ctx.textAlign = "center";
   for (const y of theme.years)
-    ctx.fillText(
-      String(y.year),
-      y.lx + theme.yearSize * 0.15,
-      chart.H + theme.yearSize * 1.1,
-    );
+    ctx.fillText(String(y.year), y.x, chart.H + theme.yearSize * 1.3);
+  ctx.textAlign = "start";
 
   const list = gather(data.buckets, x0, y0, x1, y1);
 
-  for (const t of list) {
-    const b = t.band;
-    if (!b) continue;
+  for (const b of list.flatMap((t) => t.bands)) {
     const g = ctx.createLinearGradient(b.a.x, b.a.y, b.b.x, b.b.y);
     const end = theme.bandEnd ?? b.end;
     g.addColorStop(0, b.color);
@@ -194,9 +211,9 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
       for (let i = 0; i < t.chars.length; i++) {
         const c = Math.cos(t.angles[i]),
           s = Math.sin(t.angles[i]);
-        const bx = t.xs[i] + s * t.fs * 0.3,
-          by = t.ys[i] - c * t.fs * 0.3,
-          half = t.cw * 0.45;
+        const bx = t.xs[i] + s * t.sizes[i] * 0.3,
+          by = t.ys[i] - c * t.sizes[i] * 0.3,
+          half = t.sizes[i] * 0.28;
 
         if (i === 0 || t.along[i] !== t.along[i - 1] + 1)
           ctx.moveTo(bx - c * half, by - s * half);
@@ -208,9 +225,11 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
     ctx.textAlign = "center";
     for (const t of list) {
       ctx.globalAlpha = t.alpha;
-      ctx.font = `${t.weight} ${t.fs}px ${FONT}`;
-      let fill = "";
+      let fill = "",
+        size = 0;
       for (let i = 0; i < t.chars.length; i++) {
+        if (t.sizes[i] !== size)
+          ctx.font = `${t.weight} ${(size = t.sizes[i])}px ${FONT}`;
         const f = theme[t.kinds[i]] ?? theme.de;
         if (f !== fill) ctx.fillStyle = fill = f;
         const c = Math.cos(t.angles[i]) * k,
@@ -373,7 +392,7 @@ export function createRenderer(canvas) {
       if (!frame) frame = requestAnimationFrame(frameNow);
     },
     /** The bands under the reports, for the SVG export. */
-    bands: () => (data?.texts ?? []).map((t) => t.band).filter(Boolean),
+    bands: () => (data?.texts ?? []).flatMap((t) => t.bands),
     /** Every text line with its letters placed, for the PDF export. */
     texts: () => data?.texts ?? [],
     /** The report under a point of the chart, if any. */
