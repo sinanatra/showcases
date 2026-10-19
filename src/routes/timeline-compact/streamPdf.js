@@ -55,18 +55,22 @@ export async function exportPdf(o) {
   pdf.setFillColor(...bg);
   pdf.rect(0, 0, o.W * k, o.H * k, "F");
 
-  pdf.setDrawColor(...rgb(theme.grid));
-  pdf.setLineWidth(0.75 * k);
-  for (const y of o.years) pdf.line(y.x * k, 0, y.x * k, o.chartH * k);
+  pdf.setDrawColor(...rgb(theme.axis));
+  pdf.setLineWidth(1.5 * k);
+  for (const y of o.years)
+    pdf.line(
+      y.x * k,
+      (o.chartH + o.yearSize * 0.15) * k,
+      y.x * k,
+      (o.chartH + o.yearSize * 0.45) * k,
+    );
   setFont(400);
   pdf.setFontSize(o.yearSize * k);
   pdf.setTextColor(...rgb(theme.axis));
   for (const y of o.years)
-    pdf.text(
-      String(y.year),
-      (y.lx + o.yearSize * 0.15) * k,
-      (o.chartH + o.yearSize * 1.1) * k,
-    );
+    pdf.text(String(y.year), y.x * k, (o.chartH + o.yearSize * 1.3) * k, {
+      align: "center",
+    });
 
   const shape = (pts) => {
     const rel = [];
@@ -83,9 +87,7 @@ export async function exportPdf(o) {
     pdf.setGState(faded.get(a));
   };
 
-  for (const t of o.texts) {
-    const b = t.band;
-    if (!b) continue;
+  for (const b of o.texts.flatMap((t) => t.bands ?? [])) {
     opacity(b.alpha);
     const start = rgb(b.color),
       end = rgb(theme.bandEnd ?? b.end);
@@ -110,15 +112,18 @@ export async function exportPdf(o) {
   for (const t of o.texts) {
     opacity(t.alpha);
     setFont(t.weight);
-    pdf.setFontSize(t.fs * k);
+    let size = 0;
     let color = "";
     for (let i = 0; i < t.chars.length; i++) {
       const c = theme[t.kinds[i]] ?? theme.de;
       if (c !== color) pdf.setTextColor(...rgb((color = c)));
 
+      const fs = t.sizes?.[i] ?? t.fs;
+      if (fs !== size) pdf.setFontSize((size = fs) * k);
+
       const a = t.angles[i];
-      const x = t.xs[i] - Math.cos(a) * (t.fs * 0.3),
-        y = t.ys[i] - Math.sin(a) * (t.fs * 0.3);
+      const x = t.xs[i] - Math.cos(a) * (fs * 0.3),
+        y = t.ys[i] - Math.sin(a) * (fs * 0.3);
       pdf.text(t.chars[i], x * k, y * k, { angle: (-a * 180) / Math.PI });
     }
   }
