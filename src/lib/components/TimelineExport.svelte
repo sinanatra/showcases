@@ -15,7 +15,7 @@
     /** the exported file is 1/exportDivisor of the print size */
     exportDivisor = $bindable(1),
     /** resulting text size (pt) and print size [w, h] in cm */
-    textPt = null,
+    textPt = 25,
     /** @type {number[]|null} */
     printSizeCm = null,
     fitNote = "",

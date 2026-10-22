@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
+import { download } from "$lib/utils/download";
 
-const MAX_PT = 14400;
 const STEPS = 12;
 
 const rgb = (c) => {
@@ -17,7 +17,7 @@ async function loadFont() {
   const res = await fetch("/fonts/Pitch_Semibold.ttf").catch(() => null);
   if (!res?.ok) return null;
   const bytes = new Uint8Array(await res.arrayBuffer());
-
+  // TrueType only
   if (!(bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0))
     return null;
   let bin = "";
@@ -27,18 +27,20 @@ async function loadFont() {
 }
 
 /**
- * @param {{ W: number, H: number, texts: any[], years: { x: number, year: number }[], theme: any, yearSize: number, chartH: number, file: string }} o
+ * @param {{ W: number, H: number, chartH: number, texts: any[], look: any, file: string }} o
+ *   texts = the placed letters from the renderer, look = theme with years and yearSize
  */
 export async function exportPdf(o) {
-  const userUnit = Math.max(1, Math.ceil(Math.max(o.W, o.H) / MAX_PT));
-  const k = 1 / userUnit;
+  // Real pt, 1:1: Preview and Illustrator ignore a UserUnit, the usual way
+  // past the 14400 pt limit, so the page is made within it and resized after.
   const pdf = new jsPDF({
     orientation: o.W >= o.H ? "landscape" : "portrait",
     unit: "pt",
-    format: [o.W * k, o.H * k],
-    userUnit,
+    format: [Math.min(o.W, 14400), Math.min(o.H, 14400)],
     compress: true,
   });
+  pdf.setPageWidth(1, o.W);
+  pdf.setPageHeight(1, o.H);
 
   let font = "courier";
   const b64 = await loadFont();
@@ -50,25 +52,26 @@ export async function exportPdf(o) {
   const setFont = (weight) =>
     pdf.setFont(font, font === "courier" && weight > 400 ? "bold" : "normal");
 
-  const theme = o.theme;
+  const theme = o.look;
   const bg = rgb(theme.background);
+  const ink = rgb(theme.ink);
   pdf.setFillColor(...bg);
-  pdf.rect(0, 0, o.W * k, o.H * k, "F");
+  pdf.rect(0, 0, o.W, o.H, "F");
 
-  pdf.setDrawColor(...rgb(theme.axis));
-  pdf.setLineWidth(1.5 * k);
-  for (const y of o.years)
+  pdf.setDrawColor(...ink);
+  pdf.setLineWidth(1.5);
+  for (const y of theme.years)
     pdf.line(
-      y.x * k,
-      (o.chartH + o.yearSize * 0.15) * k,
-      y.x * k,
-      (o.chartH + o.yearSize * 0.45) * k,
+      y.x,
+      o.chartH + theme.yearSize * 0.15,
+      y.x,
+      o.chartH + theme.yearSize * 0.45,
     );
   setFont(400);
-  pdf.setFontSize(o.yearSize * k);
-  pdf.setTextColor(...rgb(theme.axis));
-  for (const y of o.years)
-    pdf.text(String(y.year), y.x * k, (o.chartH + o.yearSize * 1.3) * k, {
+  pdf.setFontSize(theme.yearSize);
+  pdf.setTextColor(...ink);
+  for (const y of theme.years)
+    pdf.text(String(y.year), y.labelX, o.chartH + theme.yearSize * 1.3, {
       align: "center",
     });
 
@@ -76,10 +79,10 @@ export async function exportPdf(o) {
     const rel = [];
     for (let i = 1; i < pts.length; i++)
       rel.push([
-        (pts[i][0] - pts[i - 1][0]) * k,
-        (pts[i][1] - pts[i - 1][1]) * k,
+        pts[i][0] - pts[i - 1][0],
+        pts[i][1] - pts[i - 1][1],
       ]);
-    pdf.lines(rel, pts[0][0] * k, pts[0][1] * k, [1, 1], "F", true);
+    pdf.lines(rel, pts[0][0], pts[0][1], [1, 1], "F", true);
   };
   const faded = new Map();
   const opacity = (a) => {
@@ -87,7 +90,7 @@ export async function exportPdf(o) {
     pdf.setGState(faded.get(a));
   };
 
-  for (const b of o.texts.flatMap((t) => t.bands ?? [])) {
+  for (const b of o.texts.flatMap((t) => t.bands)) {
     opacity(b.alpha);
     const start = rgb(b.color),
       end = rgb(theme.bandEnd ?? b.end);
@@ -101,7 +104,6 @@ export async function exportPdf(o) {
         i1 = s === STEPS - 1 ? n : Math.floor(((s + 1) * fadeTo) / STEPS);
       if (i1 <= i0) continue;
       const c = mix(start, end, s / (STEPS - 1));
-
       if (s === STEPS - 1 && c.every((v, j) => v === bg[j])) continue;
       pdf.setFillColor(...c);
       shape([...top.slice(i0, i1 + 1), ...bottom.slice(i0, i1 + 1).reverse()]);
@@ -109,35 +111,22 @@ export async function exportPdf(o) {
   }
   opacity(1);
 
+  pdf.setTextColor(...ink);
   for (const t of o.texts) {
     opacity(t.alpha);
     setFont(t.weight);
     let size = 0;
-    let color = "";
     for (let i = 0; i < t.chars.length; i++) {
-      const c = theme[t.kinds[i]] ?? theme.de;
-      if (c !== color) pdf.setTextColor(...rgb((color = c)));
-
-      const fs = t.sizes?.[i] ?? t.fs;
-      if (fs !== size) pdf.setFontSize((size = fs) * k);
+      const fs = t.sizes[i];
+      if (fs !== size) pdf.setFontSize((size = fs));
 
       const a = t.angles[i];
       const x = t.xs[i] - Math.cos(a) * (fs * 0.3),
         y = t.ys[i] - Math.sin(a) * (fs * 0.3);
-      pdf.text(t.chars[i], x * k, y * k, { angle: (-a * 180) / Math.PI });
+      pdf.text(t.chars[i], x, y, { angle: (-a * 180) / Math.PI });
     }
   }
   opacity(1);
 
-  const bytes = new Uint8Array(pdf.output("arraybuffer"));
-
-  if (userUnit > 1) bytes.set(new TextEncoder().encode("%PDF-1.6"), 0);
-  const url = URL.createObjectURL(
-    new Blob([bytes], { type: "application/pdf" }),
-  );
-  Object.assign(document.createElement("a"), {
-    href: url,
-    download: o.file,
-  }).click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  download(new Blob([pdf.output("arraybuffer")], { type: "application/pdf" }), o.file);
 }
