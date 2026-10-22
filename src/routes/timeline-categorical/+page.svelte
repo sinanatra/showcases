@@ -19,6 +19,7 @@
   } from "./config.js";
   import { settings, charW, distCW, lineH, lineHBoth, axisPad, boxBelow } from "./settings.svelte.js";
   import { matchesCategory, snippetSegments, placeItems, groupBranchesBySentence, segmentText, findBoilerplate } from "./catTimeline.js";
+  import { download } from "$lib/utils/download";
   import { loadReportTranslations, englishText } from "$lib/utils/reportTranslations";
 
   let categories    = $state(DEFAULT_CATEGORIES.map(c => ({ ...c })));
@@ -702,12 +703,7 @@
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
       type: "image/svg+xml",
     });
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(blob),
-      download: "timeline-categories.svg",
-    });
-    a.click();
-    URL.revokeObjectURL(a.href);
+    download(blob, "timeline-categories.svg");
     exporting = false;
   }
 
@@ -772,12 +768,7 @@
       const { canvas } = rendered;
       await new Promise((resolve) => {
         canvas.toBlob((pngBlob) => {
-          if (!pngBlob) { resolve(); return; }
-          const pngUrl = URL.createObjectURL(pngBlob);
-          Object.assign(document.createElement("a"), {
-            href: pngUrl, download: "timeline-categories.png",
-          }).click();
-          setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+          if (pngBlob) download(pngBlob, "timeline-categories.png");
           resolve();
         }, "image/png");
       });
@@ -961,9 +952,7 @@
         // file 1.3 — some programs then ignore the scale or refuse the file.
         const bytes = new Uint8Array(pdf.output("arraybuffer"));
         bytes.set(new TextEncoder().encode("%PDF-1.6"), 0);
-        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-        Object.assign(document.createElement("a"), { href: url, download: "timeline-categories.pdf" }).click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        download(new Blob([bytes], { type: "application/pdf" }), "timeline-categories.pdf");
       } else {
         pdf.save("timeline-categories.pdf");
       }

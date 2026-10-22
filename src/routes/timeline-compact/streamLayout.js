@@ -1,21 +1,19 @@
 /**
- * @param {Array<{ id: string, items: Array<{ x: number, len: number, h: number, lines: any[] }> }>} bands
- *   items: x = where the item would like to start, len = its length,
- *   h = how many lines it is tall
- * @param {{ W: number, lineH: number, grid: number, sigma: number, room: number, slack: number, bandGap: number, slope: number, wave?: (x: number, y: number) => number }} o
+ * Stacks streams of text bottom to top, each as thick as its text needs.
+ * @param {Array<{ id: string, items: Array<{ x: number, len: number, h: number, lines: any[], joint?: any }> }>} bands
+ *   x = where an item would like to start, len = its length, h = its height in lines
+ * @param {{ W: number, lineH: number, grid: number, sigma: number, room: number, slack: number, bandGap: number, slope: number, order: string[], fill: boolean, charRatio: number, textFs: number, wave?: (x: number, y: number) => number }} o
  *   sigma = how far the amount of text is smoothed along time,
  *   room = how much more room a stream has than its text needs (1.1 = 10 %),
  *   slack = how much earlier than its place an item may start,
  *   bandGap = room between two streams, in lines,
  *   slope = steepest an edge between two streams may be (height / width),
- *   smallFirst = the smallest stream at the bottom instead of the biggest,
- *   wave = how far each point of a line is moved up or down (makeWave),
- *   fill = reports grow, around their word, into the gaps beside them (needs charRatio)
+ *   order = stream ids bottom to top,
+ *   fill = items with a `joint` grow into the gaps beside them
  */
 export function layoutStreams(bands, o) {
   const W = o.W;
   const n = Math.ceil(W / o.grid) + 1;
-  const xAt = (i) => i * o.grid;
   const cell = (x) => Math.min(n - 1, Math.max(0, Math.round(x / o.grid)));
   const s = Math.max(1, o.sigma / o.grid);
 
@@ -44,15 +42,8 @@ export function layoutStreams(bands, o) {
   };
   const streams = bands.map((band) => ({ ...band, ...demand(band) }));
 
-  const total = (b) => b.amount.reduce((x, y) => x + y, 0);
-
-  const rank = (b) =>
-    o.order?.includes(b.id) ? o.order.indexOf(b.id) : Infinity;
-  const ordered = o.order
-    ? streams.sort((a, b) => rank(a) - rank(b))
-    : streams.sort((a, b) =>
-        o.smallFirst ? total(a) - total(b) : total(b) - total(a),
-      );
+  const rank = (b) => (o.order.includes(b.id) ? o.order.indexOf(b.id) : Infinity);
+  const ordered = streams.sort((a, b) => rank(a) - rank(b));
   const step = o.slope * o.grid;
   const edge = (ground, lines) =>
     limitSlope(
@@ -114,17 +105,10 @@ export function layoutStreams(bands, o) {
     }
     b.placed = result.placed;
     b.lower = ground;
-    b.upper = upper;
-    b.thick = Float64Array.from(b.upper, (u, i) => (u - ground[i]) / o.lineH);
-    b.area = b.thick.reduce((a, v) => a + v, 0);
-    ground = b.upper;
+    ground = upper;
   }
   const H = Math.max(...ground) + o.lineH;
-  for (const b of ordered) {
-    b.base = Float64Array.from(b.lower, (g) => H - g);
-    b.top = Float64Array.from(b.upper, (g) => H - g);
-    b.bottom = b.base;
-  }
+  for (const b of ordered) b.base = Float64Array.from(b.lower, (g) => H - g);
 
   const at = (arr, x) => {
     const f = Math.min(n - 1, Math.max(0, x / o.grid));
@@ -152,70 +136,36 @@ export function layoutStreams(bands, o) {
   const wave = o.wave ?? (() => 0);
   const lift = (y) => Math.min(1, Math.max(0, (H - y) / (H * 0.6)));
 
-  const place = (x, y) => [x, y + wave(x, y) * lift(y)];
-
-  const stepX = o.grid;
-  let steepest = 0;
   const lines = [...lineMap.values()].map((l, index) => {
     l.index = index;
-    const count = Math.max(2, Math.ceil((l.x1 - l.x0) / stepX) + 2);
+    const count = Math.max(2, Math.ceil((l.x1 - l.x0) / o.grid) + 2);
     const xs = new Float64Array(count),
       ys = new Float64Array(count),
       arc = new Float64Array(count);
     for (let i = 0; i < count; i++) {
-      const x = l.x0 + i * stepX;
-      [xs[i], ys[i]] = place(x, at(l.b.base, x) + l.dy);
-      if (i) {
-        const dx = xs[i] - xs[i - 1],
-          dy = ys[i] - ys[i - 1];
-        arc[i] = arc[i - 1] + Math.hypot(dx, dy);
-        steepest = Math.max(steepest, Math.abs(dy / dx));
-      }
+      const x = l.x0 + i * o.grid,
+        y = at(l.b.base, x) + l.dy;
+      xs[i] = x;
+      ys[i] = y + wave(x, y) * lift(y);
+      if (i) arc[i] = arc[i - 1] + Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]);
     }
-
-    return { xs, ys, arc, x0: l.x0, step: stepX };
+    return { xs, ys, arc, x0: l.x0, step: o.grid };
   });
   for (const t of texts) {
     t.lineIndex = t.l.index;
-
     t.offset = arcAt(lines[t.lineIndex], t.start);
     delete t.l;
   }
 
-  const bend = (arr) =>
-    Float64Array.from(arr, (y, i) => y + wave(xAt(i), y) * lift(y));
-  const areas = ordered.map((b) => ({
-    id: b.id,
-    top: bend(b.top),
-    bottom: bend(b.base),
-    step: o.grid,
-  }));
-
   const textArea = texts.reduce((a, t) => a + t.line.len, 0) * o.lineH;
-  const fill = {
-    chart: textArea / (W * H),
-    streams:
-      textArea / (ordered.reduce((a, b) => a + b.area, 0) * o.grid * o.lineH),
-  };
   const overflow = ordered.reduce(
     (a, b) => a + b.placed.filter((p) => p.late).length,
     0,
   );
-  return {
-    W,
-    H,
-    areas,
-    lines,
-    texts,
-    steepest,
-    fill,
-    overflow,
-    lineH: o.lineH,
-  };
+  return { W, H, lines, texts, fill: textArea / (W * H), overflow };
 }
 
-/** Length along a line at a given x. */
-export function arcAt(line, x) {
+function arcAt(line, x) {
   const f = Math.min(
     line.xs.length - 1,
     Math.max(0, (x - (line.x0 ?? line.xs[0])) / line.step),
@@ -332,7 +282,19 @@ function pour(items, thick, o) {
           const start = Math.max(first, Math.min(ideal, b - item.len));
           if (start + item.len <= b) {
             const off = Math.abs(start - ideal);
-            if (!best || off < best.off - 0.5) best = { line: k, start, off };
+            // the empty room it would leave behind the item before it on
+            // these lines: of two places as near its date, the tighter one,
+            // so no gap stays open behind a long item such as a name
+            let last = 0;
+            for (let j = k; j < k + item.h; j++)
+              last = Math.max(last, endOf(j));
+            const waste = start - last;
+            if (
+              !best ||
+              off < best.off - 0.5 ||
+              (off < best.off + 0.5 && waste < best.waste)
+            )
+              best = { line: k, start, off, waste };
             break;
           }
         }
@@ -348,7 +310,7 @@ function pour(items, thick, o) {
         ends[j] = best.start + item.len + o.grid;
       return { item, line: best.line, start: best.start, late };
     });
-  return { placed, thick, spans };
+  return { placed };
 }
 
 function extend(placed, room, o) {
@@ -409,9 +371,9 @@ function extend(placed, room, o) {
     };
   };
   for (const p of [...placed].sort((a, b) => a.start - b.start)) {
+    const J = p.item.joint;
+    if (!J) continue;
     const lines = p.item.lines;
-    const growing = lines.filter((l) => l.resize);
-    if (!growing.length) continue;
     const room0 = new Map(lines.map((l) => [l, free(l)]));
 
     const early = Math.max(
@@ -423,90 +385,54 @@ function extend(placed, room, o) {
     const before = Math.min(early, ...lines.map((l) => room0.get(l).before));
     const cw = lines[0].fs * o.charRatio;
 
-    if (p.item.joint) {
-      const J = p.item.joint;
-      const now = growing.map((l) => l.runs[l.resizeRun].text.length);
-      const widest = (caps) => {
-        let lo = J.n,
-          hi = J.max,
-          best = null;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          const t = J.texts(mid);
-          if (
-            t.length === growing.length &&
-            t.every((x, i) => x.length <= caps[i])
-          ) {
-            best = { n: mid, t };
-            lo = mid + 1;
-          } else hi = mid - 1;
-        }
-        return best;
-      };
-      let got = widest(
-        growing.map(
-          (l, i) => now[i] + Math.floor((before + room0.get(l).after) / cw),
-        ),
+    const now = lines.map((l) => l.runs.at(-1).text.length);
+    const widest = (caps) => {
+      let lo = J.n,
+        hi = J.max,
+        best = null;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const t = J.texts(mid);
+        if (t.length === lines.length && t.every((x, i) => x.length <= caps[i])) {
+          best = { n: mid, t };
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      return best;
+    };
+    let got = widest(
+      lines.map((l, i) => now[i] + Math.floor((before + room0.get(l).after) / cw)),
+    );
+    if (!got) continue;
+    let added = got.t.map((x, i) => x.length - now[i]);
+    // shift left by at most half of what is added, so the word stays centred
+    const left = Math.min(before, (Math.max(...added) * cw) / 2);
+    if (added.some((a, i) => a * cw - left > room0.get(lines[i]).after + 0.5)) {
+      got = widest(
+        lines.map((l, i) => now[i] + Math.floor((left + room0.get(l).after) / cw)),
       );
       if (!got) continue;
-      let added = got.t.map((x, i) => x.length - now[i]);
-      const left = Math.min(before, (Math.max(...added) * cw) / 2);
-      if (
-        added.some((a, i) => a * cw - left > room0.get(growing[i]).after + 0.5)
-      ) {
-        got = widest(
-          growing.map(
-            (l, i) => now[i] + Math.floor((left + room0.get(l).after) / cw),
-          ),
-        );
-        if (!got) continue;
-        added = got.t.map((x, i) => x.length - now[i]);
-      }
-      if (!added.some((a) => a >= 4)) continue;
-      J.n = got.n;
-      for (const l of lines) l.shift = (l.shift ?? 0) + left;
-      growing.forEach((l, i) => {
-        l.runs = l.runs.map((r, j) =>
-          j === l.resizeRun ? { ...r, text: got.t[i] } : r,
-        );
-        l.len = runsWidth(l, o);
-      });
-      continue;
+      added = got.t.map((x, i) => x.length - now[i]);
     }
-
-    if (growing.some((l) => typeof l.resize !== "function")) continue;
-    const sized = (l, width) => {
-      const run = l.runs[l.resizeRun];
-      const text = l.resize(run.text.length + Math.floor(width / cw));
-      return { text, added: Math.max(0, text.length - run.text.length) };
-    };
-
-    let out = growing.map((l) => ({
-      l,
-      ...sized(l, before + room0.get(l).after),
-    }));
-    const left = Math.min(
-      before,
-      Math.max(...out.map((x) => x.added * cw)) / 2,
-    );
-    out = out.map((x) =>
-      x.added * cw - left > room0.get(x.l).after + 0.5
-        ? { l: x.l, ...sized(x.l, left + room0.get(x.l).after) }
-        : x,
-    );
-    if (!out.some((x) => x.added >= 4)) continue;
-    for (const l of lines) l.shift = (l.shift ?? 0) + left;
-    for (const { l, text, added } of out) {
-      if (added < 1) continue;
-      l.runs = l.runs.map((r, j) => (j === l.resizeRun ? { ...r, text } : r));
-      l.len = runsWidth(l, o);
-    }
+    if (!added.some((a) => a >= 4)) continue;
+    J.n = got.n;
+    lines.forEach((l, i) => {
+      l.shift = (l.shift ?? 0) + left;
+      l.runs = l.runs.map((r, j) =>
+        j === l.runs.length - 1 ? { ...r, text: got.t[i] } : r,
+      );
+      l.len = runsWidth(l.runs, l.fs, o.charRatio);
+    });
   }
 
+  // spread the letters into what is left after each line
   for (const p of placed) {
+    if (!p.item.joint) continue;
     for (const l of p.item.lines) {
-      if (!l.resize) continue;
-      const chars = l.runs.reduce((a, r) => a + r.text.length, 0);
+      const chars = l.runs.reduce(
+        (a, r) => a + (r.under ? 0 : r.text.length),
+        0,
+      );
       const { after } = free(l);
       const cw = l.fs * o.charRatio;
       l.track = Math.min(cw * 0.25, after / Math.max(1, chars));
@@ -514,7 +440,8 @@ function extend(placed, room, o) {
     }
   }
   for (const p of placed) {
-    const gap = 2 * p.item.lines[0].fs * o.charRatio;
+    // two characters of the text, also after a (bigger) category name
+    const gap = 2 * (o.textFs ?? p.item.lines[0].fs) * o.charRatio;
     p.lo = Math.min(...p.item.lines.map((l) => p.start - (l.shift ?? 0)));
     p.hi =
       Math.max(...p.item.lines.map((l) => p.start - (l.shift ?? 0) + l.len)) +
@@ -522,9 +449,10 @@ function extend(placed, room, o) {
   }
 }
 
-function runsWidth(l, o) {
-  return l.runs.reduce(
-    (a, r) => a + r.text.length * (r.fs ?? l.fs) * o.charRatio,
+/** Width of runs of text, each in its own size; a run set `under` another takes none. */
+export function runsWidth(runs, fs, charRatio) {
+  return runs.reduce(
+    (a, r) => a + (r.under ? 0 : r.text.length * (r.fs ?? fs) * charRatio),
     0,
   );
 }

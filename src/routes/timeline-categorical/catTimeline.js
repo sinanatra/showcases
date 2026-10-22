@@ -2,6 +2,7 @@ import { keywordsGroup } from "../../lib/constants/categories.js";
 import { settings, charW, lineH } from "./settings.svelte.js";
 import { stripBoilerplate, isSentBoundary, splitSentences } from "../../lib/utils/sentences.js";
 import { detectRegion } from "../../lib/utils/detectRegion.js";
+import { findWord } from "../../lib/utils/textUtils.js";
 
 export { stripBoilerplate, splitSentences };
 
@@ -155,8 +156,8 @@ export function translateSegment(seg, translations) {
   // Centre the English on the translated word if it is there; otherwise on the
   // same relative position the word has in the German sentence.
   const word = seg.word ? translations?.[seg.word.toLowerCase()] : "";
-  const at = word ? en.toLowerCase().indexOf(word.toLowerCase()) : -1;
-  const centre = at !== -1 ? at + word.length / 2 : en.length * (seg.at ?? 0);
+  const found = word ? findWord(en, word) : null;
+  const centre = found ? (found.at + found.end) / 2 : en.length * (seg.at ?? 0);
   return windowAround(en, centre, settings.SEGMENT_SNIP_MAX);
 }
 

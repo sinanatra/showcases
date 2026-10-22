@@ -1,6 +1,8 @@
 import { pointAt } from "./streamLayout.js";
 
-const FONT = '"Pitch Sans", Courier, monospace';
+export const FONT = '"Pitch Sans", Courier, monospace';
+// a space between German and English where each keeps a band of its own
+export const LANG_GAP = "\u00a0";
 const BUCKET = 600;
 const TILE = 512;
 const MAX_TILES = 160;
@@ -14,7 +16,6 @@ function place(chart, style) {
   for (const t of chart.texts) {
     const line = chart.lines[t.lineIndex];
     const fs = t.line.fs;
-
     const cw = fs * style.charRatio + (t.line.track ?? 0);
     const report = t.item.report;
     const lit = !!report?.highlightId;
@@ -22,47 +23,63 @@ function place(chart, style) {
       xs = [],
       ys = [],
       angles = [],
-      kinds = [],
       along = [],
       sizes = [];
+    // where each column starts; a run `under` the one before starts where
+    // that one did and takes no columns of its own
     const colAt = [0];
-    let col = 0;
+    let col = 0,
+      runStart = 0,
+      n = 0;
     for (const run of t.line.runs) {
       const rfs = run.fs ?? fs;
       const w = rfs * style.charRatio + (t.line.track ?? 0);
+      const dy = run.dy ?? 0;
+      let at = run.under ? runStart : colAt[col];
+      runStart = at;
+      if (run.under) n++;
       for (const ch of run.text) {
-        if (ch !== " ") {
-          const p = pointAt(line, t.offset + colAt[col] + w / 2);
+        if (ch !== " " && ch !== LANG_GAP) {
+          const p = pointAt(line, t.offset + at + w / 2);
           chars.push(ch);
-          xs.push(p.x);
-          ys.push(p.y);
+          xs.push(p.x - Math.sin(p.angle) * dy);
+          ys.push(p.y + Math.cos(p.angle) * dy);
           angles.push(p.angle);
-          kinds.push(run.style);
-          along.push(col);
+          along.push(n);
           sizes.push(rfs);
         }
-        colAt.push(colAt[col] + w);
-        col++;
+        at += w;
+        n++;
+        if (!run.under) {
+          colAt.push(at);
+          col++;
+        }
       }
     }
     if (!chars.length) continue;
 
     const bands = [];
     if (report) {
-      const lineH = chart.lineH ?? fs * 1.1;
-
-      const mid = (fs * (0.8 - 0.25)) / 2;
-      const up = lineH / 2 + mid,
-        down = lineH / 2 - mid;
+      // around the letters, not the whole line
+      const b = style.band;
+      const half = (fs * b.height) / 2,
+        mid = (fs * (b.ascent - b.descent)) / 2;
+      const up = half + mid,
+        down = half - mid;
 
       const all = t.line.runs
+        .filter((r) => !r.under)
         .map((r) => (r.style === "meta" ? " ".repeat(r.text.length) : r.text))
         .join("");
       const parts = [];
       for (const m of all.matchAll(/\S+(?: {1,2}\S+)*/g)) {
         const last = parts[parts.length - 1];
-
-        if (last && m.index - last[1] < 3) last[1] = m.index + m[0].length;
+        if (
+          last &&
+          m.index - last[1] < 3 &&
+          !all.slice(last[1], m.index).includes(LANG_GAP)
+        )
+          last[1] = m.index + m[0].length;
         else parts.push([m.index, m.index + m[0].length]);
       }
       for (let j = 0; j < parts.length; j++) {
@@ -103,7 +120,6 @@ function place(chart, style) {
       xs,
       ys,
       angles,
-      kinds,
       along,
       sizes,
       fs,
@@ -167,7 +183,7 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
   ctx.fillRect(0, 0, w, h);
   ctx.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
 
-  ctx.strokeStyle = theme.axis;
+  ctx.strokeStyle = theme.ink;
   ctx.lineWidth = Math.max(1 / k, 1.5);
   for (const y of theme.years) {
     ctx.beginPath();
@@ -175,11 +191,11 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
     ctx.lineTo(y.x, chart.H + theme.yearSize * 0.45);
     ctx.stroke();
   }
-  ctx.fillStyle = theme.axis;
+  ctx.fillStyle = theme.ink;
   ctx.font = `400 ${theme.yearSize}px ${FONT}`;
   ctx.textAlign = "center";
   for (const y of theme.years)
-    ctx.fillText(String(y.year), y.x, chart.H + theme.yearSize * 1.3);
+    ctx.fillText(String(y.year), y.labelX ?? y.x, chart.H + theme.yearSize * 1.3);
   ctx.textAlign = "start";
 
   const list = gather(data.buckets, x0, y0, x1, y1);
@@ -202,7 +218,7 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
   ctx.globalCompositeOperation = theme.blend ?? "source-over";
 
   if (list.length && list[0].fs * k < 5) {
-    ctx.strokeStyle = theme.de;
+    ctx.strokeStyle = theme.ink;
     ctx.lineCap = "butt";
     for (const t of list) {
       ctx.globalAlpha = t.alpha * (t.weight > 400 ? 0.9 : 0.6);
@@ -214,7 +230,6 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
         const bx = t.xs[i] + s * t.sizes[i] * 0.3,
           by = t.ys[i] - c * t.sizes[i] * 0.3,
           half = t.sizes[i] * 0.28;
-
         if (i === 0 || t.along[i] !== t.along[i - 1] + 1)
           ctx.moveTo(bx - c * half, by - s * half);
         ctx.lineTo(bx + c * half, by + s * half);
@@ -223,15 +238,13 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
     }
   } else {
     ctx.textAlign = "center";
+    ctx.fillStyle = theme.ink;
     for (const t of list) {
       ctx.globalAlpha = t.alpha;
-      let fill = "",
-        size = 0;
+      let size = 0;
       for (let i = 0; i < t.chars.length; i++) {
         if (t.sizes[i] !== size)
           ctx.font = `${t.weight} ${(size = t.sizes[i])}px ${FONT}`;
-        const f = theme[t.kinds[i]] ?? theme.de;
-        if (f !== fill) ctx.fillStyle = fill = f;
         const c = Math.cos(t.angles[i]) * k,
           s = Math.sin(t.angles[i]) * k;
         ctx.setTransform(c, s, -s, c, (t.xs[i] - x0) * k, (t.ys[i] - y0) * k);
@@ -337,7 +350,6 @@ export function createRenderer(canvas) {
           missing = true;
           continue;
         }
-
         tiles.delete(key);
         tiles.set(key, tile);
         ctx.setTransform(
