@@ -12,7 +12,7 @@
   import { t } from "$lib/i18n";
   import TextSearch from "$lib/components/TextSearch.svelte";
 
-  let { fields = ["keyword", "search"], labels = true } = $props();
+  let { fields = ["keyword", "search"], labels = true, textLang } = $props();
 
   const options = $derived({
     region: $availableRegions,
@@ -22,6 +22,14 @@
   });
 
   const set = (field, value) => filters.update((f) => ({ ...f, [field]: value }));
+
+  $effect(() => {
+    for (const field of fields) {
+      const value = $filters[field];
+      if (field === "search" || !value) continue;
+      if (!options[field].some((o) => (o?.value ?? o) === value)) set(field, "");
+    }
+  });
 </script>
 
 <div class="query">
@@ -29,9 +37,10 @@
     <label>
       {#if labels}<span>{$t(`filters.${field}`)}</span>{/if}
       {#if field === "search"}
-        <TextSearch />
+        <TextSearch {textLang} />
       {:else}
         <select
+          class:chosen={$filters[field]}
           value={$filters[field]}
           onchange={(e) => set(field, e.currentTarget.value)}
           aria-label={$t(`filters.${field}`)}
@@ -78,6 +87,10 @@
     border-radius: 0;
     outline: none;
     appearance: none;
+  }
+  select.chosen {
+    background-color: var(--query-fg, #000);
+    color: var(--query-bg, #fff);
   }
   /* own arrow, drawn in the text colour */
   select {

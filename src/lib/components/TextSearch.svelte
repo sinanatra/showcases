@@ -4,9 +4,11 @@
   // typing one filters the timeline. English searches the stored translations;
   // nothing is translated live.
   import { untrack } from "svelte";
-  import { filters, articles } from "$lib/stores";
+  import { filters, articles, applyFilters } from "$lib/stores";
   import { lang, t } from "$lib/i18n";
   import { loadReportTranslations, englishText } from "$lib/utils/reportTranslations";
+
+  let { textLang } = $props();
 
   const MAX_SUGGESTIONS = 12;
 
@@ -16,11 +18,17 @@
     if ($lang === "en") loadReportTranslations().then(() => (translationsReady = true));
   });
   let english = $derived($lang === "en" && translationsReady);
+  let matchLang = $derived(textLang ?? (english ? "en" : ""));
 
-  // every word of the material -> in how many reports it appears
+  // the suggestions only change with the other filters, not with every search
+  let scope = $derived([$filters.region, $filters.district, $filters.keyword, $filters.year].join("|"));
+
   let vocabulary = $derived.by(() => {
+    scope;
+    const list = $articles ?? [];
+    const pool = untrack(() => applyFilters(list, { ...$filters, text: "" }));
     const counts = new Map();
-    for (const a of $articles ?? []) {
+    for (const a of pool) {
       const text = english ? englishText(a) : `${a.Title || ""} ${a.Text || ""}`.toLowerCase();
       for (const word of new Set(text.match(/\p{L}[\p{L}-]{3,}/gu) ?? [])) {
         counts.set(word, (counts.get(word) ?? 0) + 1);
@@ -45,7 +53,7 @@
   let timer;
   function apply(text) {
     clearTimeout(timer);
-    filters.update((f) => ({ ...f, text, textLang: english ? "en" : "" }));
+    filters.update((f) => ({ ...f, text, textLang: matchLang }));
   }
   function onInput(e) {
     value = e.target.value;
@@ -58,9 +66,9 @@
   });
   // Switching language changes what the text is matched against.
   $effect(() => {
-    const textLang = english ? "en" : "";
+    const target = matchLang;
     untrack(() => {
-      if ($filters.text && $filters.textLang !== textLang) apply($filters.text);
+      if ($filters.text && $filters.textLang !== target) apply($filters.text);
     });
   });
 </script>

@@ -5,6 +5,7 @@
   import { loadReportTranslations } from "$lib/utils/reportTranslations";
   import { lang, setLang, availableLangs, t as tr } from "$lib/i18n";
   import Sheet from "./Sheet.svelte";
+  import Curated from "./Curated.svelte";
   import Query from "$lib/components/Query.svelte";
   import { toSheet } from "./report.js";
 
@@ -23,6 +24,7 @@
   let introHeight = $state(0);
 
   let translations = $state(null);
+  let view = $state.raw(null); // the curated view that is on; it replaces the filters
 
   $effect(() => {
     loadArticles();
@@ -33,19 +35,17 @@
   // newest first
   const date = (d) => parseDateLoose(d.Date)?.getTime() ?? 0;
   const all = $derived([...$articles].sort((a, b) => date(b) - date(a)));
-  // a search counts from 3 characters and matches the German text or its translation
-  const q = $derived(
-    $filters.text.trim().length >= 3 ? $filters.text.trim() : "",
-  );
+  const search = $derived((view ? (view.filters.text ?? "") : $filters.text).trim());
+  const q = $derived(search.length >= 3 ? search : "");
   const reports = $derived.by(() => {
     translations; // re-run once the English texts are in
-    return applyFilters(all, { ...$filters, text: q, textLang: "both" });
+    return applyFilters(all, { ...(view?.filters ?? $filters), textLang: "both" });
   });
 
   // back to the top of the stack when the filters change
   let lastFilters = null;
   $effect(() => {
-    const current = `${$filters.keyword}|${$filters.year}|${q}`;
+    const current = `${view?.id}|${$filters.keyword}|${$filters.year}|${q}`;
     if (lastFilters !== null && current !== lastFilters)
       window.scrollTo(
         0,
@@ -204,7 +204,10 @@
 </section>
 
 <div class="filters" class:hidden={scrollY <= introHeight / 2}>
-  <Query fields={["keyword", "year", "search"]} />
+  {#if !view}
+    <Query fields={["keyword", "year", "search"]} textLang="both" />
+  {/if}
+  <Curated bind:active={view} />
 </div>
 
 <div style:height="{(reports.length - 1) * innerHeight * STEP + innerHeight}px">
@@ -292,12 +295,17 @@
   }
   .filters {
     position: fixed;
-    bottom: 16px;
-    left: 16px;
-    right: 16px;
+    bottom: 0;
+    left: 0;
+    right: 0;
     z-index: 1;
+    box-sizing: border-box;
+    padding: 64px 16px 16px;
+    background: linear-gradient(to top, #fff calc(100% - 64px), transparent);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
     color: #000;
     transition: opacity 0.2s;
   }
