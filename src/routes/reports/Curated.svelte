@@ -56,4 +56,19 @@
     font-size: 16px;
     line-height: 1.4;
   }
+  /* on a phone: one line of boxes to swipe through */
+  @media (max-width: 700px) {
+    .views {
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    button {
+      flex: none;
+    }
+    p {
+      font-size: 14px;
+    }
+  }
 </style>
