@@ -35,11 +35,16 @@
   // newest first
   const date = (d) => parseDateLoose(d.Date)?.getTime() ?? 0;
   const all = $derived([...$articles].sort((a, b) => date(b) - date(a)));
-  const search = $derived((view ? (view.filters.text ?? "") : $filters.text).trim());
+  const search = $derived(
+    (view ? (view.filters.text ?? "") : $filters.text).trim(),
+  );
   const q = $derived(search.length >= 3 ? search : "");
   const reports = $derived.by(() => {
     translations; // re-run once the English texts are in
-    return applyFilters(all, { ...(view?.filters ?? $filters), textLang: "both" });
+    return applyFilters(all, {
+      ...(view?.filters ?? $filters),
+      textLang: "both",
+    });
   });
 
   // back to the top of the stack when the filters change
@@ -252,6 +257,8 @@
     font-family: Arial, Helvetica, sans-serif;
   }
   .intro {
+    position: sticky;
+    top: 0;
     font-family: Arial, Helvetica, sans-serif;
     box-sizing: border-box;
     min-height: 20vh;
