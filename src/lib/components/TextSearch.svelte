@@ -10,8 +10,6 @@
 
   const MAX_SUGGESTIONS = 12;
 
-  let { showLabel = true } = $props();
-
   let value = $state($filters.text ?? "");
   let translationsReady = $state(false);
   $effect(() => {
@@ -67,34 +65,18 @@
   });
 </script>
 
-<label>
-  {#if showLabel}{$t("filters.search")}{/if}
-  <input
-    type="search"
-    list="search-words"
-    placeholder={$t("filters.searchPlaceholder")}
-    {value}
-    oninput={onInput}
-    onchange={(e) => { value = e.currentTarget.value; apply(value); }}
-    aria-label={$t("filters.search")}
-    autocomplete="off"
-  />
-  <datalist id="search-words">
-    {#each suggestions as [word, count]}
-      <option value={word} label={String(count)}></option>
-    {/each}
-  </datalist>
-</label>
-
-<style>
-  label {
-    display: flex;
-    gap: 0.2rem;
-    align-items: center;
-    font-family: Arial, sans-serif;
-  }
-  input[type="search"] {
-    max-width: 100%;
-    margin: 10px 0;
-  }
-</style>
+<input
+  type="search"
+  list="search-words"
+  placeholder={$t("filters.searchPlaceholder")}
+  {value}
+  oninput={onInput}
+  onchange={(e) => { value = e.currentTarget.value; apply(value); }}
+  aria-label={$t("filters.search")}
+  autocomplete="off"
+/>
+<datalist id="search-words">
+  {#each suggestions as [word, count]}
+    <option value={word} label={String(count)}></option>
+  {/each}
+</datalist>

@@ -9,9 +9,11 @@ html {
   /* categorical timeline: reports matching a commentary entry are drawn from --highlight to --highlight-end */
   --highlight: red;
   --highlight-end: #ffffff;
-  --highlight-fade: 0.25;   /* opacity of the other reports while a highlight is on */
+  --highlight-fade: 0.25; /* opacity of the other reports while a highlight is on */
   --color-1: rgb(254, 216, 0);
   --color-1: rgb(231, 233, 91);
+  --mark: rgb(236, 237, 175);
+
   --font-mono: "Pitch Sans", Courier, monospace;
   overscroll-behavior: none;
 }
@@ -65,4 +67,14 @@ strong,
 em,
 .highlight {
   font-family: var(--font-mono);
+}
+
+/* black bar behind each line of text */
+.line-bg {
+  background: #000;
+  color: #fff;
+  padding: 0.1ch 0.5ch;
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }

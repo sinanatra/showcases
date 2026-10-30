@@ -137,14 +137,6 @@
     z-index: 100;
     user-select: none;
   }
-  .line-bg {
-    background: #000;
-    color: #fff;
-    padding: 0.1ch 0.5ch;
-    display: inline;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
   h1 {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 3em;

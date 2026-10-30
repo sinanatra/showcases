@@ -2,10 +2,7 @@
   import { lang, setLang, availableLangs, t } from "$lib/i18n";
   import { filtered, parseDateLoose } from "$lib/stores";
   import { loadArticles } from "$lib/utils/loadArticles";
-  import RegionFilter from "$lib/components/RegionFilter.svelte";
-  import DistrictFilter from "$lib/components/DistrictFilter.svelte";
-  import KeywordFilter from "$lib/components/KeywordFilter.svelte";
-  import TextSearch from "$lib/components/TextSearch.svelte";
+  import Query from "$lib/components/Query.svelte";
   import Timeline from "$lib/components/Timeline.svelte";
 
   let timelineDataLoaded = $state(false);
@@ -94,12 +91,7 @@
 
   <section class="filters">
     <h3 class="visually-hidden">{controlsText}</h3>
-    <div class="filters-grid">
-      <RegionFilter />
-      <DistrictFilter />
-      <KeywordFilter />
-      <TextSearch />
-    </div>
+    <Query fields={["region", "district", "keyword", "search"]} />
   </section>
 </article>
 
@@ -163,19 +155,7 @@
     color: #000;
   }
 
-  .filters-grid {
-    display: flex;
-    flex-wrap: wrap;
-    max-width: 940px;
-    /* grid-template-columns: repeat(3, 1fr);
-    max-width: 1040px; */
-    gap: 10px;
-  }
-
   @media (max-width: 600px) {
-    .filters-grid {
-      grid-template-columns: 1fr;
-    }
     article {
       display: block;
     }
