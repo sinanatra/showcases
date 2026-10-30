@@ -11,7 +11,8 @@
   import Query from "$lib/components/Query.svelte";
   import { t, lang } from "$lib/i18n";
 
-  let { floating = true } = $props();
+  // toggleOnly: just the "only the latest" box, without summary or filters
+  let { floating = true, toggleOnly = false } = $props();
 
   let lastActivity = $state(Date.now());
   let cycling = $state(false);
@@ -39,6 +40,7 @@
   }
 
   $effect(() => {
+    if (toggleOnly) return;
     const activityEvents = [
       "mousemove",
       "mousedown",
@@ -140,7 +142,8 @@
   let spanTotal = $derived(spanFor($articles));
 </script>
 
-<div class="controls" class:floating>
+<div class="controls" class:floating class:toggle-only={toggleOnly}>
+  {#if !toggleOnly}
   <div>
     <h2>
       <span class="line-bg">
@@ -171,13 +174,16 @@
     <br />
   </div>
   <br />
+  {/if}
   <div>
-    <p>
-      <span>
-        {$t("controls_filter")}
-      </span>
-    </p>
-    <Query labels={false} />
+    {#if !toggleOnly}
+      <p>
+        <span>
+          {$t("controls_filter")}
+        </span>
+      </p>
+      <Query labels={false} />
+    {/if}
 
     <label class="inline-checkbox">
       <input
@@ -217,6 +223,10 @@
   .controls span {
     padding: 2px 4px;
     background-color: black;
+  }
+
+  .controls.toggle-only {
+    display: block;
   }
 
   .controls.floating {

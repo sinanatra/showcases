@@ -20,9 +20,6 @@
   let errorMsg = $state("");
   let observer = $state();
   let root = $state();
-  let heroStage = $state("text");
-  let heroFadeProgress = $state(0);
-  let scrollHandler = $state(null);
 
   let currentLang = $derived($lang);
 
@@ -75,20 +72,6 @@
     });
   }
 
-  function updateHeroStage() {
-    if (typeof window === "undefined") return;
-    const scrollY = window.scrollY;
-    const vh = window.innerHeight || 1;
-    heroFadeProgress = Math.min(1, Math.max(0, scrollY / (vh * 0.3)));
-    if (scrollY < vh * 0.15) {
-      heroStage = "text";
-    } else if (scrollY < vh * 0.99) {
-      heroStage = "controls";
-    } else {
-      heroStage = "release";
-    }
-  }
-
   async function initObserver() {
     await tick();
     const steps = Array.from(root.querySelectorAll(".step"));
@@ -128,11 +111,6 @@
         preloadImages(scenes);
         await initObserver();
         if (!mounted) return;
-        if (typeof window !== "undefined") {
-          updateHeroStage();
-          scrollHandler = () => updateHeroStage();
-          window.addEventListener("scroll", scrollHandler, { passive: true });
-        }
         await tick();
         if (!mounted) return;
         videoRef?.play?.().catch(() => {});
@@ -147,23 +125,14 @@
     cleanup = () => {
       mounted = false;
       observer?.disconnect();
-      if (typeof window !== "undefined" && scrollHandler) {
-        window.removeEventListener("scroll", scrollHandler);
-        scrollHandler = null;
-      }
     };
 
     return cleanup;
   });
 
   function scrollToStep(index = 1) {
-    heroStage = "release";
     const target = root?.querySelector(`.step[data-index="${index}"]`);
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function showControlsStage() {
-    heroStage = "controls";
   }
 </script>
 
@@ -233,13 +202,11 @@
             startZoom={heroStartZoom}
             vizYOffset={20}
             showText={true}
-            textFaded={heroFadeProgress}
-            showControls={heroFadeProgress}
-            on:scrollhint={showControlsStage}
+            on:scrollhint={() => scrollToStep(1)}
           >
             <svelte:fragment slot="controls-inline">
               <div class="hero-controls-panel">
-                <DataControls floating={false} />
+                <DataControls floating={false} toggleOnly />
               </div>
             </svelte:fragment>
           </HeroViz>

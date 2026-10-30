@@ -12,13 +12,8 @@
     startZoom = 0.8,
     startPan = { x: 0, y: 300 },
     showScrollHint = true,
-    showText = true,
-    textFaded = 0,
-    showControls = 0
+    showText = true
   } = $props();
-
-  let textOpacity = $derived(Math.max(0, Math.min(1, 1 - textFaded)));
-  let controlsOpacity = $derived(Math.max(0, Math.min(1, showControls)));
 
   const dispatch = createEventDispatcher();
   let vizRef;
@@ -57,10 +52,7 @@
       {startPan}
       disableScrollZoom={true}
     />
-    <div class="hero-controls-slot">
-      <slot name="controls" />
-    </div>
-    <article class="hero-info" style={`opacity:${textOpacity}`}>
+    <article class="hero-info">
       {#if heading}<h1>
           <span class="line-bg">{heading}</span>
         </h1>{/if}
@@ -83,12 +75,7 @@
         </div>
       {/if}
     </article>
-    <div
-      class="hero-inline-controls"
-      style={`opacity:${controlsOpacity};transform:translate(-50%, ${
-        20 - 16 * controlsOpacity
-      }rem);pointer-events:${controlsOpacity > 0.9 ? "auto" : "none"};`}
-    >
+    <div class="hero-inline-controls">
       <slot name="controls-inline" />
     </div>
     <div class="hero-zoom-controls" aria-label="Zoom controls">
@@ -130,9 +117,7 @@
     margin: 0;
 
     overflow: visible;
-    min-height: 150vh;
-    margin-bottom: -35vh;
-    padding-bottom: 35vh;
+    min-height: 100vh;
     display: block !important;
     z-index: 100;
     user-select: none;
@@ -175,8 +160,6 @@
     position: relative;
     width: 100%;
     height: 100vh;
-    position: sticky;
-    top: 0;
     overflow: hidden;
     box-shadow: -2px 4px 6px 0px black;
   }
@@ -215,7 +198,7 @@
     position: absolute;
     bottom: 5rem;
     left: 50%;
-    transform: translate(-50%, 20rem);
+    transform: translate(-50%, 4rem);
     width: 100%;
     display: flex;
     justify-content: center;
