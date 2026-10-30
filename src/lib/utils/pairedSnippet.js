@@ -3,20 +3,25 @@ import { findWord } from "./textUtils.js";
 
 const norm = (t) => String(t ?? "").replace(/\s+/g, " ").trim();
 
-// Whole words within `half` either side of `c`, "…" where the text goes on.
-function around(text, c, half) {
-  half = Math.max(0, Math.min(half, c, text.length - c));
-  let a = Math.round(c - half),
-    b = Math.round(c + half);
+function around(text, c, n, starts) {
+  let a = Math.round(Math.max(0, Math.min(c - n / 2, text.length - n))),
+    b = Math.min(text.length, a + n);
   while (a > 0 && a < b && text[a - 1] !== " ") a++;
   while (b < text.length && b > a && text[b] !== " ") b--;
+  const near = n / 4;
+  const first = starts.find((s) => s > a && s - a < near && s <= c);
+  const last = starts.findLast((s) => s < b && b - s < near && s > c);
+  if (first !== undefined) a = first;
+  if (last !== undefined) b = last - 1;
   const body = text.slice(a, b).trim();
-  return body ? (a > 0 ? "…" : "") + body + (b < text.length ? "…" : "") : "";
+  const before = a > 0 && !starts.includes(a);
+  const after = b < text.length && !starts.includes(b + 1);
+  return body ? (before ? "…" : "") + body + (after ? "…" : "") : "";
 }
 
 /**
  * German and English snippets cut from the same stretch of a report, each
- * centred on the found word, so both always say the same thing.
+ * centred on the found word and just as long, so both say the same thing.
  * @param {string} text  the whole report, German
  * @param {{ full?: string, text?: string, at?: number, word?: string }} seg
  * @param {Record<string, string>} translatedMap  German sentence (or word) → English
@@ -70,12 +75,11 @@ export function pairedSnippet(text, seg, translatedMap) {
       break;
     }
   }
+  // both languages get as many characters, also if one text is shorter
+  const same = (n) => Math.min(n, D.length, E.length || Infinity);
   return {
     max: D.length,
-    de: (n) => around(D, centre, n / 2),
-    en: (n) =>
-      E
-        ? around(E, enCentre, (toEn(centre + n / 2) - toEn(centre - n / 2)) / 2)
-        : "",
+    de: (n) => around(D, centre, same(n), dS),
+    en: (n) => (E ? around(E, enCentre, same(n), eS) : ""),
   };
 }

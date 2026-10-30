@@ -192,26 +192,17 @@ export function pointAt(line, s) {
 
 /**
  * A slow wave that bends all lines up and down: Perlin noise along x, which
- * changes only slowly from one line to the next. Lines near each other move
- * almost together, so they never touch; `squeeze` is how much closer two
- * neighbouring lines can get (0.05 = 5 %), so the layout can leave that room.
+ * changes only slowly from one line to the next, so lines near each other move
+ * almost together.
  */
-export function makeWave({ amplitude, length, seed = 1, height }) {
-  if (!amplitude || !length) return { wave: () => 0, squeeze: 0 };
+export function makeWave({ amplitude, length, seed = 1 }) {
+  if (!amplitude || !length) return () => 0;
   const noise = perlin(seed);
   const across = length * 3;
-  const wave = (x, y) =>
+  return (x, y) =>
     amplitude *
     (noise(x / length, y / across) +
       0.35 * noise((x / length) * 2.3 + 7.1, (y / across) * 2.3));
-  let squeeze = 0;
-  const dy = 10;
-  for (let x = 0; x < length * 12; x += length / 16) {
-    for (let y = 0; y < (height ?? across * 2); y += across / 24) {
-      squeeze = Math.max(squeeze, -(wave(x, y + dy) - wave(x, y)) / dy);
-    }
-  }
-  return { wave, squeeze };
 }
 
 function perlin(seed) {
@@ -425,20 +416,6 @@ function extend(placed, room, o) {
     });
   }
 
-  // spread the letters into what is left after each line
-  for (const p of placed) {
-    if (!p.item.joint) continue;
-    for (const l of p.item.lines) {
-      const chars = l.runs.reduce(
-        (a, r) => a + (r.under ? 0 : r.text.length),
-        0,
-      );
-      const { after } = free(l);
-      const cw = l.fs * o.charRatio;
-      l.track = Math.min(cw * 0.25, after / Math.max(1, chars));
-      l.len += l.track * chars;
-    }
-  }
   for (const p of placed) {
     // two characters of the text, also after a (bigger) category name
     const gap = 2 * (o.textFs ?? p.item.lines[0].fs) * o.charRatio;

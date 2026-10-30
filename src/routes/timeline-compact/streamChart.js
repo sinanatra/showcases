@@ -22,7 +22,7 @@ export function paper(params) {
 
 /** The whole chart: every stream with its reports placed. Null if it is empty. */
 export function streamChart(items, categories, params, o) {
-  const { type, W, maxH, xOf, FS } = o.paper;
+  const { type, W, xOf, FS } = o.paper;
   const bands = makeBands(items, categories, {
     type,
     width: W,
@@ -38,15 +38,13 @@ export function streamChart(items, categories, params, o) {
     showLabels: params.showLabels,
   });
   if (!bands.length) return null;
-  const bend = makeWave({
-    amplitude: Math.max(0, Number(params.waveCm) || 0) * CM,
-    length: Math.max(10, Number(params.waveLengthCm) || 90) * CM,
-    height: maxH * 2,
-  });
   return layoutStreams(bands, {
     W,
-    lineH: type.lineH * (1 + bend.squeeze),
-    wave: bend.wave,
+    lineH: type.lineH,
+    wave: makeWave({
+      amplitude: Math.max(0, Number(params.waveCm) || 0) * CM,
+      length: Math.max(10, Number(params.waveLengthCm) || 90) * CM,
+    }),
     grid: 30,
     slack: Math.max(0, Number(params.slackCm) || 0) * CM,
     sigma: Math.max(2, Number(params.smoothCm) || 60) * CM,

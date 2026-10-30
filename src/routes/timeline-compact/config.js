@@ -22,6 +22,8 @@ export const SHADE_DARKEST = "#8f8f8f";
 export const SHADE_LIGHTEST = "#ededed";
 export const FADE_BOTTOM = 0.7;
 export const FADE_TOP = 0.85;
+// how much darker the band starts again where the English begins
+export const LANG_DARKEN = 0.3;
 
 export const THEMES = {
   light: { background: "#ffffff", ink: "#000000" },

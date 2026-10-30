@@ -3,6 +3,9 @@ import { pointAt } from "./streamLayout.js";
 export const FONT = '"Pitch Sans", Courier, monospace';
 // a space between German and English where each keeps a band of its own
 export const LANG_GAP = "\u00a0";
+// where the English starts inside one band: not drawn, and a sliver of a character wide
+export const LANG_TURN = "\u200b";
+const TURN_WIDTH = 0.3;
 const BUCKET = 600;
 const TILE = 512;
 const MAX_TILES = 160;
@@ -10,13 +13,13 @@ const OVERVIEW_PX = 4096;
 const BUDGET_MS = 14;
 
 /** Every text line with its letters placed on its bent line. */
-export function place(chart, style) {
+function place(chart, style) {
   const texts = [];
   const anyLit = chart.texts.some((t) => t.item.report?.highlightId);
   for (const t of chart.texts) {
     const line = chart.lines[t.lineIndex];
     const fs = t.line.fs;
-    const cw = fs * style.charRatio + (t.line.track ?? 0);
+    const cw = fs * style.charRatio;
     const report = t.item.report;
     const lit = !!report?.highlightId;
     const chars = [],
@@ -33,13 +36,13 @@ export function place(chart, style) {
       n = 0;
     for (const run of t.line.runs) {
       const rfs = run.fs ?? fs;
-      const w = rfs * style.charRatio + (t.line.track ?? 0);
+      const w = rfs * style.charRatio;
       const dy = run.dy ?? 0;
       let at = run.under ? runStart : colAt[col];
       runStart = at;
       if (run.under) n++;
       for (const ch of run.text) {
-        if (ch !== " " && ch !== LANG_GAP) {
+        if (ch !== " " && ch !== LANG_GAP && ch !== LANG_TURN) {
           const p = pointAt(line, t.offset + at + w / 2);
           chars.push(ch);
           xs.push(p.x - Math.sin(p.angle) * dy);
@@ -48,7 +51,7 @@ export function place(chart, style) {
           along.push(n);
           sizes.push(rfs);
         }
-        at += w;
+        at += ch === LANG_TURN ? w * TURN_WIDTH : w;
         n++;
         if (!run.under) {
           colAt.push(at);
@@ -82,8 +85,12 @@ export function place(chart, style) {
           last[1] = m.index + m[0].length;
         else parts.push([m.index, m.index + m[0].length]);
       }
-      for (let j = 0; j < parts.length; j++) {
-        const [c0, c1] = parts[j];
+      // the band starts again right at the first letter of the English
+      const turn = all.search(/[\u00a0\u200b]/);
+      const langs = parts.flatMap(([c0, c1]) =>
+        turn > c0 && turn + 1 < c1 ? [[c0, turn + 1], [turn + 1, c1]] : [[c0, c1]],
+      );
+      for (const [c0, c1] of langs) {
         const from = t.offset + colAt[c0],
           own = t.offset + colAt[c1],
           to = own + cw * 0.3;
@@ -101,7 +108,7 @@ export function place(chart, style) {
           pts: [...top, ...bottom.reverse()],
           a: pointAt(line, from),
           b: pointAt(line, to),
-          color: report.color ?? "#dcdcdc",
+          color: (turn >= 0 && c0 >= turn && report.colorEn) || report.color || "#dcdcdc",
           end: report.colorEnd ?? "#ffffff",
           fadeAt: report.fadeAt,
           alpha: anyLit && !lit ? style.fade : 1,
@@ -183,20 +190,10 @@ function paint(ctx, data, theme, chart, k, x0, y0, w, h) {
   ctx.fillRect(0, 0, w, h);
   ctx.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
 
-  ctx.strokeStyle = theme.ink;
-  ctx.lineWidth = Math.max(1 / k, 1.5);
-  for (const y of theme.years) {
-    ctx.beginPath();
-    ctx.moveTo(y.x, chart.H + theme.yearSize * 0.15);
-    ctx.lineTo(y.x, chart.H + theme.yearSize * 0.45);
-    ctx.stroke();
-  }
   ctx.fillStyle = theme.ink;
   ctx.font = `400 ${theme.yearSize}px ${FONT}`;
-  ctx.textAlign = "center";
   for (const y of theme.years)
-    ctx.fillText(String(y.year), y.labelX ?? y.x, chart.H + theme.yearSize * 1.3);
-  ctx.textAlign = "start";
+    ctx.fillText(String(y.year), y.x, chart.H + theme.yearSize * 1.3);
 
   const list = gather(data.buckets, x0, y0, x1, y1);
 

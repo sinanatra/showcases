@@ -75,14 +75,21 @@
   let totalH = $derived(chart ? chart.H + FS * 5 : 0);
   let tooTall = $derived(!!chart && totalH > maxH + 1);
 
+  // reports are placed by their text, not exactly at their date: a year starts
+  // where its first few reports start, on the left of the time it covers
   let years = $derived.by(() => {
     if (!chart) return [];
-    const half = 2 * FS * 3 * CHAR_RATIO;
+    const texts = chart.texts
+      .filter((t) => t.item.report)
+      .sort((a, b) => +a.item.report.date - +b.item.report.date);
+    const startOf = (y) => {
+      const first = texts.filter((t) => t.item.report.date.getFullYear() === y).slice(0, 9);
+      const starts = first.map((t) => t.start).sort((a, b) => a - b);
+      return starts[starts.length >> 1] ?? xOf(new Date(y, 0, 1));
+    };
     const out = [];
-    for (let y = start.getFullYear(); new Date(y, 0, 1) <= end; y++) {
-      const x = xOf(new Date(y, 0, 1));
-      out.push({ year: y, x, labelX: Math.max(half, Math.min(x, chart.W - half)) });
-    }
+    for (let y = start.getFullYear(); new Date(y, 0, 1) < end; y++)
+      out.push({ year: y, x: Math.min(startOf(y), startOf(y + 1)) });
     return out;
   });
 

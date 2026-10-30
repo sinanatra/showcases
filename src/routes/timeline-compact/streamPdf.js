@@ -58,22 +58,11 @@ export async function exportPdf(o) {
   pdf.setFillColor(...bg);
   pdf.rect(0, 0, o.W, o.H, "F");
 
-  pdf.setDrawColor(...ink);
-  pdf.setLineWidth(1.5);
-  for (const y of theme.years)
-    pdf.line(
-      y.x,
-      o.chartH + theme.yearSize * 0.15,
-      y.x,
-      o.chartH + theme.yearSize * 0.45,
-    );
   setFont(400);
   pdf.setFontSize(theme.yearSize);
   pdf.setTextColor(...ink);
   for (const y of theme.years)
-    pdf.text(String(y.year), y.labelX, o.chartH + theme.yearSize * 1.3, {
-      align: "center",
-    });
+    pdf.text(String(y.year), y.x, o.chartH + theme.yearSize * 1.3);
 
   const shape = (pts) => {
     const rel = [];
