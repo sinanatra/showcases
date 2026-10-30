@@ -24,12 +24,15 @@
   let introHeight = $state(0);
 
   let translations = $state(null);
+  let Graph = $state.raw(null); // only loaded with ?graph=true
   let open = $state(false); // the filters, on a phone
   let view = $state.raw(null); // the curated view that is on; it replaces the filters
 
   $effect(() => {
     loadArticles();
     loadReportTranslations().then((map) => (translations = map));
+    if (new URLSearchParams(location.search).get("graph") === "true")
+      import("./Graph.svelte").then((module) => (Graph = module.default));
   });
   const map = $derived($lang === "en" ? translations : null);
 
@@ -256,6 +259,10 @@
     {/if}
   </div>
 </div>
+
+{#if Graph}
+  <Graph {reports} current={reports[top]} />
+{/if}
 
 <style>
   :global(html body) {

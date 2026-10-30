@@ -8,19 +8,11 @@
   import { CHAR_RATIO } from "../timeline-categorical/config.js";
   import { settings } from "../timeline-categorical/settings.svelte.js";
   import StreamPanel from "./StreamPanel.svelte";
-  import { layoutStreams, makeWave } from "./streamLayout.js";
+  import { paper, streamChart } from "./streamChart.js";
   import { createRenderer } from "./streamCanvas.js";
   import { exportSvg } from "./streamSvg.js";
+  import { buildItems, stackOrder, streamShades } from "./streamItems.js";
   import {
-    typeScale,
-    timeScale,
-    buildItems,
-    stackOrder,
-    streamShades,
-    makeBands,
-  } from "./streamItems.js";
-  import {
-    MIN_TEXT_PT,
     CM,
     PX_PER_PT,
     FILE,
@@ -57,15 +49,8 @@
     });
   });
 
-  let start = $derived(new Date(Number(params.fromYear) || 2020, 0, 1));
-  let end = $derived(
-    new Date(Math.max(+params.fromYear + 1, Number(params.toYear) || 2027), 0, 1),
-  );
-  let FS = $derived(Math.max(MIN_TEXT_PT, Number(params.textPt) || MIN_TEXT_PT));
-  let type = $derived(typeScale(FS, Number(params.namePt)));
-  let W = $derived(Math.max(50, Number(params.widthCm) || 700) * CM);
-  let maxH = $derived(Math.max(20, Number(params.heightCm) || 450) * CM);
-  let xOf = $derived(timeScale(start, end, params.newestLeft, W));
+  let sheet = $derived(paper(params));
+  let { start, end, FS, type, W, maxH, xOf } = $derived(sheet);
 
   let built = $derived(
     buildItems($articles, categories, {
@@ -78,43 +63,15 @@
   let order = $derived(stackOrder(categories, built.counts, params.stackMode));
   let shades = $derived(streamShades(order));
 
-  let chart = $derived.by(() => {
-    const bands = makeBands(built.items, categories, {
-      type,
-      width: W,
-      xOf,
+  let chart = $derived(
+    streamChart(built.items, categories, params, {
+      paper: sheet,
       shades,
+      order,
       translatedMap,
       snip: settings.SEGMENT_SNIP_MAX,
-      labelEvery: Math.max(20, Number(params.labelEveryCm) || 150) * CM,
-      langMode: params.langMode,
-      dateMode: params.dateMode,
-      bandPerLang: params.bandPerLang,
-      fillGaps: params.fillGaps,
-      showLabels: params.showLabels,
-    });
-    if (!bands.length) return null;
-    const bend = makeWave({
-      amplitude: Math.max(0, Number(params.waveCm) || 0) * CM,
-      length: Math.max(10, Number(params.waveLengthCm) || 90) * CM,
-      height: maxH * 2,
-    });
-    return layoutStreams(bands, {
-      W,
-      lineH: type.lineH * (1 + bend.squeeze),
-      wave: bend.wave,
-      grid: 30,
-      slack: Math.max(0, Number(params.slackCm) || 0) * CM,
-      sigma: Math.max(2, Number(params.smoothCm) || 60) * CM,
-      room: Math.max(1, (Number(params.roomPct) || 105) / 100),
-      bandGap: Math.max(0, Number(params.gapLines) || 0),
-      slope: Math.min(1, Math.max(0.05, Number(params.maxSlope) || 0.25)),
-      fill: params.fillGaps,
-      charRatio: CHAR_RATIO,
-      textFs: FS,
-      order,
-    });
-  });
+    }),
+  );
   let totalH = $derived(chart ? chart.H + FS * 5 : 0);
   let tooTall = $derived(!!chart && totalH > maxH + 1);
 
