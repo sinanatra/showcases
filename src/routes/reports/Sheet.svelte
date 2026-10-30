@@ -3,8 +3,7 @@
 
   let { sheet } = $props();
 
-  // shrinks the text of a long report until it fits on the page; every strip
-  // of a sheet shows the same report, so each one is measured only once
+  // shrinks long reports to fit, measured once per report
   const sizes = new Map();
   function fitText(content, sheet) {
     const article = content.parentElement;
@@ -105,9 +104,8 @@
     box-sizing: border-box;
     color: #000;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: calc(2.3cqw * var(--fit, 1)); /* --fit shrinks the reports that don't fit */
+    font-size: calc(2.3cqw * var(--fit, 1));
     line-height: 1.45;
-    /* header on top, text below it, above a bottom margin */
     display: flex;
     flex-direction: column;
     padding-bottom: 7cqw;

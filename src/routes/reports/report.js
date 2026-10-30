@@ -8,7 +8,6 @@ const escapeHtml = (s) =>
 const WORD_START = "(?<![\\p{L}\\p{N}_])";
 const WORD_REST = "[\\p{L}\\p{N}-]*";
 
-// matched keywords are stems, so the whole word they start is highlighted
 function keywordRegex(keywordMatch, english) {
   const stems = (keywordMatch || []).flatMap((kw) => {
     const canon = keywordsGroup[String(kw).toLowerCase()] || kw;
@@ -19,7 +18,6 @@ function keywordRegex(keywordMatch, english) {
   return new RegExp(`${WORD_START}(?:${alt})${WORD_REST}`, "giu");
 }
 
-// the whole word around a search term, wherever in the word it was found
 function queryRegex(query) {
   const terms = query.split(/[,+]/).map((term) => term.trim()).filter(Boolean);
   const alt = terms.map((term) => escapeRe(escapeHtml(term))).join("|");
@@ -31,8 +29,7 @@ function highlight(text, re) {
   return re ? safe.replace(re, (m) => `<mark>${m}</mark>`) : safe;
 }
 
-// The translations are stored per sentence of the whole text, and sentences can
-// run across a line break, so translate first and then put the paragraphs back.
+// translations are per sentence, and sentences can cross a line break
 function englishParagraphs(text, map) {
   const paragraphs = [[]];
   let pos = 0;
@@ -49,7 +46,6 @@ function englishParagraphs(text, map) {
 
 const NUMBER = /^(Nr|No)\.\s*\d+$/;
 
-// the report number sits in bold right above its text, as on berlin.de
 const joinNumbers = (paragraphs) =>
   paragraphs.flatMap((p, i) => {
     if (NUMBER.test(paragraphs[i - 1])) return [];
@@ -60,15 +56,13 @@ const categoriesOf = (d, lang) =>
   [...new Set((d.KeywordMatch || []).map((k) => keywordsGroup[String(k).toLowerCase()] || k))]
     .map((canon) => KEYWORD_LABELS[canon]?.[lang] ?? canon);
 
-// the words found in the text, one form of each: hakenkreuz, hakenkreuze -> Hakenkreuz
 function tagsOf(d) {
   const words = [...(d.KeywordExtracted || [])].sort((a, b) => a.length - b.length);
   const kept = words.filter((w, i) => !words.slice(0, i).some((shorter) => w.startsWith(shorter)));
   return kept.map((w) => w[0].toUpperCase() + w.slice(1));
 }
 
-// map = German -> English translations, or null for the German original.
-// A search replaces the keyword highlights.
+// map = German -> English, or null
 export function toSheet(d, query = "", map = null) {
   const re = query ? queryRegex(query) : keywordRegex(d.KeywordMatch, !!map);
   const title = map ? (map[d.Title.trim()] ?? d.Title) : d.Title;
@@ -84,7 +78,7 @@ export function toSheet(d, query = "", map = null) {
     county: place.length > 1 ? place.at(-1) : "",
     town: (place.length > 1 ? place.slice(0, -1) : place).join(", "),
     categories: categoriesOf(d, map ? "en" : "de"),
-    tags: map ? [] : tagsOf(d), // these are German words
+    tags: map ? [] : tagsOf(d),
     title: highlight(title, re),
     paragraphs: joinNumbers(paragraphs.map((p) => highlight(p, re))),
   };

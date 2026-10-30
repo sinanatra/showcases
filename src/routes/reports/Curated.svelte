@@ -1,7 +1,5 @@
 <script>
-  // Curated views from curated.json: a box picks the reports and shows the text,
-  // apart from the filters. `active` is the view that is on.
-  // {n} and {total} in a text are counted from the data.
+  // {n} and {total} in curated.json are counted from the data
   import { articles, applyFilters } from "$lib/stores";
   import { lang } from "$lib/i18n";
   import views from "./curated.json";
@@ -56,7 +54,6 @@
     font-size: 16px;
     line-height: 1.4;
   }
-  /* on a phone: one line of boxes to swipe through */
   @media (max-width: 700px) {
     .views {
       flex-wrap: nowrap;
