@@ -17,10 +17,7 @@ export function exportSvg({ chart, H, bands, look, charRatio, fade, file }) {
   out.push(`<rect width="100%" height="100%" fill="${look.background}"/>`);
   for (const y of look.years) {
     out.push(
-      `<line x1="${y.x.toFixed(1)}" x2="${y.x.toFixed(1)}" y1="${(chart.H + look.yearSize * 0.15).toFixed(1)}" y2="${(chart.H + look.yearSize * 0.45).toFixed(1)}" stroke="${look.ink}" stroke-width="1.5"/>`,
-    );
-    out.push(
-      `<text x="${y.labelX.toFixed(1)}" y="${(chart.H + look.yearSize * 1.3).toFixed(1)}" text-anchor="middle" font-size="${look.yearSize}" fill="${look.ink}">${y.year}</text>`,
+      `<text x="${y.x.toFixed(1)}" y="${(chart.H + look.yearSize * 1.3).toFixed(1)}" font-size="${look.yearSize}" fill="${look.ink}">${y.year}</text>`,
     );
   }
   out.push("<defs>");
@@ -52,7 +49,7 @@ export function exportSvg({ chart, H, bands, look, charRatio, fade, file }) {
       before = 0;
     const spans = x.line.runs
       .map((r) => {
-        const w = r.text.length * ((r.fs ?? x.line.fs) * charRatio + (x.line.track ?? 0));
+        const w = r.text.length * (r.fs ?? x.line.fs) * charRatio;
         const dx = r.under ? -before : 0,
           dy = (r.dy ?? 0) - dyNow;
         dyNow = r.dy ?? 0;
@@ -60,9 +57,8 @@ export function exportSvg({ chart, H, bands, look, charRatio, fade, file }) {
         return `<tspan fill="${look.ink}"${r.fs ? ` font-size="${r.fs.toFixed(2)}"` : ""}${dx ? ` dx="${dx.toFixed(2)}"` : ""}${dy ? ` dy="${dy.toFixed(2)}"` : ""}${r.style === "label" ? ' font-weight="700"' : ""}>${esc(r.text)}</tspan>`;
       })
       .join("");
-    const track = x.line.track ? ` letter-spacing="${x.line.track.toFixed(2)}"` : "";
     out.push(
-      `<text font-size="${x.line.fs.toFixed(2)}"${opacity}${blend}${track}><textPath xlink:href="#l${x.lineIndex}" href="#l${x.lineIndex}" startOffset="${x.offset.toFixed(2)}">${spans}</textPath></text>`,
+      `<text font-size="${x.line.fs.toFixed(2)}"${opacity}${blend}><textPath xlink:href="#l${x.lineIndex}" href="#l${x.lineIndex}" startOffset="${x.offset.toFixed(2)}">${spans}</textPath></text>`,
     );
   }
   out.push("</svg>");

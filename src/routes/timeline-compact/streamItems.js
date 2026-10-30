@@ -11,7 +11,7 @@ import {
   groupBranchesBySentence,
 } from "../timeline-categorical/catTimeline.js";
 import { runsWidth } from "./streamLayout.js";
-import { LANG_GAP } from "./streamCanvas.js";
+import { LANG_GAP, LANG_TURN } from "./streamCanvas.js";
 import {
   ASCENT,
   DESCENT,
@@ -24,6 +24,7 @@ import {
   SHADE_LIGHTEST,
   FADE_BOTTOM,
   FADE_TOP,
+  LANG_DARKEN,
 } from "./config.js";
 
 const isBranch = (c) => c.type === "canonical";
@@ -145,11 +146,11 @@ export function streamShades(order) {
   );
 }
 
-// "beleidigt… …insulted"
+// "…beleidigt" + "insulted…": no dots where one language meets the other
 const joinLangs = (parts, gap) =>
   parts
-    .map((t, i) => (i && !t.startsWith("…") ? "…" + t : t))
-    .map((t, i, all) => (i < all.length - 1 && !t.endsWith("…") ? t + "…" : t))
+    .map((t, i) => (i ? t.replace(/^\s*…\s*/, "") : t))
+    .map((t, i, all) => (i < all.length - 1 ? t.replace(/\s*…\s*$/, "") : t))
     .join(gap);
 
 const labelTexts = (cat) => [
@@ -187,7 +188,7 @@ function labelItem(cat, x, n, o) {
 export function makeBands(items, categories, o) {
   const t = o.type;
   const gap = 2 * t.charW;
-  const join = (parts) => joinLangs(parts, o.bandPerLang ? LANG_GAP : " ");
+  const join = (parts) => joinLangs(parts, o.bandPerLang ? LANG_GAP : LANG_TURN);
   const line = (lane, runs) => ({
     lane,
     runs,
@@ -270,7 +271,12 @@ export function makeBands(items, categories, o) {
         const shade = o.shades[cat.id];
         const report = it.highlightId
           ? it
-          : { ...it, color: shade?.band ?? it.color, fadeAt: shade?.fade };
+          : {
+              ...it,
+              color: shade?.band ?? it.color,
+              colorEn: shade && mixHex(shade.band, "#000000", LANG_DARKEN),
+              fadeAt: shade?.fade,
+            };
         out.push({ x, len: len + gap, h: lines.length, lines, report, joint });
       }
       // with both languages, every stream names itself in each at least once
