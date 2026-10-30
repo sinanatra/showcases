@@ -1,0 +1,60 @@
+[
+  {
+    "id": "misogyny",
+    "label": "Misogyny",
+    "labelDe": "Frauenfeindlichkeit",
+    "filters": { "keyword": "frauenfeindlichkeit" },
+    "text": "Only {n} of {total} reports name misogyny. The low number says less about how often it happens than about how rarely the police describe a crime this way.",
+    "textDe": "Nur {n} von {total} Meldungen nennen Frauenfeindlichkeit. Die niedrige Zahl sagt weniger darüber aus, wie oft sie vorkommt, als darüber, wie selten die Polizei eine Tat so beschreibt."
+  },
+  {
+    "id": "palestine",
+    "label": "Palestine",
+    "labelDe": "Palästina",
+    "filters": { "text": "paläst,palest,gaza" },
+    "text": "{n} reports mention Palestine or Gaza, almost all of them since 7 October 2023 and most of them at demonstrations. Many are classified as antisemitic or as incitement to hatred, so this view shows how the police read these events, not a neutral record of them.",
+    "textDe": "{n} Meldungen erwähnen Palästina oder Gaza, fast alle seit dem 7. Oktober 2023 und die meisten bei Demonstrationen. Viele werden als antisemitisch oder als Volksverhetzung eingeordnet. Diese Ansicht zeigt also, wie die Polizei diese Ereignisse liest, nicht eine neutrale Aufzeichnung."
+  },
+  {
+    "id": "alcohol",
+    "label": "Alcohol",
+    "labelDe": "Alkohol",
+    "filters": { "text": "alkohol,promille,betrunken" },
+    "text": "{n} reports mention alcohol. It is common around Nazi slogans and the Hitler salute, and almost absent from swastika graffiti, where the perpetrators are mostly unknown.",
+    "textDe": "{n} Meldungen erwähnen Alkohol. Er taucht häufig bei Nazi-Parolen und dem Hitlergruß auf und fast nie bei Hakenkreuz-Schmierereien, deren Täter meist unbekannt bleiben."
+  },
+  {
+    "id": "vandalism",
+    "label": "Vandalism",
+    "labelDe": "Vandalismus",
+    "filters": { "text": "schmier,graffiti,gesprüht,gesprayt,sprühte,geritzt" },
+    "text": "{n} reports describe graffiti or vandalism, most of them in Brandenburg. Swastikas appear in the large majority of them.",
+    "textDe": "{n} Meldungen beschreiben Graffiti oder Vandalismus, die meisten aus Brandenburg. In der großen Mehrheit davon tauchen Hakenkreuze auf."
+  },
+  {
+    "id": "memorials",
+    "label": "Memorials",
+    "labelDe": "Gedenkorte",
+    "filters": { "text": "gedenk,mahnmal,stolperstein,synagoge,friedhof" },
+    "text": "{n} reports mention memorials, Stolpersteine, synagogues or cemeteries.",
+    "textDe": "{n} Meldungen erwähnen Gedenkstätten, Stolpersteine, Synagogen oder Friedhöfe."
+  },
+  {
+    "id": "youth",
+    "label": "Youth",
+    "labelDe": "Jugendliche",
+    "filters": {
+      "text": "jugendlich,minderjährig,schüler,kinder,12-jährig,13-jährig,14-jährig,15-jährig,16-jährig,17-jährig"
+    },
+    "text": "{n} reports mention children or teenagers, as perpetrators or as victims.",
+    "textDe": "{n} Meldungen erwähnen Kinder oder Jugendliche, als Täter oder als Betroffene."
+  },
+  {
+    "id": "swastikas",
+    "label": "Swastikas in Brandenburg",
+    "labelDe": "Hakenkreuze in Brandenburg",
+    "filters": { "region": "Brandenburg", "text": "hakenkreuz" },
+    "text": "{n} reports from Brandenburg mention a swastika, against very few from Berlin. This shows what each police force chooses to publish, not where swastikas appear.",
+    "textDe": "{n} Meldungen aus Brandenburg erwähnen ein Hakenkreuz, aus Berlin nur sehr wenige. Das zeigt, was die jeweilige Polizei veröffentlicht, nicht wo Hakenkreuze auftauchen."
+  }
+]

@@ -117,7 +117,8 @@ export function applyFilters(list, f) {
 
   if (year) out = out.filter((a) => yearOf(a) === year);
 
-  if (text) out = out.filter(buildTextPredicate(text, textLang));
+  // a search counts from 3 characters
+  if (text?.trim().length >= 3) out = out.filter(buildTextPredicate(text, textLang));
 
   return showOnlyLatest ? newest(out, 1) : out;
 }
@@ -153,8 +154,10 @@ export const availableRegions = derived(articles, ($articles) =>
   Array.from(new Set(($articles ?? []).map(detectRegion).filter(Boolean))).sort()
 );
 
-export const availableYears = derived(articles, ($articles) =>
-  Array.from(new Set(($articles ?? []).map(yearOf).filter(Boolean))).sort().reverse()
+export const availableYears = derived([articles, filters], ([$articles, $filters]) =>
+  Array.from(new Set(applyFilters($articles, { ...$filters, year: "" }).map(yearOf).filter(Boolean)))
+    .sort()
+    .reverse()
 );
 
 export const availableDistricts = derived([articles, filters], ([$articles, $filters]) => {
