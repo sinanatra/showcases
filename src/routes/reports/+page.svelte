@@ -24,6 +24,7 @@
   let introHeight = $state(0);
 
   let translations = $state(null);
+  let open = $state(false); // the filters, on a phone
   let view = $state.raw(null); // the curated view that is on; it replaces the filters
 
   $effect(() => {
@@ -208,11 +209,16 @@
   <!-- <small>{$tr("reports.note")}</small> -->
 </section>
 
-<div class="filters" class:hidden={scrollY <= introHeight / 2}>
-  {#if !view}
-    <Query fields={["keyword", "year", "search"]} textLang="both" />
-  {/if}
-  <Curated bind:active={view} />
+<div class="filters" class:hidden={scrollY <= introHeight / 2} class:open>
+  <button class="toggle" class:active={view} onclick={() => (open = !open)}>
+    {$tr("filters.toggle")}
+  </button>
+  <div class="panel">
+    {#if !view}
+      <Query fields={["keyword", "year", "search"]} textLang="both" />
+    {/if}
+    <Curated bind:active={view} />
+  </div>
 </div>
 
 <div style:height="{(reports.length - 1) * innerHeight * STEP + innerHeight}px">
@@ -320,7 +326,31 @@
     opacity: 0;
     pointer-events: none;
   }
-  /* on a phone: a compact bar, and the pile centred in the space above it */
+  /* the fade lets clicks and scrolling through */
+  .filters {
+    pointer-events: none;
+  }
+  .filters:not(.hidden) > * {
+    pointer-events: auto;
+  }
+  .panel {
+    display: contents;
+  }
+  .toggle {
+    display: none;
+    padding: 5px 10px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+    border-radius: 0;
+  }
+  .toggle.active {
+    background: #000;
+    color: #fff;
+  }
+  /* on a phone: one button, and the filters open from it */
   @media (max-width: 700px) {
     .intro {
       position: static;
@@ -333,13 +363,27 @@
       --query-search-label: none;
       --query-field: 1 1 40%;
       --query-width: 100%;
-      align-items: stretch;
+      align-items: center;
       gap: 6px;
-      padding: 40px 12px 12px;
+      padding: 12px;
+      background: none;
+    }
+    .filters.open {
+      align-items: stretch;
+      padding-top: 40px;
       background: linear-gradient(to top, #fff calc(100% - 40px), transparent);
     }
-    .stage {
-      --centre: calc(50% - 80px);
+    .toggle {
+      display: block;
+      align-self: center;
+    }
+    .panel {
+      display: none;
+    }
+    .open .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
   }
   .langs button {
@@ -370,7 +414,7 @@
   .world {
     position: absolute;
     left: 50%;
-    top: var(--centre, 50%);
+    top: 50%;
   }
   .flying,
   .face {
@@ -418,7 +462,7 @@
   .stack {
     position: absolute;
     left: 50%;
-    top: var(--centre, 50%);
+    top: 50%;
     width: 1px;
     height: 1px;
     overflow: visible;

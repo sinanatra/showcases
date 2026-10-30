@@ -54,6 +54,7 @@ const dict = {
     "filters.keyword": "Keyword:",
     "filters.year": "Year:",
     "filters.search": "Search:",
+    "filters.toggle": "Filters",
     "filters.searchPlaceholder": "type to filter…",
     "filters.all": "All",
 
@@ -94,6 +95,7 @@ const dict = {
     "filters.keyword": "Schlagwort:",
     "filters.year": "Jahr:",
     "filters.search": "Suche:",
+    "filters.toggle": "Filter",
     "filters.searchPlaceholder": "zum Filtern tippen…",
     "filters.all": "Alle",
 
