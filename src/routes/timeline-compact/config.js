@@ -31,8 +31,8 @@ export const THEMES = {
 export const DEFAULTS = {
   fromYear: 2020,
   toYear: 2027,
-  widthCm: 600,
-  heightCm: 300,
+  widthCm: 700,
+  heightCm: 450,
   textPt: MIN_TEXT_PT,
   langMode: "both",
   dateMode: "inline",

@@ -63,9 +63,6 @@
   let liveTimer;
   let dataSvgW = $state(4000);
   let svgH = $state(600);
-  // Size of everything drawn, including what hangs outside the axis (district
-  // labels on the left, the last boxes on the right, names above the top row).
-  // This is what the print size refers to.
   let contentW = $state(4000);
   let contentH = $state(600);
   let baselineY = $state(480);
