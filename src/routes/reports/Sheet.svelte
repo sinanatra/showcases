@@ -1,4 +1,6 @@
 <script>
+  import { tick } from "svelte";
+
   let { sheet } = $props();
 
   // shrinks the text of a long report until it fits on the page; every strip
@@ -27,7 +29,7 @@
       article.style.setProperty("--fit", sizes.get(key));
     };
     fit(sheet);
-    return { update: fit };
+    return { update: (sheet) => tick().then(() => fit(sheet)) };
   }
 
   const L = $derived(
