@@ -10,7 +10,7 @@ const OVERVIEW_PX = 4096;
 const BUDGET_MS = 14;
 
 /** Every text line with its letters placed on its bent line. */
-function place(chart, style) {
+export function place(chart, style) {
   const texts = [];
   const anyLit = chart.texts.some((t) => t.item.report?.highlightId);
   for (const t of chart.texts) {
