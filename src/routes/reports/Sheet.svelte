@@ -1,20 +1,32 @@
 <script>
   let { sheet } = $props();
 
-  // cuts the text after the last whole line that fits on the page
-  function wholeLines(content) {
-    const fit = () => {
-      const bottom = content.offsetTop + content.clientHeight;
-      for (const el of content.children) {
-        el.removeAttribute("style");
-        const room = bottom - el.offsetTop;
-        if (el.offsetHeight <= room) continue;
-        const line = parseFloat(getComputedStyle(el).lineHeight);
-        el.style.height = `${Math.max(0, Math.floor(room / line)) * line}px`;
-        el.style.overflow = "hidden";
-      }
+  // shrinks the text of a long report until it fits on the page; every strip
+  // of a sheet shows the same report, so each one is measured only once
+  const sizes = new Map();
+  function fitText(content, sheet) {
+    const article = content.parentElement;
+    const overflows = (size) => {
+      article.style.setProperty("--fit", size);
+      return content.scrollHeight > content.clientHeight;
     };
-    fit();
+    const fit = (sheet) => {
+      const key = sheet.paragraphs.join("");
+      if (!sizes.has(key)) {
+        let fits = 0.08;
+        let tooBig = 1;
+        if (!overflows(1)) fits = 1;
+        else
+          for (let i = 0; i < 7; i++) {
+            const size = (fits + tooBig) / 2;
+            if (overflows(size)) tooBig = size;
+            else fits = size;
+          }
+        sizes.set(key, fits);
+      }
+      article.style.setProperty("--fit", sizes.get(key));
+    };
+    fit(sheet);
     return { update: fit };
   }
 
@@ -46,7 +58,7 @@
       <img src="/logos/polizei-brandenburg.svg" alt="Polizei Brandenburg" />
     {/if}
   </header>
-  <div class="content" use:wholeLines={sheet}>
+  <div class="content" use:fitText={sheet}>
     <h1>{@html sheet.title}</h1>
     {#if sheet.berlin}
       <p>{L.reportOf} {sheet.date}</p>
@@ -91,9 +103,9 @@
     box-sizing: border-box;
     color: #000;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.3cqw; /* same for every report; the longest few get cut off at the bottom */
+    font-size: calc(2.3cqw * var(--fit, 1)); /* --fit shrinks the reports that don't fit */
     line-height: 1.45;
-    /* header on top, text below it; text that doesn't fit is cut off above a bottom margin */
+    /* header on top, text below it, above a bottom margin */
     display: flex;
     flex-direction: column;
     padding-bottom: 7cqw;
