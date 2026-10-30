@@ -87,7 +87,7 @@
     inset: 0;
     overflow: hidden;
     background: #fff;
-    border: 1px solid #000;
+    border: 1px solid #ccc;
     box-sizing: border-box;
     color: #000;
     font-family: Arial, Helvetica, sans-serif;
