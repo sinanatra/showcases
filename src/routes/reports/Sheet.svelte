@@ -159,6 +159,9 @@
     background: var(--mark);
     color: #000;
   }
+  article :global(mark.search) {
+    background: var(--mark-2);
+  }
 
   header {
     display: flex;

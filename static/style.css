@@ -12,7 +12,8 @@ html {
   --highlight-fade: 0.25; /* opacity of the other reports while a highlight is on */
   --color-1: rgb(254, 216, 0);
   --color-1: rgb(231, 233, 91);
-  --mark: rgb(236, 237, 175);
+  --mark: #C9DEF1;
+  --mark-2: #bcd0ba;
 
   --font-mono: "Pitch Sans", Courier, monospace;
   overscroll-behavior: none;
