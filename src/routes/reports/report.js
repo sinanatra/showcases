@@ -24,9 +24,15 @@ function queryRegex(query) {
   return new RegExp(`${WORD_REST}(?:${alt})${WORD_REST}`, "giu");
 }
 
-function highlight(text, re) {
+// in one pass, so neither ends up inside the other's tag; a word that is both is a search
+function highlight(text, keywords, search) {
   const safe = escapeHtml(text);
-  return re ? safe.replace(re, (m) => `<mark>${m}</mark>`) : safe;
+  const sources = [search, keywords].filter(Boolean).map((re) => re.source);
+  if (!sources.length) return safe;
+  const isSearch = search && new RegExp(search.source, "iu");
+  return safe.replace(new RegExp(sources.join("|"), "giu"), (m) =>
+    isSearch?.test(m) ? `<mark class="search">${m}</mark>` : `<mark>${m}</mark>`,
+  );
 }
 
 // translations are per sentence, and sentences can cross a line break
@@ -64,7 +70,8 @@ function tagsOf(d) {
 
 // map = German -> English, or null
 export function toSheet(d, query = "", map = null) {
-  const re = query ? queryRegex(query) : keywordRegex(d.KeywordMatch, !!map);
+  const keywords = keywordRegex(d.KeywordMatch, !!map);
+  const search = query ? queryRegex(query) : null;
   const title = map ? (map[d.Title.trim()] ?? d.Title) : d.Title;
   const paragraphs = map
     ? englishParagraphs(d.Text, map)
@@ -79,7 +86,7 @@ export function toSheet(d, query = "", map = null) {
     town: (place.length > 1 ? place.slice(0, -1) : place).join(", "),
     categories: categoriesOf(d, map ? "en" : "de"),
     tags: map ? [] : tagsOf(d),
-    title: highlight(title, re),
-    paragraphs: joinNumbers(paragraphs.map((p) => highlight(p, re))),
+    title: highlight(title, keywords, search),
+    paragraphs: joinNumbers(paragraphs.map((p) => highlight(p, keywords, search))),
   };
 }
