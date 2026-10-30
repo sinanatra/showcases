@@ -311,7 +311,7 @@
     font-size: 16px;
     background: #fff;
     color: #000;
-    border: 1px solid #000;
+    border: 1px solid #ccc;
     border-radius: 0;
   }
   .langs .active {
@@ -389,7 +389,7 @@
   }
   .stack polygon {
     fill: #fff;
-    stroke: #000;
+    stroke: #ccc;
     stroke-width: 1;
     stroke-linejoin: round;
   }
