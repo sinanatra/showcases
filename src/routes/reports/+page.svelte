@@ -36,7 +36,7 @@
   const date = (d) => parseDateLoose(d.Date)?.getTime() ?? 0;
   const all = $derived([...$articles].sort((a, b) => date(b) - date(a)));
   const search = $derived(
-    (view ? (view.filters.text ?? "") : $filters.text).trim(),
+    (view ? ((map && view.highlightEn) ?? view.filters.text ?? "") : $filters.text).trim(),
   );
   const q = $derived(search.length >= 3 ? search : "");
   const reports = $derived.by(() => {
@@ -50,7 +50,7 @@
   // back to the top of the stack when the filters change
   let lastFilters = null;
   $effect(() => {
-    const current = `${view?.id}|${$filters.keyword}|${$filters.year}|${q}`;
+    const current = `${view?.id ?? q}|${$filters.keyword}|${$filters.year}`;
     if (lastFilters !== null && current !== lastFilters)
       window.scrollTo(
         0,
