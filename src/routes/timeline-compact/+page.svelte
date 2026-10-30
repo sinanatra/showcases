@@ -63,8 +63,8 @@
   );
   let FS = $derived(Math.max(MIN_TEXT_PT, Number(params.textPt) || MIN_TEXT_PT));
   let type = $derived(typeScale(FS, Number(params.namePt)));
-  let W = $derived(Math.max(50, Number(params.widthCm) || 600) * CM);
-  let maxH = $derived(Math.max(20, Number(params.heightCm) || 300) * CM);
+  let W = $derived(Math.max(50, Number(params.widthCm) || 700) * CM);
+  let maxH = $derived(Math.max(20, Number(params.heightCm) || 450) * CM);
   let xOf = $derived(timeScale(start, end, params.newestLeft, W));
 
   let built = $derived(
@@ -241,6 +241,16 @@
     if (url) window.open(url, "_blank", "noreferrer");
   }
 
+  // e.g. 700x450cm_25pt_de-en_berlin-brandenburg
+  function fileName(ext) {
+    const cm = (v) => Math.round(v / CM);
+    const lang = params.langMode === "both" ? "de-en" : params.langMode;
+    const districts = [params.showBerlin && "berlin", params.showBrandenburg && "brandenburg"]
+      .filter(Boolean)
+      .join("-");
+    return `${cm(chart.W)}x${cm(totalH)}cm_${FS}pt_${lang}_${districts}.${ext}`;
+  }
+
   let exportingPdf = $state(false);
   async function exportPDF() {
     if (!chart || !renderer) return;
@@ -254,7 +264,7 @@
         chartH: chart.H,
         texts: renderer.texts(),
         look,
-        file: `${FILE}.pdf`,
+        file: fileName("pdf"),
       });
     } finally {
       exportingPdf = false;
@@ -269,7 +279,7 @@
       look,
       charRatio: CHAR_RATIO,
       fade: highlightFade,
-      file: `${FILE}.svg`,
+      file: fileName("svg"),
     });
   }
 </script>

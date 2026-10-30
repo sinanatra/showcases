@@ -31,16 +31,16 @@ async function loadFont() {
  *   texts = the placed letters from the renderer, look = theme with years and yearSize
  */
 export async function exportPdf(o) {
-  // Real pt, 1:1: Preview and Illustrator ignore a UserUnit, the usual way
-  // past the 14400 pt limit, so the page is made within it and resized after.
+  const scale = Math.max(1, Math.ceil(Math.max(o.W, o.H) / 14400));
+  const k = 1 / scale;
+  const pageW = o.W * k, pageH = o.H * k;
   const pdf = new jsPDF({
     orientation: o.W >= o.H ? "landscape" : "portrait",
     unit: "pt",
-    format: [Math.min(o.W, 14400), Math.min(o.H, 14400)],
+    format: [pageW, pageH],
     compress: true,
   });
-  pdf.setPageWidth(1, o.W);
-  pdf.setPageHeight(1, o.H);
+  if (scale > 1) pdf.internal.write(`q ${k} 0 0 ${k} 0 ${pageH * (1 - k)} cm`);
 
   let font = "courier";
   const b64 = await loadFont();
@@ -128,5 +128,9 @@ export async function exportPdf(o) {
   }
   opacity(1);
 
+  if (scale > 1) pdf.internal.write("Q");
+
+  // const file = scale > 1 ? o.file.replace(/\.pdf$/, `-at-1-${scale}.pdf`) : o.file;
   download(new Blob([pdf.output("arraybuffer")], { type: "application/pdf" }), o.file);
+  return scale;
 }
