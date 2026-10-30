@@ -6,17 +6,20 @@
   import { lang, setLang, availableLangs, t as tr } from "$lib/i18n";
   import Sheet from "./Sheet.svelte";
   import Curated from "./Curated.svelte";
+  import TimeBar from "./TimeBar.svelte";
   import Query from "$lib/components/Query.svelte";
   import { toSheet } from "./report.js";
 
   const W = 500; // sheet width in layout px, A4 ratio (the on-screen size comes from FILL)
   const H = W * Math.SQRT2;
-  const STEP = 0.9; // viewport heights of scroll per report
+  const STEP = 0.6; // viewport heights of scroll from one report to the next
+  const FLIGHT = 1.5; // how many of those a flight takes, so the next one starts before it has left
   const GAP = 8; // px between stacked sheets
   const STRIPS = 12; // the flying sheet is cut into strips so it can curve
   const TILT_X = 54; // deg, how far the sheet tips back (54.7 = isometric)
   const TILT_Z = -45; // deg, how far it is turned sideways
   const FILL = 0.95; // how much of the screen the stack fills
+  const EXIT = 0.9; // the curl takes the sheet off the screen a bit sooner than its flat shape
 
   let scrollY = $state(0);
   let innerWidth = $state(1200);
@@ -24,15 +27,12 @@
   let introHeight = $state(0);
 
   let translations = $state(null);
-  let Graph = $state.raw(null); // only loaded with ?graph=true
   let open = $state(false); // the filters, on a phone
   let view = $state.raw(null); // the curated view that is on; it replaces the filters
 
   $effect(() => {
     loadArticles();
     loadReportTranslations().then((map) => (translations = map));
-    if (new URLSearchParams(location.search).get("graph") === "true")
-      import("./Graph.svelte").then((module) => (Graph = module.default));
   });
   const map = $derived($lang === "en" ? translations : null);
 
@@ -68,12 +68,13 @@
       0,
       Math.min(
         (scrollY - introHeight) / (innerHeight * STEP),
-        reports.length - 1,
+        reports.length + FLIGHT - 2,
       ),
     ),
   );
-  const top = $derived(Math.floor(progress));
-  const t = $derived(progress - top); // 0 = on the stack, 1 = blown away
+  const top = $derived(Math.min(Math.floor(progress), reports.length - 1));
+  const t = $derived(Math.min(1, progress - top)); // from one report to the next
+  const flown = (i) => (i < reports.length - 1 ? clamp((progress - i) / FLIGHT) : 0);
 
   // one sheet per report under the top one; the stack thins out as you scroll
   const layers = $derived(reports.length - top - 1);
@@ -121,29 +122,56 @@
   const clamp = (v) => Math.max(0, Math.min(1, v));
   const ease = (v) => v * v * (3 - 2 * v);
 
-  // each sheet sweeps out to the top left or top right, 50-70 degrees from straight up
+  // each sheet flies off somewhere across the top half, with a spin of its own
   const random = (n) => (Math.sin(n * 12.9898) * 43758.5453) % 1;
-  const angle = $derived.by(() => {
-    const r = Math.abs(random(top + 1));
-    const side = (r * 10) % 2 < 1 ? -1 : 1;
-    return side * (50 + r * 20);
-  });
+  const angleOf = (i) => Math.abs(random(i + 1)) * 170 - 85; // degrees from straight up
+  const spinOf = (i) => Math.abs(random(i + 1.5)) * 240 - 120; // degrees over a flight
 
-  // linear with the scroll: at t = 1 the sheet has just left the top of the screen
-  function fly(t) {
-    const a = (angle * Math.PI) / 180;
-    // distance from the centre until the whole sheet is past the top or a side
-    const up = (innerHeight + box.h * scale) / 2;
-    const side = (innerWidth + box.w * scale) / 2;
-    const out = Math.min(up / Math.cos(a), side / Math.abs(Math.sin(a)));
-    const d = t * out;
+  // the corners of the sheet on screen once it has spun, relative to the centre
+  const cornersOf = (i) => {
+    const spin = (spinOf(i) * Math.PI) / 180 + tiltZ;
+    return [
+      [-W / 2, 0],
+      [W / 2, 0],
+      [W / 2, H],
+      [-W / 2, H],
+    ].map(([x, y]) => [
+      (x * Math.cos(spin) - y * Math.sin(spin) - (H / 2) * -Math.sin(tiltZ)) * scale,
+      (x * Math.sin(spin) + y * Math.cos(spin) - (H / 2) * Math.cos(tiltZ)) *
+        Math.cos(tiltX) *
+        scale,
+    ]);
+  };
+
+  const clearOf = (corners, direction) => {
+    const edges = corners.map(([x, y], i) => {
+      const [nx, ny] = corners[(i + 1) % 4];
+      return [ny - y, x - nx];
+    });
+    const normals = [[1, 0], [0, 1], ...edges].flatMap(([x, y]) => {
+      const length = Math.hypot(x, y);
+      return [[x / length, y / length], [-x / length, -y / length]];
+    });
+    const distances = normals.map(([x, y]) => {
+      const towards = direction[0] * x + direction[1] * y;
+      if (towards <= 0.001) return Infinity;
+      const screen = (innerWidth / 2) * Math.abs(x) + (innerHeight / 2) * Math.abs(y);
+      return (screen + Math.max(...corners.map(([a, b]) => -a * x - b * y))) / towards;
+    });
+    return Math.min(...distances);
+  };
+
+  // linear with the scroll: at t = 1 the sheet has just left the screen
+  function fly(i, t) {
+    const a = (angleOf(i) * Math.PI) / 180;
+    const d = t * EXIT * clearOf(cornersOf(i), [Math.sin(a), -Math.cos(a)]);
     return `translate(${Math.sin(a) * d}px, ${-Math.cos(a) * d}px)`;
   }
 
   // on the sheet itself: lift, spin and flutter
-  function lift(t) {
+  function lift(i, t) {
     const z = t * 40;
-    return `translateZ(${z}px) rotateZ(${angle * t * 1.5}deg) rotateY(${Math.sin(t * 6) * 18 * t}deg)`;
+    return `translateZ(${z}px) rotateZ(${spinOf(i) * t}deg) rotateY(${Math.sin(t * 6) * 18 * t}deg)`;
   }
 
   // angle of each strip relative to the one above: the first one lifts the
@@ -181,6 +209,20 @@
     {#if i < STRIPS - 1}{@render strip(i + 1, sheet, t)}{/if}
   </div>
 {/snippet}
+
+<TimeBar
+  {all}
+  {reports}
+  time={date}
+  current={reports[top] ? date(reports[top]) : 0}
+  onpick={(i) => window.scrollTo(0, introHeight + i * innerHeight * STEP + 1)}
+/>
+
+{#if reports[top + 2]}
+  <div class="scout" style:width="{W}px" style:height="{H}px" aria-hidden="true">
+    <Sheet sheet={toSheet(reports[top + 2], q, map)} />
+  </div>
+{/if}
 
 <div class="langs">
   {#each availableLangs as l}
@@ -224,7 +266,9 @@
   </div>
 </div>
 
-<div style:height="{(reports.length - 1) * innerHeight * STEP + innerHeight}px">
+<div
+  style:height="{(reports.length + FLIGHT - 2) * innerHeight * STEP + innerHeight}px"
+>
   <div class="stage">
     {#if reports.length}
       <!-- the stack, rising one sheet per report so the next one ends up where the last one was -->
@@ -238,31 +282,28 @@
         {/each}
       </svg>
 
-      <!-- the top sheet flying away, and the next one already built underneath it,
-           so nothing has to be drawn from scratch when it starts moving -->
-      {#each [top + 1, top].filter((i) => reports[i]) as i (i)}
-        {@const flying = i === top}
+      <!-- the sheets still flying away, and the next one already built underneath
+           them, so nothing has to be drawn from scratch when it starts moving -->
+      {#each [top + 1, top, top - 1].filter((i) => reports[i] && flown(i) < 1) as i (i)}
+        {@const flying = i <= top}
+        {@const f = flown(i)}
         <div
           class="world"
           style:width="{W}px"
           style:height="{H}px"
           style:margin="{-H / 2}px 0 0 {-W / 2}px"
           style:transform={flying
-            ? `${fly(t)} ${world}`
+            ? `${fly(i, f)} ${world}`
             : `${world} translateZ(${(t - 1) * GAP}px)`}
         >
-          <div class="flying" style:transform={lift(flying ? t : 0)}>
-            {@render strip(0, toSheet(reports[i], q, map), flying ? t : 0)}
+          <div class="flying" style:transform={lift(i, f)}>
+            {@render strip(0, toSheet(reports[i], q, map), f)}
           </div>
         </div>
       {/each}
     {/if}
   </div>
 </div>
-
-{#if Graph}
-  <Graph {reports} current={reports[top]} />
-{/if}
 
 <style>
   :global(html body) {
@@ -277,7 +318,7 @@
     min-height: 20vh;
     max-width: 680px;
     margin: 0 auto;
-    padding: 40px;
+    padding: 60px 40px 40px;
     display: flex;
     flex-direction: column;
     /* gap: 20px; */
@@ -287,7 +328,7 @@
   /* no room beside the language buttons: start below them */
   @media (max-width: 900px) {
     .intro {
-      padding-top: 56px;
+      padding-top: 76px;
     }
   }
   .intro h1 {
@@ -305,9 +346,17 @@
     color: #555;
     font-size: 14px;
   }
+  .scout {
+    position: fixed;
+    top: 0;
+    left: 0;
+    container-type: size;
+    visibility: hidden;
+    pointer-events: none;
+  }
   .langs {
     position: fixed;
-    top: 16px;
+    top: 32px;
     left: 16px;
     z-index: 1;
     display: flex;
@@ -361,7 +410,7 @@
   @media (max-width: 700px) {
     .intro {
       position: static;
-      padding: 56px 16px 16px;
+      padding: 76px 16px 16px;
     }
     .intro p {
       font-size: 18px;
