@@ -5,6 +5,7 @@
     "categories  decide what goes into the dataset. Each term is a word stem looked up in ALL scraped reports",
     "            ('nazi' also matches 'nazis', 'naziparole'). A report matching any term of any category is kept.",
     "            Term order = which sentence is quoted on the timeline: the first term found wins, so put generic wording last.",
+    "            termsEn are the same words as they appear in the English translations; they only decide what is highlighted.",
     "            kind says what a category records: 'offence' = the law the police cite (kennzeichen also lists the",
     "            symbols themselves), 'motive' = the motive as the police word it.",
     "            color / colorEnd: each box on the timeline fades from color to colorEnd, reaching it at",
@@ -38,7 +39,8 @@
         "roten dreieck",
         "rote dreieck",
         "verfassungswidrig"
-      ]
+      ],
+      "termsEn": ["swastika", "hooked cross", "inverted cross", "crosses", "hooks", "hook mark", "pentagram", "hitler", "sieg heil", "hail victory", "nazi", "ss rune", "ss-rune", "hamas triangle", "red triangle", "red triangular", "unconstitutional", "anti-constitutional", "violate the constitution", "violates the constitution", "violated the constitution"]
     },
     {
       "id": "volksverhetzung",
@@ -49,7 +51,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes under §130 StGB: incitement to hatred.",
-      "terms": ["volksverhetz"]
+      "terms": ["volksverhetz"],
+      "termsEn": ["incit", "inflammatory", "incendiary", "hate speech", "hateful", "sedition", "seditious", "anti-people", "anti-populist", "anti-state", "anti-constitutional", "anti-immigrant", "xenophob", "antisem", "anti-sem", "racis"]
     },
     {
       "id": "antisemitismus",
@@ -60,7 +63,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes focussed on antisemitic incidents: graffiti, threats, physical attacks.",
-      "terms": ["antisem", "judenfeind"]
+      "terms": ["antisem", "judenfeind"],
+      "termsEn": ["antisem", "anti-sem", "anti-jewish"]
     },
     {
       "id": "rassismus",
@@ -71,7 +75,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes directed at a person's attributed or actual ethnic origin or skin colour.",
-      "terms": ["rassis"]
+      "terms": ["rassis"],
+      "termsEn": ["racis", "racial"]
     },
     {
       "id": "fremdenfeindlichkeit",
@@ -82,7 +87,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes recorded as xenophobic: the police umbrella term for hostility towards people perceived as foreign.",
-      "terms": ["fremdenfeind"]
+      "terms": ["fremdenfeind"],
+      "termsEn": ["xenophob", "anti-foreign", "anti-german", "foreigner-hat"]
     },
     {
       "id": "auslaenderfeindlichkeit",
@@ -93,7 +99,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes in which the prejudice refers to a nationality other than German.",
-      "terms": ["ausländerfeind"]
+      "terms": ["ausländerfeind"],
+      "termsEn": ["anti-foreign", "anti-immigrant", "xenophob"]
     },
     {
       "id": "islamfeindlichkeit",
@@ -104,7 +111,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes including incidents targeting Muslims and Muslim institutions.",
-      "terms": ["islamfeind"]
+      "terms": ["islamfeind"],
+      "termsEn": ["islamophob", "anti-islam", "anti-muslim"]
     },
     {
       "id": "queerfeindlichkeit",
@@ -115,7 +123,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes targeting LGBTQ+ people.",
-      "terms": ["homophob", "transphob", "transfeind", "queerfeind"]
+      "terms": ["homophob", "transphob", "transfeind", "queerfeind"],
+      "termsEn": ["homophob", "transphob", "queerphob", "queer-phob", "queer-hat", "trans-enemy", "anti-gay", "anti-lgbt", "anti-queer"]
     },
     {
       "id": "frauenfeindlichkeit",
@@ -126,7 +135,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes directed against women. It rarely appears in police reports and is therefore underrepresented.",
-      "terms": ["frauenfeind"]
+      "terms": ["frauenfeind"],
+      "termsEn": ["misogyn"]
     },
     {
       "id": "behindertenfeindlichkeit",
@@ -137,7 +147,8 @@
       "colorEnd": "#ffffff",
       "on": true,
       "desc": "Politically motivated crimes targeting people with disabilities.",
-      "terms": ["behindertenfeind"]
+      "terms": ["behindertenfeind"],
+      "termsEn": ["anti-disab", "ableis"]
     }
   ],
   "commentary": [

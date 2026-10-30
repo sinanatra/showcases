@@ -8,8 +8,7 @@
     filteredData,
     parseDateLoose,
   } from "$lib/stores";
-  import KeywordFilter from "$lib/components/KeywordFilter.svelte";
-  import TextSearch from "$lib/components/TextSearch.svelte";
+  import Query from "$lib/components/Query.svelte";
   import { t, lang } from "$lib/i18n";
 
   let { floating = true } = $props();
@@ -178,8 +177,7 @@
         {$t("controls_filter")}
       </span>
     </p>
-    <KeywordFilter showLabel={false} />
-    <TextSearch showLabel={false} />
+    <Query labels={false} />
 
     <label class="inline-checkbox">
       <input
@@ -194,6 +192,9 @@
 
 <style>
   .controls {
+    --query-bg: black;
+    --query-fg: white;
+    --query-direction: column;
     font-family: Arial, Helvetica, sans-serif;
     text-align: left;
     color: white;
@@ -245,20 +246,6 @@
     color: var(--color-2);
   }
 
-
-  /* the shared filter components, in this panel's black-on-white-border look */
-  .controls :global(select),
-  .controls :global(input[type="search"]) {
-    display: block;
-    width: auto;
-    min-width: 120px;
-    margin: 0 0 5px;
-    padding: 2px;
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: black;
-    color: white;
-    border: 1px solid;
-  }
 
   label {
     font-family: Arial, Helvetica, sans-serif;

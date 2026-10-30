@@ -52,9 +52,14 @@ const dict = {
     "filters.region": "State:",
     "filters.district": "County/District:",
     "filters.keyword": "Keyword:",
+    "filters.year": "Year:",
     "filters.search": "Search:",
     "filters.searchPlaceholder": "type to filter…",
     "filters.all": "All",
+
+    "reports.title": "",
+    "reports.intro": "{n} reports on politically motivated crime, published by the police in Berlin and Brandenburg since {year}. Each sheet in this pile is one report, sorted by date.",
+    "reports.how": " Scroll down to explore.",
 
     "cat.region": "Region",
   },
@@ -87,9 +92,14 @@ const dict = {
     "filters.region": "Bundesland:",
     "filters.district": "Landkreis/Bezirk:",
     "filters.keyword": "Schlagwort:",
+    "filters.year": "Jahr:",
     "filters.search": "Suche:",
     "filters.searchPlaceholder": "zum Filtern tippen…",
     "filters.all": "Alle",
+
+    "reports.title": "",
+    "reports.intro": "{n} Meldungen zu politisch motivierter Kriminalität, veröffentlicht von der Polizei in Berlin und Brandenburg seit {year}. Jedes Blatt in diesem Stapel ist eine Meldung, sortiert nach Datum.",
+    "reports.how": " Scrollen Sie nach unten, um zu erkunden.",
 
     "cat.region": "Region",
 

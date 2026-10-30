@@ -1,5 +1,6 @@
 // Everything here is derived from /categories.json — edit categories there.
 import data from "../../../categories.json" with { type: "json" };
+import { escapeRe } from "../utils/textUtils.js";
 
 // "categories" define the dataset (their terms are searched in every scraped
 // report); "commentary" entries are searched only within the dataset.
@@ -39,16 +40,18 @@ export const KEYWORD_LABELS = Object.fromEntries(
   datasetCategories.map((c) => [c.id, { en: c.label, de: c.labelDe ?? c.label }]),
 );
 
-export function getKeywordVariants(canon) {
+/** Every term of a category; `english` adds how they appear in the translations. */
+export function getKeywordVariants(canon, english = false) {
   if (!canon) return [];
   const variants = Object.entries(keywordsGroup)
     .filter(([, mapped]) => mapped === canon)
     .map(([variant]) => variant);
-  return Array.from(new Set([...variants, canon]));
+  const translated = english
+    ? (datasetCategories.find((c) => c.id === canon)?.termsEn ?? [])
+    : [];
+  return Array.from(new Set([...variants, canon, ...translated]));
 }
 
-const escapeRe = (/** @type {string} */ s) =>
-  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const NOT_IN_WORD_BEFORE = "(?<![\\p{L}\\p{N}_])";
 
 function stemRegex(/** @type {string[]} */ stems) {

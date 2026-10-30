@@ -34,8 +34,9 @@ const filterDefaults = {
   region: "",       // "Berlin" | "Brandenburg"
   district: "",
   keyword: "",      // a category id from categories.json
+  year: "",
   text: "",         // free text; "a,b" = either, "a+b" = both
-  textLang: "",     // "en" = `text` is English and is matched against the translations
+  textLang: "",     // "en" = match the translations, "both" = match the German text or the translations
   showOnlyLatest: false,
 };
 
@@ -83,13 +84,20 @@ function buildTextPredicate(query, textLang = "") {
   if (!orGroups.length) return () => true;
 
   return (item) => {
-    const hay = textLang === "en" ? englishText(item) : String(item?.Text || "").toLowerCase();
+    const german = String(item?.Text || "").toLowerCase();
+    const hay = textLang === "en"
+      ? englishText(item)
+      : textLang === "both"
+        ? `${String(item?.Title || "").toLowerCase()} ${german} ${englishText(item)}`
+        : german;
     return orGroups.some((andTerms) => andTerms.every((term) => hay.includes(term)));
   };
 }
 
+const yearOf = (a) => String(parseDateLoose(a.Date)?.getFullYear() ?? "");
+
 export function applyFilters(list, f) {
-  const { region, district, keyword, text, textLang, showOnlyLatest } = { ...filterDefaults, ...f };
+  const { region, district, keyword, year, text, textLang, showOnlyLatest } = { ...filterDefaults, ...f };
   let out = Array.isArray(list) ? list : [];
 
   if (region) out = out.filter((a) => detectRegion(a) === region);
@@ -106,6 +114,8 @@ export function applyFilters(list, f) {
         a.KeywordMatch.some((k) => variants.includes(String(k).toLowerCase()))
     );
   }
+
+  if (year) out = out.filter((a) => yearOf(a) === year);
 
   if (text) out = out.filter(buildTextPredicate(text, textLang));
 
@@ -141,6 +151,10 @@ export const record = writable(false);
 // ── options for the filter dropdowns ──────────────────────────
 export const availableRegions = derived(articles, ($articles) =>
   Array.from(new Set(($articles ?? []).map(detectRegion).filter(Boolean))).sort()
+);
+
+export const availableYears = derived(articles, ($articles) =>
+  Array.from(new Set(($articles ?? []).map(yearOf).filter(Boolean))).sort().reverse()
 );
 
 export const availableDistricts = derived([articles, filters], ([$articles, $filters]) => {

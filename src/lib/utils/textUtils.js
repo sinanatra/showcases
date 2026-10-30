@@ -1,3 +1,6 @@
+export const escapeRe = (/** @type {string} */ s) =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export function shorten(text, maxLen = 300) {
   if (!text) return "";
   if (text.length <= maxLen) return text;

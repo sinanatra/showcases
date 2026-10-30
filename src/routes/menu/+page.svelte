@@ -9,6 +9,7 @@
   <a data-sveltekit-reload href="/timeline-compact">Timeline Streams</a>
   <br /><br />
   <a data-sveltekit-reload href="/stories">Stories</a> <br /><br />
+  <a data-sveltekit-reload href="/reports">Reports</a> <br /><br />
 </section>
 
 <style>
