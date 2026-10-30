@@ -9,7 +9,7 @@
   import { t } from "$lib/i18n";
   import TextSearch from "$lib/components/TextSearch.svelte";
 
-  let { fields = ["keyword", "search"], labels = true, textLang } = $props();
+  let { fields = ["keyword", "search"], labels = true, textLang = null } = $props();
 
   const options = $derived({
     region: $availableRegions,

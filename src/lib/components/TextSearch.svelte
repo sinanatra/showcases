@@ -8,7 +8,7 @@
   import { lang, t } from "$lib/i18n";
   import { loadReportTranslations, englishText } from "$lib/utils/reportTranslations";
 
-  let { textLang } = $props();
+  let { textLang = null } = $props();
 
   const MAX_SUGGESTIONS = 12;
 
