@@ -1,7 +1,4 @@
 <script>
-  // The filter bar of the site, reading and writing the shared `filters` store.
-  // <Query fields={["keyword", "year", "search"]} /> shows those fields in that order.
-  // Colours and direction come from --query-bg, --query-fg, --query-direction.
   import {
     filters,
     availableRegions,
@@ -35,7 +32,7 @@
 <div class="query">
   {#each fields as field}
     <label>
-      {#if labels}<span>{$t(`filters.${field}`)}</span>{/if}
+      {#if labels}<span class:search={field === "search"}>{$t(`filters.${field}`)}</span>{/if}
       {#if field === "search"}
         <TextSearch {textLang} />
       {:else}
@@ -65,8 +62,12 @@
   }
   label {
     display: flex;
+    flex: var(--query-field, 0 1 auto);
     flex-direction: column;
     gap: 5px;
+  }
+  .search {
+    display: var(--query-search-label, inline);
   }
   .query,
   .query :global(*) {
@@ -75,7 +76,7 @@
   select,
   .query :global(input) {
     box-sizing: border-box;
-    width: 200px;
+    width: var(--query-width, 200px);
     height: 36px;
     margin: 0;
     padding: 5px 10px;

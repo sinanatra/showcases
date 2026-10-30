@@ -320,6 +320,28 @@
     opacity: 0;
     pointer-events: none;
   }
+  /* on a phone: a compact bar, and the pile centred in the space above it */
+  @media (max-width: 700px) {
+    .intro {
+      position: static;
+      padding: 56px 16px 16px;
+    }
+    .intro p {
+      font-size: 18px;
+    }
+    .filters {
+      --query-search-label: none;
+      --query-field: 1 1 40%;
+      --query-width: 100%;
+      align-items: stretch;
+      gap: 6px;
+      padding: 40px 12px 12px;
+      background: linear-gradient(to top, #fff calc(100% - 40px), transparent);
+    }
+    .stage {
+      --centre: calc(50% - 80px);
+    }
+  }
   .langs button {
     padding: 5px 10px;
     font-family: Arial, Helvetica, sans-serif;
@@ -348,7 +370,7 @@
   .world {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: var(--centre, 50%);
   }
   .flying,
   .face {
@@ -396,7 +418,7 @@
   .stack {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: var(--centre, 50%);
     width: 1px;
     height: 1px;
     overflow: visible;
