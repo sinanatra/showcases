@@ -105,7 +105,7 @@
   input::-webkit-slider-thumb {
     appearance: none;
     width: 4px;
-    height: 19px;
+    height: 29px;
     background: #f00;
     border: 0;
     border-radius: 0;
