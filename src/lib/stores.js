@@ -135,15 +135,15 @@ export const isMobile = readable(false, (set) => {
 });
 
 /** How many reports the drawing shows at once. */
-const recentCount = derived(isMobile, ($isMobile) => ($isMobile ? 50 : 450));
+const recentCount = 450;
 
-export const recent = derived([articles, recentCount], ([$articles, n]) => newest($articles, n));
+export const recent = derived(articles, ($articles) => newest($articles, recentCount));
 
 // Filter first, then take the newest: a small category (or a rare search term)
 // whose reports are all older than the newest few hundred would otherwise show nothing.
 export const filteredData = derived(
-  [articles, filters, recentCount],
-  ([$articles, $filters, n]) => newest(applyFilters($articles, $filters), n)
+  [articles, filters],
+  ([$articles, $filters]) => newest(applyFilters($articles, $filters), recentCount)
 );
 
 /** Set while the drawing is being recorded to video. */

@@ -55,6 +55,14 @@
     color: white;
   }
 
+  @media (max-width: 800px) {
+    .tooltip {
+      left: 10px !important;
+      right: 10px;
+      max-width: none;
+    }
+  }
+
   :global(.highlight) {
     color: white;
     font-weight: 700;

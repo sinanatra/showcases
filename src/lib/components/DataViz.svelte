@@ -1,5 +1,4 @@
 <script>
-  import P5 from "p5-svelte";
   import KeywordTooltip from "$lib/components/KeywordTooltip.svelte";
   import {
     filters,
@@ -9,10 +8,10 @@
     parseDateLoose,
     getKeywordVariants,
     applyFilters,
-    record,
     isMobile,
   } from "$lib/stores";
   import { createSketch } from "$lib/components/dataViz/sketch";
+  import { mountSketch } from "$lib/components/dataViz/mountSketch";
   import { lang } from "$lib/i18n";
   import { shorten, shortenAroundKeyword } from "$lib/utils/textUtils";
   import { splitSentences } from "$lib/utils/sentences";
@@ -223,14 +222,6 @@
     tooltipY = $state(0),
     hoveredHitbox = $state(null);
 
-  let isMobileValue = $state(false);
-  $effect(() => {
-    const unsubscribeIsMobile = isMobile.subscribe(
-      (value) => (isMobileValue = !!value)
-    );
-    return unsubscribeIsMobile;
-  });
-
   function setTooltip(text, url, x, y, keywords = [], date = "", title = "") {
     hoveredText = text || "";
     hoveredUrl = url || "";
@@ -330,8 +321,7 @@
     startPan,
     disableScrollZoom,
     activeHighlightTerms,
-    recordStore: record,
-    isMobile: isMobileValue,
+    isMobile: $isMobile,
     setTooltip,
     setHoveredHitbox,
     clearTooltip,
@@ -358,7 +348,7 @@
 <div class="viz-container">
   {#if vizData.length}
     {#key `${dataSig}|${growthMode}|${english ? "en" : "de"}`}
-      {#if vizReady}<P5 {sketch} />{/if}
+      {#if vizReady}<div use:mountSketch={sketch}></div>{/if}
     {/key}
   {:else}
     <div class="empty-state">...</div>
@@ -407,9 +397,6 @@
     pointer-events: auto;
     z-index: 1;
     cursor: cell;
-  }
-  :global(canvas:not(#defaultCanvas0)) {
-    display: none !important;
   }
   .outside-overlay {
     position: fixed;

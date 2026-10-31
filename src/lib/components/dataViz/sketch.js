@@ -11,7 +11,6 @@ export function createSketch({
   startPan = { x: 0, y: 0 },
   disableScrollZoom = false,
   activeHighlightTerms,
-  recordStore,
   isMobile,
   setTooltip,
   setHoveredHitbox,
@@ -27,17 +26,17 @@ export function createSketch({
     const params = () => growthParams[growthMode] || growthParams.fungal;
     const scale = 0.75;
     const segmentLength = 10 * scale;
-    const widthBucket = 100 * scale;
     const ltrSpacing = 10 * scale;
-    const charCache = new Map();
-    const maxCache = 5000;
+    const glyphCell = 16;
     const keywordColors = {};
     let branches = [];
     const clampPanValue = (val) =>
       typeof val === "number" && Number.isFinite(val) ? val : 0;
+    // Narrow screens start further out, to show as much of the drawing as wide ones.
+    const widthFit = noZoom ? 1 : Math.min(1, window.innerWidth / 720);
     let initialPan = {
-      x: clampPanValue(startPan?.x),
-      y: clampPanValue(startPan?.y),
+      x: clampPanValue(startPan?.x) / widthFit,
+      y: clampPanValue(startPan?.y) / widthFit,
     };
     let pan = { ...initialPan };
     let targetPan = { ...initialPan };
@@ -49,19 +48,28 @@ export function createSketch({
     let simFrame = 0;
     let bufferCenter = { x: 0, y: 0 };
     let bufferBounds = { left: 0, right: 0, top: 0, bottom: 0 };
-    let worldBuffer;
+    let worldCanvas;
+    let worldCtx;
+    let worldDensity = 1;
+    let glyphs = new Map();
+    let glyphSheet;
     let globalBuckets = new Map();
+    let pendingNodes = [];
     let letterHitboxes = [];
     let firstDraw = true;
-    const repulsionRadius = (isMobile ? 9 : 12) * scale;
+    let needsPaint = true;
+    const repulsionRadius = 12 * scale;
+    const glyphSize = Math.round(repulsionRadius / 1.2);
+    const tileHeight = glyphSize + 4;
+    const bucketSize = repulsionRadius;
     const bucketRebuildStride = 3;
     const branchUpdateStride = 2;
     const startMargin = Math.max(0, startGap) * scale;
-    let isRecording = false;
-    const unsub = recordStore.subscribe((v) => (isRecording = v));
     const zoomMin = 0.25;
     const zoomMax = 1.5;
     let initialZoomValue = 1;
+
+    let defaultColor;
 
     function actionForItem(item) {
       const actions = parseList(item?.ExtractedAction);
@@ -71,7 +79,7 @@ export function createSketch({
 
     initialZoomValue = noZoom
       ? 1
-      : p.constrain(startZoom ?? 0.5, zoomMin, zoomMax);
+      : p.constrain((startZoom ?? 0.5) * widthFit, zoomMin, zoomMax);
     zoom = initialZoomValue;
     targetZoom = initialZoomValue;
 
@@ -96,33 +104,67 @@ export function createSketch({
       resetView,
     });
 
-    function getCachedLetter(colorKey, letter, textSize) {
-      const key = `${colorKey}_${letter}_${Math.round(textSize)}`;
-      if (charCache.has(key)) {
-        const val = charCache.get(key);
-        charCache.delete(key);
-        charCache.set(key, val);
-        return val;
-      }
-      const ts = Math.max(8, Math.min(28, Math.round(textSize)));
-      const pg = p.createGraphics(40 * scale, 40 * scale);
-      pg.colorMode(p.HSB);
-      pg.textFont("courier");
-      pg.textAlign(p.CENTER, p.CENTER);
-      pg.textSize(ts);
-      const w = Math.max(pg.textWidth(letter), 4);
-      pg.noStroke();
-      pg.fill(keywordColors[colorKey] || p.color(0, 0, 75));
-      pg.rectMode(p.CENTER);
-      pg.rect(pg.width / 2, pg.height / 2, w + 4, ts + 4);
-      pg.fill(0, 0, 0);
-      pg.text(letter, pg.width / 2, pg.height / 2);
-      charCache.set(key, pg);
-      if (charCache.size > maxCache) {
-        const oldestKey = charCache.keys().next().value;
-        charCache.delete(oldestKey);
-      }
-      return pg;
+    // All letters live on one sheet, whatever their colour: the tile behind a
+    // letter is a plain rectangle, so a colour needs no canvas of its own.
+    function buildGlyphs(sentences) {
+      const letters = [...new Set(sentences.join("").split(""))];
+      const cols = Math.ceil(Math.sqrt(letters.length));
+      glyphSheet = document.createElement("canvas");
+      glyphSheet.width = glyphSheet.height = Math.ceil(cols * glyphCell * worldDensity);
+      const ctx = glyphSheet.getContext("2d");
+      ctx.scale(worldDensity, worldDensity);
+      ctx.font = `${glyphSize}px courier`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#000";
+      glyphs = new Map();
+      letters.forEach((letter, i) => {
+        const x = (i % cols) * glyphCell;
+        const y = Math.floor(i / cols) * glyphCell;
+        ctx.fillText(letter, x + glyphCell / 2, y + glyphCell / 2);
+        glyphs.set(letter, {
+          sx: x * worldDensity,
+          sy: y * worldDensity,
+          tileWidth: Math.max(ctx.measureText(letter).width, 4) + 4,
+        });
+      });
+    }
+
+    function drawLetter(letter, colorKey, x, y, angle) {
+      const glyph = glyphs.get(letter);
+      const cos = Math.cos(angle) * worldDensity;
+      const sin = Math.sin(angle) * worldDensity;
+      const sourceSize = glyphCell * worldDensity;
+      worldCtx.setTransform(cos, sin, -sin, cos, x * worldDensity, y * worldDensity);
+      worldCtx.fillStyle = keywordColors[colorKey] || defaultColor;
+      worldCtx.fillRect(
+        -glyph.tileWidth / 2,
+        -segmentLength - tileHeight / 2,
+        glyph.tileWidth,
+        tileHeight
+      );
+      worldCtx.drawImage(
+        glyphSheet,
+        glyph.sx,
+        glyph.sy,
+        sourceSize,
+        sourceSize,
+        -glyphCell / 2,
+        -segmentLength - glyphCell / 2,
+        glyphCell,
+        glyphCell
+      );
+    }
+
+    function bucketOf(x, y) {
+      return Math.floor(x / bucketSize) * 100000 + Math.floor(y / bucketSize);
+    }
+
+    function addToBuckets(node) {
+      const key = bucketOf(node.x, node.y);
+      const bucket = globalBuckets.get(key);
+      if (bucket) bucket.push(node);
+      else globalBuckets.set(key, [node]);
     }
 
     function growBranch(br, tip) {
@@ -142,7 +184,6 @@ export function createSketch({
     function setupBranches(data, w, h) {
       const cx = w / 2;
       const cy = h / 2;
-      charCache.clear();
       const allColorKeys = Array.from(
         new Set(
           data
@@ -151,11 +192,9 @@ export function createSketch({
         )
       );
       allColorKeys.forEach((key, i) => {
-        keywordColors[key] = p.color(
-          0,
-          0,
-          55 + (i * 120) / Math.max(allColorKeys.length - 1, 1)
-        );
+        keywordColors[key] = p
+          .color(0, 0, 55 + (i * 120) / Math.max(allColorKeys.length - 1, 1))
+          .toString();
       });
       const result = [];
       if (!data.length) return result;
@@ -246,29 +285,34 @@ export function createSketch({
     }
 
     p.setup = () => {
+      p.pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
       p.createCanvas(window.innerWidth, window.innerHeight);
       p.colorMode(p.HSB);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(9 * scale);
       p.frameRate(30);
+      defaultColor = p.color(0, 0, 75).toString();
       if (!data || !data.length) {
-        worldBuffer = null;
         letterHitboxes = [];
         return;
       }
       const base = Math.max(window.innerWidth, window.innerHeight);
-      const maxBuffer = isMobile ? 2048 : 4200;
-      const size = Math.min(maxBuffer, Math.floor(base * 2.1));
+      // Room for the longest reports whatever the screen. Phones differ only in
+      // the buffer's resolution: iOS leaves a canvas above 4096² blank.
+      const size = Math.min(4200, Math.max(2100, Math.floor(base * 2.1)));
+      const maxSide = isMobile ? 4096 : 8400;
+      worldDensity = Math.min(window.devicePixelRatio || 1, maxSide / size);
 
       bufferCenter = { x: size / 2, y: size / 2 };
       bufferBounds = { left: 0, right: size, top: 0, bottom: size };
-      worldBuffer = p.createGraphics(size, size);
-      worldBuffer.colorMode(p.HSB);
-      worldBuffer.textAlign(p.CENTER, p.CENTER);
-      worldBuffer.textFont("courier");
-      worldBuffer.textSize(13 * scale);
-      worldBuffer.background(0);
+      worldCanvas = document.createElement("canvas");
+      worldCanvas.width = worldCanvas.height = Math.floor(size * worldDensity);
+      worldCtx = worldCanvas.getContext("2d");
+      worldCtx.fillStyle = "#000";
+      worldCtx.fillRect(0, 0, worldCanvas.width, worldCanvas.height);
       branches = setupBranches(data, size, size);
+      buildGlyphs(branches.map((br) => br.sentence));
+      branches.forEach((br) => br.nodes.forEach(addToBuckets));
       pan = { ...initialPan };
       targetPan = { ...initialPan };
       simFrame = 0;
@@ -282,6 +326,14 @@ export function createSketch({
         return;
       }
 
+      const growing = branches.some((br) => !br.finished);
+      const moving =
+        Math.abs(targetPan.x - pan.x) > 0.01 ||
+        Math.abs(targetPan.y - pan.y) > 0.01 ||
+        Math.abs(targetZoom - zoom) > 0.0005;
+      if (!growing && !moving && !needsPaint) return;
+      needsPaint = false;
+
       const panEase = 0.15;
       pan.x += (targetPan.x - pan.x) * panEase;
       pan.y += (targetPan.y - pan.y) * panEase;
@@ -289,19 +341,8 @@ export function createSketch({
       zoom += (targetZoom - zoom) * zoomEase;
 
       if (simFrame % bucketRebuildStride === 0) {
-        globalBuckets.clear();
-        branches.forEach((br) => {
-          for (let i = 0; i < br.nodes.length; i++) {
-            const n = br.nodes[i];
-            const bx = Math.floor(n.x / widthBucket);
-            const by = Math.floor(n.y / widthBucket);
-            const key = `${bx},${by}`;
-            if (!globalBuckets.has(key)) {
-              globalBuckets.set(key, []);
-            }
-            globalBuckets.get(key).push(n);
-          }
-        });
+        pendingNodes.forEach(addToBuckets);
+        pendingNodes = [];
       }
       branches.forEach((br, i) => {
         if (
@@ -314,19 +355,20 @@ export function createSketch({
         const tip = br.nodes[br.nodes.length - 1];
         if (!tip) return;
         let dir = growBranch(br, tip);
-        const bx = Math.floor(tip.x / widthBucket);
-        const by = Math.floor(tip.y / widthBucket);
+        const tipBucket = bucketOf(tip.x, tip.y);
         for (let dx = -1; dx <= 1; dx++) {
           for (let dy = -1; dy <= 1; dy++) {
-            const arr = globalBuckets.get(`${bx + dx},${by + dy}`) || [];
+            const arr = globalBuckets.get(tipBucket + dx * 100000 + dy);
+            if (!arr) continue;
             for (let j = 0; j < arr.length; j++) {
               const n2 = arr[j];
               const dx2 = tip.x - n2.x;
               const dy2 = tip.y - n2.y;
               const d = Math.hypot(dx2, dy2);
               if (d > 0 && d < repulsionRadius) {
-                const inv = 1 / d;
-                dir.add(p.createVector(dx2 * inv, dy2 * inv).mult(0.6 * scale));
+                const push = (0.6 * scale) / d;
+                dir.x += dx2 * push;
+                dir.y += dy2 * push;
               }
             }
           }
@@ -344,6 +386,7 @@ export function createSketch({
           bufferBounds.bottom - 10 * scale
         );
         br.nodes.push(next);
+        pendingNodes.push(next);
         br.grown++;
         const segLen = tip.dist(next);
         br.pathLength += segLen;
@@ -366,23 +409,12 @@ export function createSketch({
             const px = p.lerp(v0.x, v1.x, tnorm);
             const py = p.lerp(v0.y, v1.y, tnorm);
             const ang = p.atan2(v1.y - v0.y, v1.x - v0.x);
-            const letter = br.sentence[ci];
-            const textSize = repulsionRadius / 1.2;
-            const colorKey = br.action || br.kw || "";
-            const cached = getCachedLetter(colorKey, letter, textSize);
-            if (cached) {
-              worldBuffer.push();
-              worldBuffer.translate(px, py);
-              worldBuffer.rotate(ang);
-              worldBuffer.imageMode(p.CENTER);
-              worldBuffer.image(cached, 0, -segmentLength);
-              worldBuffer.pop();
-            }
+            drawLetter(br.sentence[ci], br.action || br.kw || "", px, py, ang);
             if (ci % 3 === 0) {
               letterHitboxes.push({
                 worldX: px,
                 worldY: py,
-                radius: textSize * 2,
+                radius: (repulsionRadius / 1.2) * 2,
                 url: br.url || "",
                 text: br.sentence,
                 keywords: br.terms?.length ? br.terms : [br.kw],
@@ -404,7 +436,13 @@ export function createSketch({
       p.translate(p.width / 2, p.height / 2);
       p.scale(zoom);
       p.translate(pan.x, pan.y);
-      p.image(worldBuffer, -bufferCenter.x, -bufferCenter.y);
+      p.drawingContext.drawImage(
+        worldCanvas,
+        -bufferCenter.x,
+        -bufferCenter.y,
+        bufferBounds.right,
+        bufferBounds.bottom
+      );
       p.pop();
       if (firstDraw && letterHitboxes.length > 0) {
         firstDraw = false;
@@ -412,19 +450,19 @@ export function createSketch({
           if (typeof p.mouseMoved === "function") p.mouseMoved();
         }, 0);
       }
-      if (isRecording && isMobile) {
-        isRecording = false;
-      }
     };
 
-    p.remove = () => {
-      unsub();
-    };
+    // Release the buffers now: phones run out of canvas memory before the garbage collector comes.
+    p.registerMethod("remove", () => {
+      if (worldCanvas) worldCanvas.width = 0;
+      if (glyphSheet) glyphSheet.width = 0;
+    });
 
     p.mousePressed = () => {
       dragging = true;
       lastX = p.mouseX;
       lastY = p.mouseY;
+      p.mouseMoved(); // a tap has no hover before it
       if (getHoveredHitbox()?.url) {
         pinTooltip();
       }
@@ -452,6 +490,7 @@ export function createSketch({
     };
 
     p.windowResized = () => {
+      needsPaint = true;
       p.resizeCanvas(window.innerWidth, window.innerHeight);
     };
 
