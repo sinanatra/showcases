@@ -214,6 +214,7 @@
     align-items: center;
     border-radius: 10px;
     position: relative;
+    box-sizing: border-box;
     width: 100%;
     max-width: 1400px;
     z-index: 1;
