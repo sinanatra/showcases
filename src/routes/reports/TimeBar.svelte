@@ -53,7 +53,7 @@
     left: 0;
     right: 0;
     z-index: 2;
-    height: 20px;
+    height: 30px;
     box-sizing: border-box;
     background: #fff;
     border-bottom: 1px solid #000;
@@ -67,7 +67,7 @@
   path {
     fill: none;
     stroke: #000;
-    stroke-width: 1px;
+    stroke-width: 0.5px;
     vector-effect: non-scaling-stroke;
   }
   .others {

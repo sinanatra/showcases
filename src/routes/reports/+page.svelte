@@ -139,14 +139,15 @@
   .langs {
     position: fixed;
     top: 32px;
-    left: 16px;
+    right: 2px;
     z-index: 1;
     display: flex;
     gap: 4px;
   }
+
   .langs button,
   .toggle {
-    padding: 5px 10px;
+    padding: 5px;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 16px;
     background: #fff;
