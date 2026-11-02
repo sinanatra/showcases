@@ -25,7 +25,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Use of symbols of unconstitutional and terrorist organisations (§86a StGB): swastikas, Hitler salutes, SS runes, the red Hamas triangle. The largest category in the dataset.",
       "terms": [
         "hakenkreuz",
         "hitlergruß",
@@ -50,7 +49,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes under §130 StGB: incitement to hatred.",
       "terms": ["volksverhetz"],
       "termsEn": ["incit", "inflammatory", "incendiary", "hate speech", "hateful", "sedition", "seditious", "anti-people", "anti-populist", "anti-state", "anti-constitutional", "anti-immigrant", "xenophob", "antisem", "anti-sem", "racis"]
     },
@@ -62,7 +60,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes focussed on antisemitic incidents: graffiti, threats, physical attacks.",
       "terms": ["antisem", "judenfeind"],
       "termsEn": ["antisem", "anti-sem", "anti-jewish"]
     },
@@ -74,7 +71,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes directed at a person's attributed or actual ethnic origin or skin colour.",
       "terms": ["rassis"],
       "termsEn": ["racis", "racial"]
     },
@@ -86,7 +82,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes recorded as xenophobic: the police umbrella term for hostility towards people perceived as foreign.",
       "terms": ["fremdenfeind"],
       "termsEn": ["xenophob", "anti-foreign", "anti-german", "foreigner-hat"]
     },
@@ -98,7 +93,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes in which the prejudice refers to a nationality other than German.",
       "terms": ["ausländerfeind"],
       "termsEn": ["anti-foreign", "anti-immigrant", "xenophob"]
     },
@@ -110,7 +104,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes including incidents targeting Muslims and Muslim institutions.",
       "terms": ["islamfeind"],
       "termsEn": ["islamophob", "anti-islam", "anti-muslim"]
     },
@@ -122,7 +115,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes targeting LGBTQ+ people.",
       "terms": ["homophob", "transphob", "transfeind", "queerfeind"],
       "termsEn": ["homophob", "transphob", "queerphob", "queer-phob", "queer-hat", "trans-enemy", "anti-gay", "anti-lgbt", "anti-queer"]
     },
@@ -134,7 +126,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes directed against women. It rarely appears in police reports and is therefore underrepresented.",
       "terms": ["frauenfeind"],
       "termsEn": ["misogyn"]
     },
@@ -146,7 +137,6 @@
       "color": "#DCDCDC",
       "colorEnd": "#ffffff",
       "on": true,
-      "desc": "Politically motivated crimes targeting people with disabilities.",
       "terms": ["behindertenfeind"],
       "termsEn": ["anti-disab", "ableis"]
     }
@@ -159,7 +149,6 @@
       "color": "#ffe600",
       "colorEnd": "#ffffff",
       "on": false,
-      "desc": "Police reports mentioning Palestine or Gaza are often classified as anti-Semitic crimes, censoring political protest as a hate crime.",
       "terms": [
         "palästina",
         "palestine",
@@ -203,7 +192,6 @@
       "color": "#ffe600",
       "colorEnd": "#ffffff",
       "on": false,
-      "desc": "Reports that mention a headscarf. The police rarely name Islamophobia as a motive, so these cases mostly appear under racism or xenophobia.",
       "terms": ["kopftuch", "hidschab", "hijab", "Kopftü"]
     },
     {
@@ -213,7 +201,6 @@
       "color": "#ffe600",
       "colorEnd": "#ffffff",
       "on": false,
-      "desc": "Reports in which the state security division of the State Criminal Police Office takes over the investigation, i.e. the police themselves treat the case as politically motivated.",
       "terms": ["staatsschutz"]
     },
     {
@@ -223,7 +210,6 @@
       "color": "#ffe600",
       "colorEnd": "#ffffff",
       "on": false,
-      "desc": "Reports published by the Berlin police.",
       "region": "Berlin"
     },
     {
@@ -233,7 +219,6 @@
       "color": "#ffe600",
       "colorEnd": "#ffffff",
       "on": false,
-      "desc": "Reports published by the Brandenburg police.",
       "region": "Brandenburg"
     }
   ]
