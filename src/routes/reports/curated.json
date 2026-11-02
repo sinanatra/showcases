@@ -7,15 +7,7 @@
     "text": "Only {n} of {total} reports name misogyny. The low number says less about how often it happens than about how rarely the police describe a crime this way.",
     "textDe": "Nur {n} von {total} Meldungen nennen Frauenfeindlichkeit. Die niedrige Zahl sagt weniger darüber aus, wie oft sie vorkommt, als darüber, wie selten die Polizei eine Tat so beschreibt."
   },
-  {
-    "id": "palestine",
-    "label": "Palestine",
-    "labelDe": "Palästina",
-    "filters": { "text": "paläst,palest,gaza" },
-    "highlightEn": "palestin,gaza",
-    "text": "{n} reports mention Palestine or Gaza, almost all of them since 7 October 2023 and most of them at demonstrations. Many are classified as antisemitic or as incitement to hatred, so this view shows how the police read these events, not a neutral record of them.",
-    "textDe": "{n} Meldungen erwähnen Palästina oder Gaza, fast alle seit dem 7. Oktober 2023 und die meisten bei Demonstrationen. Viele werden als antisemitisch oder als Volksverhetzung eingeordnet. Diese Ansicht zeigt also, wie die Polizei diese Ereignisse liest, nicht eine neutrale Aufzeichnung."
-  },
+
   {
     "id": "alcohol",
     "label": "Alcohol",
@@ -53,6 +45,24 @@
     "highlightEn": "teenag,youth,minors,juvenile,child,student,pupil,adolescent,schoolboy,schoolgirl,young,kinder,12-year,13-year,14-year,15-year,16-year,17-year",
     "text": "{n} reports mention children or teenagers, as perpetrators or as victims.",
     "textDe": "{n} Meldungen erwähnen Kinder oder Jugendliche, als Täter oder als Betroffene."
+  },
+  {
+    "id": "palestine",
+    "label": "Palestine",
+    "labelDe": "Palästina",
+    "filters": { "text": "paläst,palest,gaza" },
+    "highlightEn": "palestin,gaza",
+    "text": "{n} reports mention Palestine or Gaza, almost all of them since 7 October 2023 and most of them at demonstrations. Many are classified as antisemitic or as incitement to hatred, so this view shows how the police read these events, not a neutral record of them.",
+    "textDe": "{n} Meldungen erwähnen Palästina oder Gaza, fast alle seit dem 7. Oktober 2023 und die meisten bei Demonstrationen. Viele werden als antisemitisch oder als Volksverhetzung eingeordnet. Diese Ansicht zeigt also, wie die Polizei diese Ereignisse liest, nicht eine neutrale Aufzeichnung."
+  },
+  {
+    "id": "disability",
+    "label": "Disability",
+    "labelDe": "Behinderung",
+    "filters": { "text": "behindertenfeind" },
+    "highlightEn": "anti-disab,ableis",
+    "text": "{n} reports mention disability or ableism.",
+    "textDe": "{n} Meldungen erwähnen Behinderung oder Ableismus."
   },
   {
     "id": "swastikas",
