@@ -40,7 +40,8 @@ const OUT_DIR = path.join(__dirname, "../static/translations");
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 const providerArg = arg("provider");
 const DAYS = Number(arg("days")) || 0;
-const API_KEY = process.env.DEEPL_API_KEY;
+
+const API_KEY = process.env.DEEPL_API_KEY?.trim();
 const PROVIDER = providerArg || (API_KEY ? "deepl" : "ollama");
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e4b";
@@ -50,9 +51,9 @@ class QuotaExceeded extends Error {}
 // ── DeepL ─────────────────────────────────────────────────────
 const DEEPL_BATCH = 50; // DeepL's per-request text limit
 // Free-tier keys end in ":fx" and must hit the api-free host, not api.deepl.com.
-const API_HOST = API_KEY?.endsWith(":fx") ? "api-free.deepl.com" : "api.deepl.com";
+let API_HOST = API_KEY?.endsWith(":fx") ? "api-free.deepl.com" : "api.deepl.com";
 
-async function deeplBatch(texts) {
+async function deeplBatch(texts, retried = false) {
   const res = await fetch(`https://${API_HOST}/v2/translate`, {
     method: "POST",
     headers: {
@@ -64,6 +65,11 @@ async function deeplBatch(texts) {
   if (res.status === 456) throw new QuotaExceeded("DeepL quota used up");
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 403 && /wrong endpoint/i.test(body) && !retried) {
+      API_HOST = API_HOST === "api.deepl.com" ? "api-free.deepl.com" : "api.deepl.com";
+      console.warn(`  DeepL: wrong endpoint, switching to ${API_HOST}`);
+      return deeplBatch(texts, true);
+    }
     throw new Error(`DeepL ${res.status}: ${body.slice(0, 200)}`);
   }
   const data = await res.json();
