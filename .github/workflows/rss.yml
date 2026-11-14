@@ -2,24 +2,33 @@ name: Update and parse RSS feeds
 
 on:
   schedule:
-    - cron: "0 */24 * * *"
+    - cron: "7 * * * *" # hourly (off the :00 mark, when GitHub's scheduler is busiest)
   workflow_dispatch:
 
-# so gh-pages can push
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: rss-update
+  cancel-in-progress: false
 
 jobs:
   update-and-parse-rss:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
 
       - name: Install dependencies
         run: |
@@ -34,25 +43,51 @@ jobs:
       - name: Filter by categories
         run: python pipeline/filter.py
 
+      # Stop here on runs that found nothing new: no translation, commit or deploy.
+      - name: Check for new data
+        id: diff
+        run: |
+          if [ -n "$(git status --porcelain pipeline/data static/all_merged.csv)" ]; then
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No new data."
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node
+        if: steps.diff.outputs.new == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install Node dependencies
+        if: steps.diff.outputs.new == 'true'
         run: npm ci
 
       - name: Translate new entries
+        if: steps.diff.outputs.new == 'true'
         continue-on-error: true
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
         run: node pipeline/translate.mjs --days=30
 
       - name: Commit and push changes
+        id: commit
+        if: steps.diff.outputs.new == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add pipeline/data static/all_merged.csv static/translations
-          git commit -m "Update and parse RSS feeds" || echo "No changes to commit"
-          git push
+          if git commit -m "Update and parse RSS feeds"; then
+            git pull --rebase
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Pushes made with GITHUB_TOKEN don't trigger other workflows, so deploy explicitly.
+  deploy:
+    needs: update-and-parse-rss
+    if: needs.update-and-parse-rss.outputs.changed == 'true'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

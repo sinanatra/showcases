@@ -4,32 +4,25 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Update and parse RSS feeds"]
-    types: [completed]
+  workflow_call:
 
 permissions:
-  contents: write  
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    if: >-
-      ${{
-        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'push' && github.actor != 'github-actions[bot]')
-      }}
+  build:
     runs-on: ubuntu-latest
-    concurrency:
-      group: gh-pages-deploy
-      cancel-in-progress: false
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -42,30 +35,21 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install
 
-      - name: Configure git author
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Precompute new translations
-        continue-on-error: true
-        env:
-          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-        run: node pipeline/translate.mjs --days=30
-
-      - name: Commit new translations
-        continue-on-error: true
-        run: |
-          git add static/translations
-          git commit -m "Precompute new translations" || echo "No changes to commit"
-          git push
-
       - name: Build site
         run: npm run build
 
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx gh-pages -d build --dotfiles --cname showcases.giacomo.website \
-            -r https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
+        id: deployment
+        uses: actions/deploy-pages@v4
